@@ -57,6 +57,8 @@ def detect_circles(img, plot=True):
                     minDist = 100, 
                     param1 = 30, param2 = 50, 
                     minRadius = r_min, maxRadius = r_max) 
+    print(detected_circles)
+    print(type(detected_circles))
     
     # Extract center points
     center_points = []
