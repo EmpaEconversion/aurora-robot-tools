@@ -95,7 +95,7 @@ class TRANSFORM:
             # Save the transformed_image to an HDF5 file
             p = self.savepath + f"/{name.split(".")[0]}.h5"
             with h5py.File(p, 'w') as h5_file:
-                h5_file.create_dataset('transformed', data=transformed_image)
+                h5_file.create_dataset('image', data=transformed_image)
 
         return transformed_images
 

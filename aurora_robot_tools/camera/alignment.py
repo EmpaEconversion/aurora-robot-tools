@@ -6,6 +6,7 @@ Script to read in images from folder and detect circles
 
 import cv2
 import os
+import math
 import numpy as np
 import pandas as pd
 import h5py
@@ -20,10 +21,10 @@ class ALIGNMENT:
         self.df_images = pd.DataFrame(columns=["batch", "step", "content", 
                                                "c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl",
                                                "r_c0", "r_c1", "r_c2", "r_c3", "r_c4", "r_c5",
-                                               "c0_pxl/mm", "c1_pxl/mm", "c2_pxl/mm", "c3_pxl/mm", "c4_pxl/mm", "c5_pxl/mm"])
-        # 0:pressing tool, 1:bottom part, 2:anode, 3:separator, 4:electrolyte, 5:cathode, 6:spacer, 7:spring, 8:top part, 9:after pressing
-        self.r_min = {0: 210, 1: 200, 2: 140, 4: 170, 5: 170, 6: 125, 7: 140, 8: 140, 9: 140, 10: 160} # TODO: improve
-        self.r_max = {0: 265, 1: 250, 2: 180, 4: 190, 5: 190, 6: 168, 7: 198, 8: 175, 9: 185, 10: 190} # TODO: improve
+                                               "c0_align", "c1_align", "c2_align", "c3_align", "c4_align", "c5_align"])
+        # 0:pressing tool, 1:bottom part, 2:anode, 4:separator, 5:electrolyte, 6:cathode, 7:spacer, 8:spring, 9:top part, 10:after pressing
+        self.r_min = {0: 200, 1: 200, 2: 140, 4: 160, 5: 170, 6: 125, 7: 140, 8: 140, 9: 140, 10: 160} # TODO: improve
+        self.r_max = {0: 265, 1: 260, 2: 175, 4: 185, 5: 190, 6: 168, 7: 185, 8: 175, 9: 185, 10: 190} # TODO: improve
 
     # read images from folder ----------------------------------------------
     def read_files(self):
@@ -39,22 +40,18 @@ class ALIGNMENT:
                     batch = int(filename.split("_")[5].split(".")[0])
                     #print(batch)
                     with h5py.File(filepath, 'r') as f:
-                        content = f['image'][:] # TODO: Error!!
+                        content = f['image'][:] 
                         # convert to 8 bit
                         content = content/np.max(content)*255
                         content = content.astype(np.uint8)
                         self.df_images = self.df_images._append({"batch": batch, "step": step, "content": content, 
                                             "c0_pxl": "NaN", "c1_pxl": "NaN", "c2_pxl": "NaN", "c3_pxl": "NaN", "c4_pxl": "NaN", "c5_pxl": "NaN",
                                             "r_c0": "NaN", "r_c1": "NaN", "r_c2": "NaN", "r_c3": "NaN", "r_c4": "NaN", "r_c5": "NaN",
-                                            "c0_pxl/mm": "NaN", "c1_pxl/mm": "NaN", "c2_pxl/mm": "NaN", "c3_pxl/mm": "NaN", "c4_pxl/mm": "NaN", "c5_pxl/mm": "NaN"}, 
+                                            "c0_align": "NaN", "c1_align": "NaN", "c2_align": "NaN", "c3_align": "NaN", "c4_align": "NaN", "c5_align": "NaN"}, 
                                             ignore_index=True) 
                 except:
                     print(f"\n file name not valid: {filename}")
         return self.df_images
-        
-    # read information from data base if not included in file name ----------------------------------------------
-    def read_database(self):
-        print("\n reading SQL data base")
 
     # detect circles ----------------------------------------------
     def detect_circles(self):
@@ -82,7 +79,7 @@ class ALIGNMENT:
                         elif (circle[0] > 2600) & (circle[0] < 2760):
                             self.df_images._set_value(index, 'c4_pxl', [circle[0], circle[1]])
                             self.df_images._set_value(index, 'r_c4', circle[2])
-                        elif (circle[0] > 4730) & (circle[0] < 4950):
+                        elif (circle[0] > 4600) & (circle[0] < 5100):
                             self.df_images._set_value(index, 'c5_pxl', [circle[0], circle[1]])
                             self.df_images._set_value(index, 'r_c5', circle[2])
                         else: 
@@ -98,7 +95,7 @@ class ALIGNMENT:
                         elif (circle[0] > 2600) & (circle[0] < 2760):
                             self.df_images._set_value(index, 'c1_pxl', [circle[0], circle[1]])
                             self.df_images._set_value(index, 'r_c1', circle[2])
-                        elif (circle[0] > 4730) & (circle[0] < 4950):
+                        elif (circle[0] > 4600) & (circle[0] < 5100):
                             self.df_images._set_value(index, 'c2_pxl', [circle[0], circle[1]])
                             self.df_images._set_value(index, 'r_c2', circle[2])
                         else: 
@@ -126,6 +123,26 @@ class ALIGNMENT:
                 cv2.imwrite(self.path + f"/detected_circles/centers_step{row["step"]}_batch{row["batch"]}.jpg", resized_img) # Save the image with detected circles
 
         return self.df_images
+    
+    def alignment_number(self):
+        references_df = self.df_images[self.df_images['step'] == 0][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist() # TODO: naming to list
+
+        for index, row in self.df_images.iterrows():
+            b = int(row["batch"])
+            s = int(row["step"])
+            ref = self.df_images[(self.df_images['step'] == 0) & (self.df_images['batch'] == b)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
+            if s == 0:
+                for position in range(6): # set reference position to zero
+                    self.df_images._set_value(index, f'c{position}_align', ([0, 0], 0)) # coordinate, alignment number
+            else:
+                coords = self.df_images[(self.df_images['step'] == s) & (self.df_images['batch'] == b)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
+                difference = [[abs(int(a) - int(b)) for a, b in zip(row1, row2)] for row1, row2 in zip(ref, coords)]  # TODO: Error
+                for position in range(6): # deviation from reference position
+                    x = difference[position][0]
+                    y = difference[position][1]
+                    self.df_images._set_value(index, f'c{position}_align', ([x, y], math.sqrt(x**2 + y**2))) # coordinate, alignment number  
+
+        return self.df_images
         
     # convert pixel to mm ----------------------------------------------
     def pixel_to_mm(self):
@@ -149,6 +166,7 @@ path = "G:/Limit/Lina Scholz/robot_files_20241004/transformed"
 obj = ALIGNMENT(path)
 imgages = obj.read_files() # list with all images given as a list of the following: batch, step, array
 centers = obj.detect_circles() # add detected center points to images data frame
+alignment = obj.alignment_number()
 
 #%% CHECK
 
@@ -158,6 +176,6 @@ print(centers.head())
 
 if not os.path.exists(path + "/data"):
     os.makedirs(path + "/data")
-centers.to_excel(path + "/data/data.xlsx")
+alignment.to_excel(path + "/data/data.xlsx")
 
 
