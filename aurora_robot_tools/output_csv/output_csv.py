@@ -10,11 +10,19 @@ DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
 
 DEFAULT_OUTPUT_FILEPATH = "%userprofile%\\Desktop\\Outputs"
 
+# Get Run ID from the settings table
+with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
+    run_id = cursor.fetchone()[0]
+
+# Open file dialog to set the output file path
 Tk().withdraw()  # to hide the main window
 output_filepath = filedialog.asksaveasfilename(
-    initialdir = DEFAULT_OUTPUT_FILEPATH,
     title = "Export chemspeed.db to .csv",
-    filetypes = [("csv files", "*.csv")]
+    filetypes = [("csv files", "*.csv")],
+    initialdir=DEFAULT_OUTPUT_FILEPATH,
+    initialfile=f"{run_id}.csv"
 )
 if not output_filepath:
     print('No output file selected - not updating the database.')
@@ -63,7 +71,7 @@ column_conversion = {
 
 with sqlite3.connect(DATABASE_FILEPATH) as conn:
     # Get cell assembly table for finished cells
-    df = pd.read_sql("SELECT * FROM Cell_Assembly_Table WHERE `Last Completed Step` >= 10", conn)
+    df = pd.read_sql("SELECT * FROM Cell_Assembly_Table WHERE `Last Completed Step` >= 10 AND `Error Code` = 0", conn)
     # If df is empty (no finished cells), exit
     if df.empty:
         print("No finished cells found in database.")
@@ -77,21 +85,17 @@ with sqlite3.connect(DATABASE_FILEPATH) as conn:
                 * df[f"{xode} Active Material Weight Fraction"]
             )
 
-    # Get base sample ID from settings table, add to df
-    df_settings = pd.read_sql("SELECT * FROM Settings_Table", conn)
-    base_sample_id = df_settings.loc[df_settings["key"] == "Base Sample ID", "value"].values[0]
-    df["Run ID"] = base_sample_id
-
+    # Add Run ID to dataframe
+    df["Run ID"] = run_id
     # Remove Current Press Number and Error Code columns
     df = df.drop(columns=["Current Press Number", "Error Code"])
-
     # Get timestamp table, pivot so step numbers are columns, merge with cell assembly table
     df_timestamp = pd.read_sql("SELECT * FROM Timestamp_Table", conn)
     # Remove rows with the same cell number and step number, keep the latest timestamp
     df_timestamp = df_timestamp.sort_values("Timestamp", ascending=False).drop_duplicates(["Cell Number", "Step Number"])
     df_timestamp = df_timestamp.pivot(index="Cell Number", columns="Step Number", values="Timestamp")
     df_timestamp.columns = [f"Timestamp Step {col}" for col in df_timestamp.columns]
-    df = pd.merge(df, df_timestamp, on="Cell Number") # INNER merge
+    df = pd.merge(df, df_timestamp, on="Cell Number", how="left") # LEFT merge
     df.to_csv(output_filepath, index=False, sep=";")
 
     # Create a csv file that can be read by AiiDA
