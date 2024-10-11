@@ -39,7 +39,7 @@ class ALIGNMENT:
                     batch = int(filename.split("_")[5].split(".")[0])
                     #print(batch)
                     with h5py.File(filepath, 'r') as f:
-                        content = f['image'][:]
+                        content = f['image'][:] # TODO: Error!!
                         # convert to 8 bit
                         content = content/np.max(content)*255
                         content = content.astype(np.uint8)
@@ -143,7 +143,7 @@ class ALIGNMENT:
 #%% RUN CODE
 
 # PARAMETER
-path = "G:/Limit/Lina Scholz/robot_files_20241004"
+path = "G:/Limit/Lina Scholz/robot_files_20241004/transformed"
 
 # EXECUTE
 obj = ALIGNMENT(path)
