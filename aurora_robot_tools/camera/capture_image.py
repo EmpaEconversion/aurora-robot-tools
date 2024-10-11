@@ -12,6 +12,7 @@ import numpy as np
 import gxipy as gx
 from time import sleep
 import h5py
+import sqlite3
 
 # get argument from command line
 if len(sys.argv) > 1:
@@ -23,8 +24,9 @@ if len(sys.argv) > 1:
 else:
     step = datetime.now().strftime('%H%M%S')
 
-IMAGE_FOLDER = "C:/Aurora_images/"
-PICKLE_FOLDER = "C:/Aurora_images/raw/"
+IMAGE_FOLDER = f"C:/Aurora_images/{run_id}"
+PICKLE_FOLDER = f"C:/Aurora_images/{run_id}/raw/"
+DATABASE_FILEPATH = '' # TODO: What is the path to the data base?
 
 # if folder doesn't exist, create it
 if not os.path.exists(IMAGE_FOLDER):
@@ -85,6 +87,18 @@ for i in range(500):
 numpy_image_8bit = (numpy_image >> 4).astype(np.uint8)
 im = Image.fromarray(numpy_image_8bit)
 
+# Get the cell numbers current in the presses
+with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT `Cell Number`, `Current Press Number` FROM Cell_Assembly_Table WHERE `Current Press Number` > 0")
+    result = cursor.fetchall()
+# looks like ((1,1),(2,4),(3,5))
+cell_numbers = [x[0] for x in result]
+press_numbers = [x[1] for x in result]
+
+# --------------------------------------- work on this part
+# TODO: check which type of data format to use, check naming (numbers from 0 to 99)
+
 # Check if filename already exists and add a number to it, save as png
 base_path = os.path.join(IMAGE_FOLDER, run_id)
 i = 1
@@ -103,6 +117,8 @@ while os.path.exists(base_path, filename + ".h5"):
     i += 1
 with h5py.File(PICKLE_FOLDER + filename + ".h5", 'w') as f:
     f.create_dataset('image', data=numpy_image, compression='gzip', compression_opts=9)
+
+# ---------------------------------------
 
 # Stop data acquisition
 cam.stream_off()
