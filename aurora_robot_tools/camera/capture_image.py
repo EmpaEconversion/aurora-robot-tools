@@ -26,7 +26,7 @@ else:
 
 IMAGE_FOLDER = f"C:/Aurora_images/{run_id}"
 PICKLE_FOLDER = f"C:/Aurora_images/{run_id}/raw/"
-DATABASE_FILEPATH = '' # TODO: What is the path to the data base?
+DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
 
 # if folder doesn't exist, create it
 if not os.path.exists(IMAGE_FOLDER):
@@ -93,35 +93,32 @@ with sqlite3.connect(DATABASE_FILEPATH) as conn:
     cursor.execute("SELECT `Cell Number`, `Current Press Number` FROM Cell_Assembly_Table WHERE `Current Press Number` > 0")
     result = cursor.fetchall()
 # looks like ((1,1),(2,4),(3,5))
-cell_numbers = [x[0] for x in result]
-press_numbers = [x[1] for x in result]
+cell_nums = [x[0] for x in result]
+press_nums = [x[1] for x in result]
 
-# --------------------------------------- work on this part
-# TODO: check which type of data format to use, check naming (numbers from 0 to 99)
+# naming scheme of image files
+filename = filename = "_".join([f"p{press:02d}c{cell:02d}s{step}" for press, cell in zip(press_nums, cell_nums)])
 
 # Check if filename already exists and add a number to it, save as png
-base_path = os.path.join(IMAGE_FOLDER, run_id)
+base_path = os.path.join(IMAGE_FOLDER)
 i = 1
-filename = step
 while os.path.exists(base_path, filename + ".png"):
-    filename = step + "_" + str(i)
+    filename = filename + "_" + str(i)
     i += 1
 im.save(IMAGE_FOLDER + filename + ".png")
 
 # Also save raw 12-bit numpy array in HDF5 format with compression
 base_path = os.path.join(PICKLE_FOLDER, run_id)
 i = 1
-filename = step
 while os.path.exists(base_path, filename + ".h5"):
-    filename = step + "_" + str(i)
+    filename = filename + "_" + str(i)
     i += 1
 with h5py.File(PICKLE_FOLDER + filename + ".h5", 'w') as f:
     f.create_dataset('image', data=numpy_image, compression='gzip', compression_opts=9)
-
-# ---------------------------------------
 
 # Stop data acquisition
 cam.stream_off()
 
 # Close connection
 cam.close_device()
+
