@@ -26,14 +26,6 @@ class ALIGNMENT:
         self.r_min = {0: 200, 1: 200, 2: 140, 4: 160, 5: 170, 6: 125, 7: 140, 8: 140, 9: 140, 10: 160} # TODO: improve
         self.r_max = {0: 265, 1: 260, 2: 175, 4: 185, 5: 190, 6: 168, 7: 185, 8: 175, 9: 185, 10: 190} # TODO: improve
 
-    def try_calculation(a, b):
-        try:
-            int(a)
-            int(b)
-            return True
-        except ValueError:
-            return False
-
     # read images from folder ----------------------------------------------
     def read_files(self):
         print("\n read images from folder")
