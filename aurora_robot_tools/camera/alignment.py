@@ -26,6 +26,14 @@ class ALIGNMENT:
         self.r_min = {0: 200, 1: 200, 2: 140, 4: 160, 5: 170, 6: 125, 7: 140, 8: 140, 9: 140, 10: 160} # TODO: improve
         self.r_max = {0: 265, 1: 260, 2: 175, 4: 185, 5: 190, 6: 168, 7: 185, 8: 175, 9: 185, 10: 190} # TODO: improve
 
+    def try_calculation(a, b):
+        try:
+            int(a)
+            int(b)
+            return True
+        except ValueError:
+            return False
+
     # read images from folder ----------------------------------------------
     def read_files(self):
         print("\n read images from folder")
@@ -45,7 +53,7 @@ class ALIGNMENT:
                         content = content/np.max(content)*255
                         content = content.astype(np.uint8)
                         self.df_images = self.df_images._append({"batch": batch, "step": step, "content": content, 
-                                            "c0_pxl": "NaN", "c1_pxl": "NaN", "c2_pxl": "NaN", "c3_pxl": "NaN", "c4_pxl": "NaN", "c5_pxl": "NaN",
+                                            "c0_pxl": [0, 0], "c1_pxl": [0, 0], "c2_pxl": [0, 0], "c3_pxl": [0, 0], "c4_pxl": [0, 0], "c5_pxl": [0, 0],
                                             "r_c0": "NaN", "r_c1": "NaN", "r_c2": "NaN", "r_c3": "NaN", "r_c4": "NaN", "r_c5": "NaN",
                                             "c0_align": "NaN", "c1_align": "NaN", "c2_align": "NaN", "c3_align": "NaN", "c4_align": "NaN", "c5_align": "NaN"}, 
                                             ignore_index=True) 
@@ -125,30 +133,35 @@ class ALIGNMENT:
         return self.df_images
     
     def alignment_number(self):
-        references_df = self.df_images[self.df_images['step'] == 0][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist() # TODO: naming to list
-
+        print("determine alignment in pixel")
+        self.references = []
         for index, row in self.df_images.iterrows():
-            b = int(row["batch"])
+            btch = int(row["batch"])
             s = int(row["step"])
-            ref = self.df_images[(self.df_images['step'] == 0) & (self.df_images['batch'] == b)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
+            ref = self.df_images[(self.df_images['step'] == 0) & (self.df_images['batch'] == btch)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
             if s == 0:
+                self.references.append((btch, ref))
                 for position in range(6): # set reference position to zero
-                    self.df_images._set_value(index, f'c{position}_align', ([0, 0], 0)) # coordinate, alignment number
+                    self.df_images._set_value(index, f'c{position}_align', (0, 0, 0)) # coordinate, alignment number
             else:
-                coords = self.df_images[(self.df_images['step'] == s) & (self.df_images['batch'] == b)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
+                coords = self.df_images[(self.df_images['step'] == s) & (self.df_images['batch'] == btch)][["c0_pxl", "c1_pxl", "c2_pxl", "c3_pxl", "c4_pxl", "c5_pxl"]].values.tolist()[0]
                 difference = [[abs(int(a) - int(b)) for a, b in zip(row1, row2)] for row1, row2 in zip(ref, coords)]  # TODO: Error
+                # difference = [[abs(int(a) - int(b)) if b!="NaN" else 1000 for a, b in zip(row1, row2)] for row1, row2 in zip(ref, coords)]
                 for position in range(6): # deviation from reference position
                     x = difference[position][0]
                     y = difference[position][1]
-                    self.df_images._set_value(index, f'c{position}_align', ([x, y], math.sqrt(x**2 + y**2))) # coordinate, alignment number  
-
+                    self.df_images._set_value(index, f'c{position}_align', (x, y, math.sqrt(x**2 + y**2))) # coordinate, alignment number  
         return self.df_images
+    
+    def plot_alignment(self):
+        fig, ax = plt.subplots(layout="tight")
+        return
         
     # convert pixel to mm ----------------------------------------------
     def pixel_to_mm(self):
         print("\n getting pixel coordinates and transform to mm")
-        a_mm = c_mm = 100 # mm
-        b_mm = d_mm = 190 # mm
+        a_mm = 100 # mm
+        b_mm = 190 # mm
 
         # TODO
         # filter for step 0 
