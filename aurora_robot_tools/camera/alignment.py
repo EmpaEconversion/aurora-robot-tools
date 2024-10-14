@@ -30,8 +30,6 @@ class ALIGNMENT:
     def read_files(self):
         print("\n read images from folder")
         for filename in os.listdir(self.path):
-            #print(filename)
-            #print(type(filename))
             if filename.endswith('.h5'):
                 filepath = os.path.join(self.path, filename)
                 try:
@@ -71,7 +69,7 @@ class ALIGNMENT:
                 detected_circles = np.uint16(np.around(detected_circles))
                 for circle in detected_circles[0, :]:
                     # assign circle pressing tool
-                    # TODO: constrain more to avoid too many circles
+                    # constrain to avoid too many circles
                     if (circle[1] > 2850) & (circle[1] < 3000):
                         if (circle[0] < 600) & (circle[0] > 400):
                             self.df_images._set_value(index, 'c3_pxl', [circle[0], circle[1]])  # (x, y) coordinates
@@ -144,23 +142,6 @@ class ALIGNMENT:
                     y = difference[position][1]
                     self.df_images._set_value(index, f'c{position}_align', (x, y, math.sqrt(x**2 + y**2))) # coordinate, alignment number  
         return self.df_images
-    
-    def plot_alignment(self):
-        fig, ax = plt.subplots(layout="tight")
-        return
-        
-    # convert pixel to mm ----------------------------------------------
-    def pixel_to_mm(self):
-        print("\n getting pixel coordinates and transform to mm")
-        a_mm = 100 # mm
-        b_mm = 190 # mm
-
-        # TODO
-        # filter for step 0 
-        # determine conversion of pxl to mm for each point
-        
-    def consider_height(self):
-        print("\n account for height of parts which changes the position of the center for the pressing tools which are not directly below the camera")
 
 #%% RUN CODE
 
