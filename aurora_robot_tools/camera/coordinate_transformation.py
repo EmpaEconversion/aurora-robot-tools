@@ -1,4 +1,7 @@
+"""
+Script to read in images from folder and transform warped rectangle in straight rectangle
 
+"""
 
 import h5py
 import math
@@ -13,10 +16,10 @@ from matplotlib.patches import Rectangle
 
 class TRANSFORM:
     def __init__(self, folderpath, savepath):
-        self.savepath = savepath
         self.folderpath = folderpath
+        self.savepath = savepath
 
-    # read files (images) from folder
+    # read files (images) from folder ----------------------------------------------
     def load_files(self):
         print("load files")
         self.data_list = []
@@ -30,26 +33,27 @@ class TRANSFORM:
                     content = content/np.max(content)*255
                     content = content.astype(np.uint8)
                     try:
-                        if int(filename.split("_")[3]) == 0: # only load images from first step as reference
+                        if int(filename.split("_")[0].split("s")[1]) == 0: # only load images from first step as reference
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
                     except:
                         print(f"wrong file name: {filename}")
         return self.data_list
     
-    # get reference coordinates
+    # get reference coordinates ----------------------------------------------
     def get_reference(self):
         print("get reference coordinates")
         self.ref = []
         for name, img in self.reference:
+            img = cv2.convertScaleAbs(img, alpha=3, beta=0) # increase contrast
             img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
-                # Apply Hough transform
+            # Apply Hough transform
             detected_circles = cv2.HoughCircles(img,  
                             cv2.HOUGH_GRADIENT, 
                             dp = 1, 
                             minDist = 100, 
                             param1 = 30, param2 = 50, 
-                            minRadius = 210, maxRadius = 265) # HARD CODED!!!
+                            minRadius = 210, maxRadius = 228) # HARD CODED!!!
             
             # Extract center points and their pressing tool position
             coords = []
@@ -59,14 +63,28 @@ class TRANSFORM:
                     center = (circle[0], circle[1])
                     coords.append(center)
             self.ref.append((name, coords))
+
+            # Draw all detected circles and save image to check quality of detection
+            for pt in detected_circles[0, :]:
+                a, b, r = pt[0], pt[1], pt[2]
+                cv2.circle(img, (a, b), r, (0, 0, 255), 10) # Draw the circumference of the circle
+                cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
+            desired_width = 1200 # Change image size
+            desired_height = 800
+            resized_img = cv2.resize(img, (desired_width, desired_height))
+            # if folder doesn't exist, create it
+            if not os.path.exists(self.savepath + "/reference_detected_circles"):
+                os.makedirs(self.savepath + "/reference_detected_circles")
+            cv2.imwrite(self.savepath + f"/reference_detected_circles/{name.split(".")[0]}.jpg", resized_img) # Save the image with detected circles
+
         return self.ref
 
     # transform warped rectangle to straight rectangle ----------------------------------------------
     def transform_pixel_coordinates(self):
         print("transform warped image in pixel coordinates")
         transformed_images = []
+        batch = 0
         for name, img in self.data_list:
-            batch = int(name.split("_")[5].split(".")[0])
             height, width = img.shape[:2] # determine size of image
 
             ctr = self.ref[batch][1]
@@ -92,33 +110,37 @@ class TRANSFORM:
             transformed_image = cv2.warpPerspective(img, M, (width, height))
             transformed_images.append(transformed_image)
 
+            # Save the transformed_image to jpg
+            if not os.path.exists(f'{self.savepath}/transformed_jpg'):
+                os.makedirs(f'{self.savepath}/transformed_jpg')
+            cv2.imwrite(f'{self.savepath}/transformed_jpg/{name.split(".")[0]}.jpg', transformed_image)
+
             # Save the transformed_image to an HDF5 file
             p = self.savepath + f"/{name.split(".")[0]}.h5"
             with h5py.File(p, 'w') as h5_file:
                 h5_file.create_dataset('image', data=transformed_image)
 
+            # update batch number in case batch is finished
+            print(name)
+            print(int(name.split("_")[0].split("s")[1]))
+            if int(name.split("_")[0].split("s")[1]) == 9: # check if last step (9) is reached
+                batch += 1
+
         return transformed_images
+        
 
 #%% RUN CODE
 
 # PARAMETER
 # path to files
-path = 'G:/Limit/Lina Scholz/robot_files_20241004'
+path = 'G:/Limit/Lina Scholz/robot_files_names'
 # path to store transformed images
-if not os.path.exists('G:/Limit/Lina Scholz/robot_files_20241004/transformed'):
-    os.makedirs('G:/Limit/Lina Scholz/robot_files_20241004/transformed')
-savepath = 'G:/Limit/Lina Scholz/robot_files_20241004/transformed'
+if not os.path.exists('G:/Limit/Lina Scholz/robot_files_names/transformed'):
+    os.makedirs('G:/Limit/Lina Scholz/robot_files_names/transformed')
+savepath = 'G:/Limit/Lina Scholz/robot_files_names/transformed'
 
 # EXECUTE
 obj = TRANSFORM(path, savepath)
 files = obj.load_files() # load all images from folder
 reference = obj.get_reference() # get center points from first step of assembly as reference
 transformed = obj.transform_pixel_coordinates() # transform pixel coordinates to get "rectangular shape"
-
-
-
-
-
-
-
-
