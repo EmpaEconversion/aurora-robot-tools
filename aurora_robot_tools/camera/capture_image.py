@@ -23,6 +23,7 @@ if len(sys.argv) > 1:
         run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
 else:
     step = datetime.now().strftime('%H%M%S')
+    run_id = "Unknown_run_id"
 
 IMAGE_FOLDER = f"C:/Aurora_images/{run_id}"
 PICKLE_FOLDER = f"C:/Aurora_images/{run_id}/raw/"
