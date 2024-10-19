@@ -21,10 +21,11 @@ class ALIGNMENT:
         self.df_images = pd.DataFrame(columns=["pos", "cell", 
                                                "s0_coords", "s1_coords", "s2_coords", "s3_coords", "s4_coords", "s5_coords", "s6_coords", "s7_coords", "s8_coords", "s9_coords", "s10_coords",
                                                "s0_r", "s1_r", "s2_r", "s3_r", "s4_r", "s5_r", "s6_r", "s7_r", "s8_r", "s9_r", "s10_r",
-                                               "s1_align", "s2_align", "s4_align", "s5_align", "s6_align", "s7_align", "s8_align", "s9_align", "s10_align"])
+                                               "s1_align", "s2_align", "s4_align", "s5_align", "s6_align", "s7_align", "s8_align", "s9_align", "s10_align",
+                                               "s1_align [mm]", "s2_align [mm]", "s4_align [mm]", "s5_align [mm]", "s6_align [mm]", "s7_align [mm]", "s8_align [mm]", "s9_align [mm]", "s10_align [mm]"])
         # 0:pressing tool, 1:bottom part, 2:anode, 4:separator, 5:electrolyte, 6:cathode, 7:spacer, 8:spring, 9:top part, 10:after pressing
-        self.r_min = {0: 200, 1: 200, 2: 145, 4: 160, 5: 170, 6: 135, 7: 140, 8: 140, 9: 140, 10: 160} # TODO: improve?
-        self.r_max = {0: 265, 1: 260, 2: 175, 4: 183, 5: 190, 6: 168, 7: 185, 8: 175, 9: 185, 10: 190} # TODO: improve?
+        self.r_min = {0: 200, 1: 200, 2: 145, 4: 160, 5: 170, 6: 140, 7: 150, 8: 140, 9: 140, 10: 160} # TODO: improve!
+        self.r_max = {0: 230, 1: 230, 2: 175, 4: 183, 5: 190, 6: 162, 7: 178, 8: 170, 9: 185, 10: 190} # TODO: improve!
 
     # read files in list ----------------------------------------------
     def read_files(self):
@@ -54,18 +55,23 @@ class ALIGNMENT:
             step = int(name.split("_")[0].split("s")[1])
             if step == 0: # assign position and cell number in data frame
                 img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
+                img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
                 string = name.split(".")[0]
                 for i in range(6):
                     positions.append(str(string.split("_")[i].split("c")[0][-2:]))
                     cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
             elif step == 2: # increase constrast for the anode
                 img = cv2.convertScaleAbs(img, alpha=3, beta=0) 
+                img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             elif step == 6: # no contrast change for cathode
-                pass
+                img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
+            elif step == 8:
+                img = cv2.convertScaleAbs(img, alpha=1, beta=0) # increase contrast for spring
+                # no gaussian blur for spring
             else:
                 img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
+                img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
 
-            img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             # Apply Hough transform
             detected_circles = cv2.HoughCircles(img,  
                             cv2.HOUGH_GRADIENT, 
@@ -82,8 +88,8 @@ class ALIGNMENT:
                 for circle in detected_circles[0, :]:
                     # assign circle pressing tool
                     # constrain to avoid too many circles
-                    if (circle[1] > 2850) & (circle[1] < 3000):
-                        if (circle[0] < 600) & (circle[0] > 400): # position 4
+                    if (circle[1] > 2800) & (circle[1] < 3050):
+                        if (circle[0] < 650) & (circle[0] > 350): # position 4
                             coords_buffer_list[3]= [circle[0], circle[1]]  # (x, y) coordinates
                             r_buffer_list[3] = circle[2] # radius
                         elif (circle[0] > 2600) & (circle[0] < 2760): # position 5
@@ -166,7 +172,7 @@ class ALIGNMENT:
             x_ref = row["s0_coords"][0]
             y_ref = row["s0_coords"][1]
             for i, col_name in enumerate(self.df_images.columns.tolist()[3:12]):
-                n = self.df_images.columns.tolist()[-9:][i] # column name of alignment entry
+                n = self.df_images.columns.tolist()[-18:][i] # column name of alignment entry
                 x = int(x_ref) - int(row[col_name][0])
                 y = int(y_ref) - int(row[col_name][1])
                 z = round(math.sqrt(x**2 + y**2), 1) # round number to one digit
@@ -175,9 +181,16 @@ class ALIGNMENT:
     
     # convert pixel to mm ----------------------------------------------
     def pixel_to_mm(self):
-         
+        pixel = (sum(self.df_images["s0_r"].to_list())/len(self.df_images["s0_r"].to_list()) * 2) # pixel
+        mm = 20 # mm
+        pixel_to_mm = mm/pixel
+        print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
 
-        return
+        for i in list(range(1, 11)):
+            if i != 3:
+                self.df_images[f"s{i}_align [mm]"] = [(round(x * pixel_to_mm, 3), round(y * pixel_to_mm, 3), round(z * pixel_to_mm, 3)) for x, y, z in self.df_images[f"s{i}_align"].to_list()]
+    
+        return self.df_images
      
 
 #%% RUN CODE
@@ -190,9 +203,11 @@ obj = ALIGNMENT(path)
 imgages = obj.read_files() # list with all images given as a list 
 images_detected = obj.get_coordinates() # get coordinates of all circles
 images_alignment = obj.alignment_number() # get alignment
+images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm # TODO: ERROR to debugg
 
 print(images_detected.head())
 print(images_alignment.head())
+print(images_alignment_mm.head())
 
 #%% SAVE
 
