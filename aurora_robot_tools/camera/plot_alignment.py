@@ -16,7 +16,7 @@ import matplotlib.patches as mpatches
 
 #%%
 
-save = False
+save = True
 path = "G:/Limit/Lina Scholz/robot_files_names/transformed"
 plot_path = "G:/Limit/Lina Scholz/robot_files_names/transformed/plots"
 df_images = pd.read_excel(f"{path}/data/data.xlsx")
