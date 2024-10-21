@@ -103,15 +103,15 @@ filename = filename = "_".join([f"p{press:02d}c{cell:02d}s{step}" for press, cel
 # Check if filename already exists and add a number to it, save as png
 base_path = os.path.join(IMAGE_FOLDER)
 i = 1
-while os.path.exists(base_path, filename + ".png"):
+while os.path.exists(os.path.join(base_path, filename + ".png")):
     filename = filename + "_" + str(i)
     i += 1
 im.save(IMAGE_FOLDER + filename + ".png")
 
 # Also save raw 12-bit numpy array in HDF5 format with compression
-base_path = os.path.join(PICKLE_FOLDER, run_id)
+base_path = os.path.join(PICKLE_FOLDER)
 i = 1
-while os.path.exists(base_path, filename + ".h5"):
+while os.path.exists(os.path.join(base_path, filename + ".h5")):
     filename = filename + "_" + str(i)
     i += 1
 with h5py.File(PICKLE_FOLDER + filename + ".h5", 'w') as f:
