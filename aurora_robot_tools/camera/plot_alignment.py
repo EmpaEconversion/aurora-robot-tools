@@ -64,7 +64,7 @@ if save:
     unique_filename = "anode_vs_cathode.png"
     i = 0
     while os.path.exists(plot_path + "/" + unique_filename):
-        unique_filename = f"{unique_filename}_{i}"
+        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
         i += 1
     # create path if not existing
     if not os.path.exists(plot_path):
@@ -135,7 +135,7 @@ if save:
     unique_filename = "anode_vs_cathode_circles.png"
     i = 0
     while os.path.exists(plot_path + "/" + unique_filename):
-        unique_filename = f"{unique_filename}_{i}.png"
+        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
         i += 1
     # create path if not existing
     if not os.path.exists(plot_path):
@@ -146,7 +146,7 @@ if save:
 #%% XXX INPUT VS PRESSING TOOL
 
 input = 7
-name = "Spring"
+name = "spring"
 string = f"s{input}_align [mm]"
 
 fig, ax = plt.subplots(layout="tight", figsize=(16, 10))
@@ -177,7 +177,7 @@ if save:
     unique_filename = f"{name}_vs_origin.png"
     i = 0
     while os.path.exists(plot_path + "/" + unique_filename):
-        unique_filename = f"{unique_filename}_{i}.png"
+        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
         i += 1
     # create path if not existing
     if not os.path.exists(plot_path):
@@ -251,7 +251,7 @@ if save:
     unique_filename = f"{name}_vs_origin_circles.png"
     i = 0
     while os.path.exists(plot_path + "/" + unique_filename):
-        unique_filename = f"{unique_filename}_{i}.png"
+        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
         i += 1
     # create path if not existing
     if not os.path.exists(plot_path):
