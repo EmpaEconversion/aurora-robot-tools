@@ -98,7 +98,7 @@ cell_nums = [x[0] for x in result]
 press_nums = [x[1] for x in result]
 
 # naming scheme of image files
-filename = filename = "_".join([f"p{press:02d}c{cell:02d}s{step}" for press, cell in zip(press_nums, cell_nums)])
+filename = "_".join([f"p{press:02d}c{cell:02d}s{step}" for press, cell in zip(press_nums, cell_nums)])
 
 # Check if filename already exists and add a number to it, save as png
 base_path = os.path.join(IMAGE_FOLDER)
