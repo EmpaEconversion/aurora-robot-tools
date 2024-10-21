@@ -46,6 +46,7 @@ class ALIGNMENT:
     
     # get circle coordinates ----------------------------------------------
     def get_coordinates(self):
+        print("\n detect circles and get circle coordinates")
         positions = [] # create lists & dictionaries to store informaiton
         cell_numbers = []
         coordinates = {0: [], 1: [], 2: [], 4: [], 5:[], 6: [], 7: [], 8: [], 9: [], 10:[]} # stores coordinates for all steps
@@ -181,15 +182,19 @@ class ALIGNMENT:
     
     # convert pixel to mm ----------------------------------------------
     def pixel_to_mm(self):
+        print("\n convert pixel values to mm")
         pixel = (sum(self.df_images["s0_r"].to_list())/len(self.df_images["s0_r"].to_list()) * 2) # pixel
         mm = 20 # mm
         pixel_to_mm = mm/pixel
         print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
-
+        # missalignment to mm
         for i in list(range(1, 11)):
             if i != 3:
                 self.df_images[f"s{i}_align [mm]"] = [(round(x * pixel_to_mm, 3), round(y * pixel_to_mm, 3), round(z * pixel_to_mm, 3)) for x, y, z in self.df_images[f"s{i}_align"].to_list()]
-    
+        # radius to mm
+        for i in list(range(0, 11)):
+            if i != 3:
+                self.df_images[f"s{i}_r [mm]"] = [round(r * pixel_to_mm, 3) for r in self.df_images[f"s{i}_r"].to_list()]
         return self.df_images
      
 
@@ -203,7 +208,7 @@ obj = ALIGNMENT(path)
 imgages = obj.read_files() # list with all images given as a list 
 images_detected = obj.get_coordinates() # get coordinates of all circles
 images_alignment = obj.alignment_number() # get alignment
-images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm # TODO: ERROR to debugg
+images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm 
 
 print(images_detected.head())
 print(images_alignment.head())
