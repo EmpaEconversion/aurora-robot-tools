@@ -103,6 +103,9 @@ class TRANSFORM:
                             if 0.9 < aspect_ratio < 1.1 and 200 <= avg_radius <= 250:
                                 coords.append((ellipse[0], avg_radius))
                                 cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
+                                # Draw the center point
+                                center = (int(ellipse[0][0]), int(ellipse[0][1]))  # Convert center coordinates to integers
+                                cv2.circle(img, center, 5, (0, 255, 0), -1)
                 
                 # Filter out similar ellipses
                 filtered_ellipses = []
