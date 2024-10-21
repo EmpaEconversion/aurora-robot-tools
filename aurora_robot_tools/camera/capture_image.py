@@ -25,7 +25,7 @@ else:
     step = datetime.now().strftime('%H%M%S')
     run_id = datetime.today().strftime('%Y-%m-%d') # if no run_id, get date of today
 
-IMAGE_FOLDER = f"C:/Aurora_images/{run_id}"
+IMAGE_FOLDER = f"C:/Aurora_images/{run_id}/"
 PICKLE_FOLDER = f"C:/Aurora_images/{run_id}/raw/"
 DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
 
