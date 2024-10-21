@@ -24,8 +24,8 @@ class ALIGNMENT:
                                                "s1_align", "s2_align", "s4_align", "s5_align", "s6_align", "s7_align", "s8_align", "s9_align", "s10_align",
                                                "s1_align [mm]", "s2_align [mm]", "s4_align [mm]", "s5_align [mm]", "s6_align [mm]", "s7_align [mm]", "s8_align [mm]", "s9_align [mm]", "s10_align [mm]"])
         # 0:pressing tool, 1:bottom part, 2:anode, 4:separator, 5:electrolyte, 6:cathode, 7:spacer, 8:spring, 9:top part, 10:after pressing
-        self.r_min = {0: 200, 1: 200, 2: 145, 4: 160, 5: 170, 6: 140, 7: 150, 8: 140, 9: 140, 10: 160} # TODO: improve!
-        self.r_max = {0: 230, 1: 230, 2: 175, 4: 183, 5: 190, 6: 162, 7: 178, 8: 170, 9: 185, 10: 190} # TODO: improve!
+        self.r_min = {0: 200, 1: 200, 2: 145, 4: 160, 5: 170, 6: 140, 7: 150, 8: 140, 9: 140, 10: 160} 
+        self.r_max = {0: 230, 1: 230, 2: 175, 4: 183, 5: 190, 6: 162, 7: 178, 8: 170, 9: 185, 10: 190} 
 
     # read files in list ----------------------------------------------
     def read_files(self):
