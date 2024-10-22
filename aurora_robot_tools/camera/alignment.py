@@ -62,12 +62,13 @@ class ALIGNMENT:
                     positions.append(str(string.split("_")[i].split("c")[0][-2:]))
                     cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
             elif step == 2: # increase constrast for the anode
-                img = cv2.convertScaleAbs(img, alpha=3, beta=0) 
+                img = cv2.convertScaleAbs(img, alpha=2, beta=0) 
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             elif step == 6: # no contrast change for cathode
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             elif step == 8:
-                img = cv2.convertScaleAbs(img, alpha=1, beta=0) # increase contrast for spring
+                pass
+                # no increased contrast for spring
                 # no gaussian blur for spring
             else:
                 img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
@@ -201,7 +202,7 @@ class ALIGNMENT:
 #%% RUN CODE
 
 # PARAMETER
-path = "G:/Limit/Lina Scholz/robot_files_names/transformed"
+path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed"
 
 # EXECUTE
 obj = ALIGNMENT(path)
