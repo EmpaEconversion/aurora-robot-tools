@@ -104,7 +104,7 @@ for i in range(grid_size):
             misalign_x, misalign_y = cat_missalign[j][i]
             misalign_radius = radii_cat[j][i]    
             # Second circle (misaligned by (misalign_x, misalign_y))
-            circle2 = plt.Circle((3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
+            circle2 = plt.Circle((3 * (i + 1) + misalign_x, 2 * (j + 1) - misalign_y), misalign_radius, color='red', fill=False) # minus missalign_y to reverse axis (from image to plot)
             # Add circles to plot
             ax.add_artist(circle1)
             ax.add_artist(circle2)
@@ -118,10 +118,13 @@ for i in range(grid_size):
 ax.set_xlim(0, 3 * grid_size + 3)
 ax.set_ylim(0, 2 * grid_size + 2)
 ax.set_aspect('equal')
+# Invert the y-axis so that it increases from top to bottom
+# ax.invert_yaxis()
 # Set axis labels from 1 to 6 at the correct positions
 ax.set_xticks([3, 6, 9, 12, 15, 18])
 ax.set_xticklabels(range(1, grid_size + 1))
 ax.set_yticks([2, 4, 6, 8, 10, 12])
+# ax.set_yticklabels(range(1, grid_size + 1)[::-1])  # Reverse the labels for the y-axis
 ax.set_yticklabels(range(1, grid_size + 1))
 ax.tick_params(axis='x', labelsize=14)
 ax.tick_params(axis='y', labelsize=14)
@@ -223,7 +226,7 @@ for i in range(grid_size):
             misalign_x, misalign_y = cat_missalign[j][i]
             misalign_radius = radii_part[j][i]    
             # Second circle (misaligned by (misalign_x, misalign_y))
-            circle2 = plt.Circle((4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
+            circle2 = plt.Circle((4 * (i + 1) + misalign_x, 3 * (j + 1) - misalign_y), misalign_radius, color='red', fill=False) # minus missalign_y to reverse axis (from image to plot)
             # Add circles to plot
             ax.add_artist(circle1)
             ax.add_artist(circle2)
