@@ -48,7 +48,7 @@ class TRANSFORM:
         for name, img in self.reference:
             img = cv2.convertScaleAbs(img, alpha=3, beta=0) # increase contrast
 
-            img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
+            # img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             
             if circle_detection:
                 # Apply Hough transform
@@ -185,11 +185,11 @@ class TRANSFORM:
 
 # PARAMETER
 # path to files
-path = 'G:/Limit/Lina Scholz/robot_files_names'
+path = 'G:/Limit/Lina Scholz/robot_files_20241022'
 # path to store transformed images
-if not os.path.exists('G:/Limit/Lina Scholz/robot_files_names/transformed'):
-    os.makedirs('G:/Limit/Lina Scholz/robot_files_names/transformed')
-savepath = 'G:/Limit/Lina Scholz/robot_files_names/transformed'
+if not os.path.exists('G:/Limit/Lina Scholz/robot_files_20241022/transformed'):
+    os.makedirs('G:/Limit/Lina Scholz/robot_files_20241022/transformed')
+savepath = 'G:/Limit/Lina Scholz/robot_files_20241022/transformed'
 
 # EXECUTE
 obj = TRANSFORM(path, savepath)
