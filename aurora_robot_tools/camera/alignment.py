@@ -67,8 +67,8 @@ class ALIGNMENT:
             elif step == 6: # no contrast change for cathode
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             elif step == 8:
-                pass
-                # no increased contrast for spring
+                img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
+                # no increased contrast for spring?? # TODO
                 # no gaussian blur for spring
             else:
                 img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
