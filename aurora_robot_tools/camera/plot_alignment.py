@@ -17,8 +17,8 @@ import matplotlib.patches as mpatches
 #%%
 
 save = True
-path = "G:/Limit/Lina Scholz/robot_files_names/transformed"
-plot_path = "G:/Limit/Lina Scholz/robot_files_names/transformed/plots"
+path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed"
+plot_path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed/plots"
 df_images = pd.read_excel(f"{path}/data/data.xlsx")
 
 #%% ANODE VS CATHODE
@@ -95,21 +95,24 @@ fig, ax = plt.subplots(figsize=(12, 10))
 # Loop over grid points and draw circles
 for i in range(grid_size):
     for j in range(grid_size):
-        # Get the base radius for each point
-        base_radius = radii_ano[j][i]
-        # First circle (centered at (i+1, j+1) because we want labels 1 to 6)
-        circle1 = plt.Circle((3* (i + 1), 2*(j + 1)), base_radius, color='blue', fill=False)
-        # Get the misalignment and radius for the second circle
-        misalign_x, misalign_y = cat_missalign[j][i]
-        misalign_radius = radii_cat[j][i]    
-        # Second circle (misaligned by (misalign_x, misalign_y))
-        circle2 = plt.Circle((3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
-        # Add circles to plot
-        ax.add_artist(circle1)
-        ax.add_artist(circle2)
-        # Plot points for the centers of both circles (smaller markers)
-        ax.plot(3 * (i + 1), 2 * (j + 1), 'bo', markersize=3)  # Anode circle center
-        ax.plot(3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+        try:
+            # Get the base radius for each point
+            base_radius = radii_ano[j][i]
+            # First circle (centered at (i+1, j+1) because we want labels 1 to 6)
+            circle1 = plt.Circle((3* (i + 1), 2*(j + 1)), base_radius, color='blue', fill=False)
+            # Get the misalignment and radius for the second circle
+            misalign_x, misalign_y = cat_missalign[j][i]
+            misalign_radius = radii_cat[j][i]    
+            # Second circle (misaligned by (misalign_x, misalign_y))
+            circle2 = plt.Circle((3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
+            # Add circles to plot
+            ax.add_artist(circle1)
+            ax.add_artist(circle2)
+            # Plot points for the centers of both circles (smaller markers)
+            ax.plot(3 * (i + 1), 2 * (j + 1), 'bo', markersize=3)  # Anode circle center
+            ax.plot(3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+        except:
+            print(f"no more circles in list to plot: batch {i}, pos {j}")
 
 # Set limits and aspect ratio
 ax.set_xlim(0, 3 * grid_size + 3)
@@ -211,21 +214,24 @@ fig, ax = plt.subplots(figsize=(12, 10))
 # Loop over grid points and draw circles
 for i in range(grid_size):
     for j in range(grid_size):
-        # Get the base radius for each point
-        base_radius = radii_tool[j][i]
-        # First circle (centered at (i+1, j+1) because we want labels 1 to 6)
-        circle1 = plt.Circle((4* (i + 1), 3*(j + 1)), base_radius, color='blue', fill=False)
-        # Get the misalignment and radius for the second circle
-        misalign_x, misalign_y = cat_missalign[j][i]
-        misalign_radius = radii_part[j][i]    
-        # Second circle (misaligned by (misalign_x, misalign_y))
-        circle2 = plt.Circle((4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
-        # Add circles to plot
-        ax.add_artist(circle1)
-        ax.add_artist(circle2)
-        # Plot points for the centers of both circles (smaller markers)
-        ax.plot(4 * (i + 1), 3 * (j + 1), 'bo', markersize=3)  # Anode circle center
-        ax.plot(4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+        try:
+            # Get the base radius for each point
+            base_radius = radii_tool[j][i]
+            # First circle (centered at (i+1, j+1) because we want labels 1 to 6)
+            circle1 = plt.Circle((4* (i + 1), 3*(j + 1)), base_radius, color='blue', fill=False)
+            # Get the misalignment and radius for the second circle
+            misalign_x, misalign_y = cat_missalign[j][i]
+            misalign_radius = radii_part[j][i]    
+            # Second circle (misaligned by (misalign_x, misalign_y))
+            circle2 = plt.Circle((4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y), misalign_radius, color='red', fill=False)
+            # Add circles to plot
+            ax.add_artist(circle1)
+            ax.add_artist(circle2)
+            # Plot points for the centers of both circles (smaller markers)
+            ax.plot(4 * (i + 1), 3 * (j + 1), 'bo', markersize=3)  # Anode circle center
+            ax.plot(4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+        except:
+            print(f"no more circles in list to plot: batch {i}, pos {j}")
 
 # Set limits and aspect ratio
 ax.set_xlim(0, 4 * grid_size + 4)
