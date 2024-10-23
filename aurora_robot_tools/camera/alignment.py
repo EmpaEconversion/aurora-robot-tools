@@ -53,14 +53,23 @@ class ALIGNMENT:
         radius = {0: [], 1: [], 2: [], 4: [], 5:[], 6: [], 7: [], 8: [], 9: [], 10:[]} # stores radius for all steps
 
         for name, img in self.data_list:
-            step = int(name.split("_")[0].split("s")[1])
+            try:
+                step = int(name.split("_")[0].split("s")[1])
+            except:
+                step = int(name.split(".")[0].split("s")[1])
+                print(f"fewer cells or wrong filename (check folder with files and their names): {name}")
             if step == 0: # assign position and cell number in data frame
                 img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
                 string = name.split(".")[0]
-                for i in range(6):
-                    positions.append(str(string.split("_")[i].split("c")[0][-2:]))
-                    cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
+                for i in range(len(string.split("_"))):
+                    if len(string.split("_")) > 1:
+                        positions.append(str(string.split("_")[i].split("c")[0][-2:]))
+                        cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
+                    else:
+                        print("only one cell in pressing tools")
+                        positions.append(str(string.split("c")[0][-2:]))
+                        cell_numbers.append(str(string.split("c")[1].split("s")[0]))
             elif step == 2: # increase constrast for the anode
                 img = cv2.convertScaleAbs(img, alpha=2, beta=0) 
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
@@ -173,8 +182,13 @@ class ALIGNMENT:
         for index, row in self.df_images.iterrows():
             x_ref = row["s0_coords"][0]
             y_ref = row["s0_coords"][1]
+
+            pos = row["pos"].astype(int)
+            # distortion_correction = [(), (), (), (), (), ()]
+
             for i, col_name in enumerate(self.df_images.columns.tolist()[3:12]):
                 n = self.df_images.columns.tolist()[-18:][i] # column name of alignment entry
+                step = n.split("_")[0].split("s")[1]
                 x = int(x_ref) - int(row[col_name][0])
                 y = int(y_ref) - int(row[col_name][1])
                 z = round(math.sqrt(x**2 + y**2), 1) # round number to one digit
@@ -202,7 +216,7 @@ class ALIGNMENT:
 #%% RUN CODE
 
 # PARAMETER
-path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed"
+path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed"
 
 # EXECUTE
 obj = ALIGNMENT(path)
