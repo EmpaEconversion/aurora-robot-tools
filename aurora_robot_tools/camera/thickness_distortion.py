@@ -70,12 +70,23 @@ pos4 = (3, 3)
 pos5 = (0, 3)
 pos6 = (2.5, 3)
 
+positions = [pos1, pos2, pos3, pos4, pos5, pos6]
+
 #%% CORRECT COORDINATE DATA BASE WITH OFFSET (bottom part, separator, spacer)
 
 # thickness in mm
-t_s1 = 0 # thickness bottom part # TODO
+t_s1 = 0.3 # thickness bottom part 
 t_s4 = 1.25 # thickness separator
 t_s7 = 1 # thickness spacer
 
-path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed"
-data = pd.read_excel(f"{path}/data/data.xlsx")
+# step 1:
+corr_s2 = [tuple(x * t_s1 for x in pos) for pos in positions]
+print(corr_s2)
+
+# step 4:
+corr_s4 = [tuple(x * t_s4 for x in pos) for pos in positions]
+print(corr_s4)
+
+# step 7:
+corr_s7 = [tuple(x * t_s7 for x in pos) for pos in positions]
+print(corr_s7)
