@@ -38,7 +38,10 @@ class TRANSFORM:
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
                     except:
-                        print(f"wrong file name: {filename}")
+                        if int(filename.split(".")[0].split("s")[1]) == 0: # only load images from first step as reference
+                            self.reference.append((filename, content))
+                        self.data_list.append((filename, content))
+                        print(f"fewer cells or wrong filename (check folder with files and their names): {filename}")
         return self.data_list
     
     # get reference coordinates ----------------------------------------------
@@ -100,7 +103,7 @@ class TRANSFORM:
                             # Calculate the average radius of the ellipse
                             avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
                             # Constrain to shapes that are slightly non-circular and within the radius range
-                            if 0.9 < aspect_ratio < 1.1 and 200 <= avg_radius <= 250:
+                            if 0.9 < aspect_ratio < 1.1 and 200 <= avg_radius <= 230:
                                 coords.append((ellipse[0], avg_radius))
                                 cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
                                 # Draw the center point
@@ -172,12 +175,6 @@ class TRANSFORM:
             with h5py.File(p, 'w') as h5_file:
                 h5_file.create_dataset('image', data=transformed_image)
 
-            # update batch number in case batch is finished
-            print(name)
-            print(int(name.split("_")[0].split("s")[1]))
-            if int(name.split("_")[0].split("s")[1]) == 9: # check if last step (9) is reached
-                batch += 1
-
         return transformed_images
         
 
@@ -185,11 +182,11 @@ class TRANSFORM:
 
 # PARAMETER
 # path to files
-path = 'G:/Limit/Lina Scholz/robot_files_20241022'
+path = 'G:/Limit/Lina Scholz/robot_files_gen14'
 # path to store transformed images
-if not os.path.exists('G:/Limit/Lina Scholz/robot_files_20241022/transformed'):
-    os.makedirs('G:/Limit/Lina Scholz/robot_files_20241022/transformed')
-savepath = 'G:/Limit/Lina Scholz/robot_files_20241022/transformed'
+if not os.path.exists('G:/Limit/Lina Scholz/robot_files_gen14/transformed'):
+    os.makedirs('G:/Limit/Lina Scholz/robot_files_gen14/transformed')
+savepath = 'G:/Limit/Lina Scholz/robot_files_gen14/transformed'
 
 # EXECUTE
 obj = TRANSFORM(path, savepath)
