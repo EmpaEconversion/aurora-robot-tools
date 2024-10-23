@@ -49,7 +49,7 @@ class TRANSFORM:
         print("get reference coordinates")
         self.ref = []
         for name, img in self.reference:
-            img = cv2.convertScaleAbs(img, alpha=3, beta=0) # increase contrast
+            img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
 
             # img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             
@@ -103,7 +103,7 @@ class TRANSFORM:
                             # Calculate the average radius of the ellipse
                             avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
                             # Constrain to shapes that are slightly non-circular and within the radius range
-                            if 0.9 < aspect_ratio < 1.1 and 200 <= avg_radius <= 230:
+                            if 0.9 < aspect_ratio < 1.1 and 205 <= avg_radius <= 240:
                                 coords.append((ellipse[0], avg_radius))
                                 cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
                                 # Draw the center point
@@ -116,7 +116,7 @@ class TRANSFORM:
                 for ellipse in coords:
                     (cx, cy), r = ellipse
                     # Check if the current circle is similar to any circle in the filtered list
-                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 1 and abs(r - fr) < 1 
+                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5 
                             for (fcx, fcy), fr in filtered_ellipses):
                         filtered_ellipses.append(ellipse)
                         center = (cx, cy)
@@ -174,6 +174,17 @@ class TRANSFORM:
             p = self.savepath + f"/{name.split(".")[0]}.h5"
             with h5py.File(p, 'w') as h5_file:
                 h5_file.create_dataset('image', data=transformed_image)
+
+            # update batch number in case batch is finished
+            print(name)
+            # print(int(name.split("_")[0].split("s")[1]))
+            try:
+                if int(name.split("_")[0].split("s")[1]) == 9: # check if last step (9) is reached
+                    batch += 1
+            except:
+                print("only one battery in pressing tools")
+                if int(name.split(".")[0].split("s")[1]) == 9: 
+                    batch += 1
 
         return transformed_images
         
