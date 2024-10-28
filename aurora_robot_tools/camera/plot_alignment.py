@@ -17,8 +17,8 @@ import matplotlib.patches as mpatches
 #%%
 
 save = True
-path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed"
-plot_path = "G:/Limit/Lina Scholz/robot_files_20241022/transformed/plots"
+path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed"
+plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed/plots"
 df_images = pd.read_excel(f"{path}/data/data.xlsx")
 
 #%% ANODE VS CATHODE
