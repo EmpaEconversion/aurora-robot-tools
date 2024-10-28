@@ -6,6 +6,7 @@ Script to read in images from folder and detect circles and their alignment
 import cv2
 import os
 import math
+import statistics
 import numpy as np
 import pandas as pd
 import h5py
@@ -107,23 +108,14 @@ class ALIGNMENT:
                             if "04" in current_positions:
                                 coords_buffer_dict[4] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[4] = circle[2] # radius
-                            #else: # no circle detected for this pressing tool position and part
-                            #    coords_buffer_dict[4] = [0, 0]
-                            #    r_buffer_dict[4] = 0
                         elif (circle[0] > 2600) & (circle[0] < 2760): # position 5
                             if "05" in current_positions:
                                 coords_buffer_dict[5] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[5] = circle[2] # radius
-                            #else: # no circle detected for this pressing tool position and part
-                            #    coords_buffer_dict[5] = [0, 0]
-                            #    r_buffer_dict[5] = 0
                         elif (circle[0] > 4600) & (circle[0] < 5100): # position 6
                             if "06" in current_positions:
                                 coords_buffer_dict[6] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[6] = circle[2] # radius
-                            #else: # no circle detected for this pressing tool position and part
-                            #    coords_buffer_dict[6] = [0, 0]
-                            #    r_buffer_dict[6] = 0
                         else: 
                             print(f"\n circle in lower row couldnt be assigned: ({circle[0]}, {circle[1]})")
                             # Create a mask that identifies incorrectly positioned circles to be remove
@@ -135,23 +127,14 @@ class ALIGNMENT:
                             if "01" in current_positions:
                                 coords_buffer_dict[1] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[1] = circle[2] # radius
-                            #else: # give number to remove this entry later before adding to dataframe
-                            #    coords_buffer_dict[1] = [0, 0]
-                            #    r_buffer_dict[1] = 0
                         elif (circle[0] > 2600) & (circle[0] < 2760): # position 2
                             if "02" in current_positions:    
                                 coords_buffer_dict[2] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[2] = circle[2] # radius
-                            #else: # give number to remove this entry later before adding to dataframe
-                            #    coords_buffer_dict[2] = [0, 0]
-                            #    r_buffer_dict[2] = 0
                         elif (circle[0] > 4600) & (circle[0] < 5100): # position 3
                             if "03" in current_positions:    
                                 coords_buffer_dict[3] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[3] = circle[2] # radius
-                            #else: # give number to remove this entry later before adding to dataframe
-                            #    coords_buffer_dict[3] = [0, 0]
-                            #    r_buffer_dict[3] = 0
                         else: 
                             print(f"\n circle in upper row couldnt be assigned: ({circle[0]}, {circle[1]})")
                             # Create a mask that identifies incorrectly positioned circles to be remove
@@ -236,12 +219,18 @@ class ALIGNMENT:
             y_ref = row["s0_coords"][1]
 
             # correct distortion for step 1, 4, 7 (bottom, separator, spacer)
-            # pos = row["pos"].astype(int)
-            # distortion_correction = [(), (), (), (), (), ()]
+            pos = row["pos"]
+            z_corr_1 = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)]
+            z_corr_4 = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)]
+            z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3), (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)]
 
             for i, col_name in enumerate(self.df_images.columns.tolist()[3:12]):
                 n = self.df_images.columns.tolist()[-18:][i] # column name of alignment entry
-                # step = n.split("_")[0].split("s")[1]
+
+                # correct for z distortion
+                step = n.split("_")[0].split("s")[1]
+
+
                 x = int(x_ref) - int(row[col_name][0])
                 y = int(y_ref) - int(row[col_name][1])
                 z = round(math.sqrt(x**2 + y**2), 1) # round number to one digit
@@ -249,15 +238,17 @@ class ALIGNMENT:
         return self.df_images
     
     # convert pixel to mm ----------------------------------------------
-    def pixel_to_mm(self, with_radius = True, with_rectangle = False): # decide whether to convert by radius or rectangle coordinates
+    def pixel_to_mm(self, with_radius = True): # decide whether to convert by radius or rectangle coordinates
         print("\n convert pixel values to mm")
         if with_radius:
             pixel = (sum(self.df_images["s0_r"].to_list())/len(self.df_images["s0_r"].to_list()) * 2) # pixel
             mm = 20 # mm
             pixel_to_mm = mm/pixel
             print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
-        elif with_rectangle:
-            pixel = 0
+        else:
+            pos_4_coords = self.df_images[self.df_images["pos"] == 4]["s0_coords"].tolist()
+            pos_6_coords = self.df_images[self.df_images["pos"] == 6]["s0_coords"].tolist()
+            pixel = statistics.median([abs(item4[0] - item6[0]) for item4, item6 in zip(pos_4_coords, pos_6_coords)])
             mm = 190 # mm
             pixel_to_mm = mm/pixel
             print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
@@ -290,8 +281,9 @@ print(images_alignment_mm.head())
 
 #%% SAVE
 
+images_alignment_mm.sort_values(by="cell", inplace=True)
 if not os.path.exists(path + "/data"):
     os.makedirs(path + "/data")
-images_alignment.to_excel(path + "/data/data.xlsx")
+images_alignment_mm.to_excel(path + "/data/data.xlsx")
 
 
