@@ -20,6 +20,7 @@ save = True
 path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed"
 plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed/plots"
 df_images = pd.read_excel(f"{path}/data/data.xlsx")
+df_images.sort_values(by="cell", inplace=True)
 
 #%% ANODE VS CATHODE
 
@@ -122,10 +123,10 @@ ax.set_aspect('equal')
 # ax.invert_yaxis()
 # Set axis labels from 1 to 6 at the correct positions
 ax.set_xticks([3, 6, 9, 12, 15, 18])
-ax.set_xticklabels(range(1, grid_size + 1))
+ax.set_xticklabels([1, 3, 5, 2, 4, 6])
 ax.set_yticks([2, 4, 6, 8, 10, 12])
 # ax.set_yticklabels(range(1, grid_size + 1)[::-1])  # Reverse the labels for the y-axis
-ax.set_yticklabels(range(1, grid_size + 1))
+ax.set_yticklabels([1, 2, 3, 4, 5, 6])
 ax.tick_params(axis='x', labelsize=14)
 ax.tick_params(axis='y', labelsize=14)
 # axis labels
@@ -242,9 +243,9 @@ ax.set_ylim(0, 3 * grid_size + 3)
 ax.set_aspect('equal')
 # Set axis labels from 1 to 6 at the correct positions
 ax.set_xticks([4, 8, 12, 16, 20, 24])
-ax.set_xticklabels(range(1, grid_size + 1))
+ax.set_xticklabels([1, 3, 5, 2, 4, 6])
 ax.set_yticks([3, 6, 9, 12, 15, 18])
-ax.set_yticklabels(range(1, grid_size + 1))
+ax.set_yticklabels([1, 2, 3, 4, 5, 6])
 ax.tick_params(axis='x', labelsize=14)
 ax.tick_params(axis='y', labelsize=14)
 # axis labels
