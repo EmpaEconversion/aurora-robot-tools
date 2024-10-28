@@ -56,18 +56,21 @@ class ALIGNMENT:
             try:
                 step = int(name.split("_")[0].split("s")[1])
             except:
-                step = int(name.split(".")[0].split("s")[1])
+                step = int(name.split(".")[0].split("s")[1]) # in case there is only cell
                 print(f"fewer cells or wrong filename (check folder with files and their names): {name}")
             if step == 0: # assign position and cell number in data frame
+                current_positions = []
                 img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
                 string = name.split(".")[0]
                 for i in range(len(string.split("_"))):
                     if len(string.split("_")) > 1:
+                        current_positions.append(str(string.split("_")[i].split("c")[0][-2:])) 
                         positions.append(str(string.split("_")[i].split("c")[0][-2:]))
                         cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
                     else:
                         print("only one cell in pressing tools")
+                        current_positions.append(str(string.split("c")[0][-2:]))
                         positions.append(str(string.split("c")[0][-2:]))
                         cell_numbers.append(str(string.split("c")[1].split("s")[0]))
             elif step == 2: # increase constrast for the anode
@@ -92,39 +95,63 @@ class ALIGNMENT:
                             minRadius = self.r_min[step], maxRadius = self.r_max[step]) 
             
             # Extract center points and their pressing tool position
-            coords_buffer_list = [[0, 0]] * 6
-            r_buffer_list = [0] * 6
+            coords_buffer_dict = {}
+            r_buffer_dict = {}
             if detected_circles is not None:
                 detected_circles = np.uint16(np.around(detected_circles))
                 for circle in detected_circles[0, :]:
                     # assign circle pressing tool
                     # constrain to avoid too many circles
-                    if (circle[1] > 2800) & (circle[1] < 3050):
+                    if (circle[1] > 2800) & (circle[1] < 3050): # position 4, 5, 6
                         if (circle[0] < 650) & (circle[0] > 350): # position 4
-                            coords_buffer_list[3]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[3] = circle[2] # radius
+                            if "04" in current_positions:
+                                coords_buffer_dict[4] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[4] = circle[2] # radius
+                            #else: # no circle detected for this pressing tool position and part
+                            #    coords_buffer_dict[4] = [0, 0]
+                            #    r_buffer_dict[4] = 0
                         elif (circle[0] > 2600) & (circle[0] < 2760): # position 5
-                            coords_buffer_list[4]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[4] = circle[2] # radius
+                            if "05" in current_positions:
+                                coords_buffer_dict[5] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[5] = circle[2] # radius
+                            #else: # no circle detected for this pressing tool position and part
+                            #    coords_buffer_dict[5] = [0, 0]
+                            #    r_buffer_dict[5] = 0
                         elif (circle[0] > 4600) & (circle[0] < 5100): # position 6
-                            coords_buffer_list[5]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[5] = circle[2] # radius
+                            if "06" in current_positions:
+                                coords_buffer_dict[6] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[6] = circle[2] # radius
+                            #else: # no circle detected for this pressing tool position and part
+                            #    coords_buffer_dict[6] = [0, 0]
+                            #    r_buffer_dict[6] = 0
                         else: 
                             print(f"\n circle in lower row couldnt be assigned: ({circle[0]}, {circle[1]})")
                             # Create a mask that identifies incorrectly positioned circles to be remove
                             mask = ~np.all(np.isin(detected_circles, circle), axis=-1)  # axis=-1 to compare along the last dimension
                             detected_circles = np.array(detected_circles[mask]).reshape(1, -1, 3)  # Reshape
 
-                    elif (circle[1] < 800) & (circle[1] > 650):
+                    elif (circle[1] < 800) & (circle[1] > 650): # position 1, 2, 3
                         if (circle[0] < 600) & (circle[0] > 400): # position 1
-                            coords_buffer_list[0]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[0] = circle[2] # radius
+                            if "01" in current_positions:
+                                coords_buffer_dict[1] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[1] = circle[2] # radius
+                            #else: # give number to remove this entry later before adding to dataframe
+                            #    coords_buffer_dict[1] = [0, 0]
+                            #    r_buffer_dict[1] = 0
                         elif (circle[0] > 2600) & (circle[0] < 2760): # position 2
-                            coords_buffer_list[1]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[1] = circle[2] # radius
+                            if "02" in current_positions:    
+                                coords_buffer_dict[2] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[2] = circle[2] # radius
+                            #else: # give number to remove this entry later before adding to dataframe
+                            #    coords_buffer_dict[2] = [0, 0]
+                            #    r_buffer_dict[2] = 0
                         elif (circle[0] > 4600) & (circle[0] < 5100): # position 3
-                            coords_buffer_list[2]= [circle[0], circle[1]]  # (x, y) coordinates
-                            r_buffer_list[2] = circle[2] # radius
+                            if "03" in current_positions:    
+                                coords_buffer_dict[3] = [circle[0], circle[1]]  # (x, y) coordinates
+                                r_buffer_dict[3] = circle[2] # radius
+                            #else: # give number to remove this entry later before adding to dataframe
+                            #    coords_buffer_dict[3] = [0, 0]
+                            #    r_buffer_dict[3] = 0
                         else: 
                             print(f"\n circle in upper row couldnt be assigned: ({circle[0]}, {circle[1]})")
                             # Create a mask that identifies incorrectly positioned circles to be remove
@@ -149,6 +176,20 @@ class ALIGNMENT:
                     os.makedirs(self.path + "/detected_circles")
                 cv2.imwrite(self.path + f"/detected_circles/{name.split(".")[0]}.jpg", resized_img) # Save the image with detected circles
             
+                # add circles which were not detected with zeros
+                current_positions_int = [int(pos) for pos in current_positions] # Convert `current_positions` entries to integers
+                for pos in current_positions_int: # Check each position in `current_positions_int`
+                    if pos not in coords_buffer_dict:
+                        coords_buffer_dict[pos] = [0, 0]
+                    if pos not in r_buffer_dict:
+                        r_buffer_dict[pos] = 0
+                # Create a new dictionary with keys sorted by the specified order, skipping missing keys
+                key_order = [1, 3, 5, 2, 4, 6] # order of pressing tool positions in string name of image file
+                coords_buffer_dict = {key: coords_buffer_dict[key] for key in key_order if key in coords_buffer_dict}
+                r_buffer_dict = {key: r_buffer_dict[key] for key in key_order if key in r_buffer_dict}
+                # Create a list of all values without the keys
+                coords_buffer_list = list(coords_buffer_dict.values())
+                r_buffer_list = list(r_buffer_dict.values())
                 # add values to list to collect values
                 c = coordinates[step]
                 c.extend(coords_buffer_list)
@@ -156,6 +197,17 @@ class ALIGNMENT:
                 r = radius[step]
                 r.extend(r_buffer_list)
                 radius[step] = r
+            else: # check if there are no cells in the pressing tools, or if just no part could be detected
+                print("detected circles is none")
+                if len(current_positions) != 0:
+                    coords_buffer_list = [[0, 0] for _ in range(len(current_positions))]
+                    r_buffer_list = [0 for _ in range(len(current_positions))]
+                    c = coordinates[step]
+                    c.extend(coords_buffer_list)
+                    coordinates[step] = c
+                    r = radius[step]
+                    r.extend(r_buffer_list)
+                    radius[step] = r
 
         # fill values into dataframe
         for num, column in enumerate(self.df_images.columns.tolist()):
@@ -171,7 +223,7 @@ class ALIGNMENT:
                 key = num - 13
                 if key != 3:
                     self.df_images[column] = radius[key]
-        self.df_images= self.df_images.drop(columns=["s3_coords", "s3_r"])
+        self.df_images= self.df_images.drop(columns=["s3_coords", "s3_r"]) # drop non existing step 
         self.df_images['pos'] = self.df_images['pos'].astype(int) # get cell number and position as integers not string
         self.df_images['cell'] = self.df_images['cell'].astype(int)
         return self.df_images
@@ -183,12 +235,13 @@ class ALIGNMENT:
             x_ref = row["s0_coords"][0]
             y_ref = row["s0_coords"][1]
 
-            pos = row["pos"].astype(int)
+            # correct distortion for step 1, 4, 7 (bottom, separator, spacer)
+            # pos = row["pos"].astype(int)
             # distortion_correction = [(), (), (), (), (), ()]
 
             for i, col_name in enumerate(self.df_images.columns.tolist()[3:12]):
                 n = self.df_images.columns.tolist()[-18:][i] # column name of alignment entry
-                step = n.split("_")[0].split("s")[1]
+                # step = n.split("_")[0].split("s")[1]
                 x = int(x_ref) - int(row[col_name][0])
                 y = int(y_ref) - int(row[col_name][1])
                 z = round(math.sqrt(x**2 + y**2), 1) # round number to one digit
@@ -196,12 +249,18 @@ class ALIGNMENT:
         return self.df_images
     
     # convert pixel to mm ----------------------------------------------
-    def pixel_to_mm(self):
+    def pixel_to_mm(self, with_radius = True, with_rectangle = False): # decide whether to convert by radius or rectangle coordinates
         print("\n convert pixel values to mm")
-        pixel = (sum(self.df_images["s0_r"].to_list())/len(self.df_images["s0_r"].to_list()) * 2) # pixel
-        mm = 20 # mm
-        pixel_to_mm = mm/pixel
-        print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
+        if with_radius:
+            pixel = (sum(self.df_images["s0_r"].to_list())/len(self.df_images["s0_r"].to_list()) * 2) # pixel
+            mm = 20 # mm
+            pixel_to_mm = mm/pixel
+            print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
+        elif with_rectangle:
+            pixel = 0
+            mm = 190 # mm
+            pixel_to_mm = mm/pixel
+            print("pixel to mm: " + str(pixel_to_mm) + " mm/pixel")
         # missalignment to mm
         for i in list(range(1, 11)):
             if i != 3:
