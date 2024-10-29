@@ -7,18 +7,17 @@ import h5py
 import math
 import os
 import numpy as np
-from operator import itemgetter
 import cv2
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from sklearn.cluster import KMeans
 
 #%% CLASS WITH FUNCTIONS
 
 class TRANSFORM:
     def __init__(self, folderpath, savepath):
-        self.folderpath = folderpath
-        self.savepath = savepath
+        self.folderpath = folderpath # path where images are
+        self.savepath = savepath # path to save
+        self.transformed_images = [] # list to store transformed image arrays
+        if not os.path.exists(self.savepath):
+            os.makedirs(self.savepath)
 
     # read files (images) from folder ----------------------------------------------
     def load_files(self):
@@ -33,7 +32,7 @@ class TRANSFORM:
                     content = content/np.max(content)*255 # convert to 8 bit
                     content = content.astype(np.uint8)
                     try:
-                        if int(filename.split("_")[0].split("s")[1]) == 0: # only load images from first step (step 0) as reference
+                        if int(filename.split("_")[0].split("s")[1]) == 0: # only load images from step 0 as reference
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
                     except: # if there is no _ in the name (name is either wrong or only one cell)
@@ -42,22 +41,23 @@ class TRANSFORM:
                         self.data_list.append((filename, content))
                         print(f"fewer cells or wrong filename (check file): {filename}")
         return self.data_list
-    
+
     # get reference coordinates ----------------------------------------------
     def get_reference(self, circle_detection=False, ellipse_detection=True): # decide it ellipse or circle detection
         print("get reference coordinates")
         self.ref = [] # list to store reference coordinates
         for name, img in self.reference:
             img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
-            # img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
-            
+            # Apply a Gaussian blur to the image before detecting circles (to improve detection)
+            # img = cv2.GaussianBlur(img, (9, 9), 2)
+
             if circle_detection:
                 # Apply Hough transform
-                detected_circles = cv2.HoughCircles(img,  
-                                cv2.HOUGH_GRADIENT, 
-                                dp = 1, 
-                                minDist = 100, 
-                                param1 = 30, param2 = 50, 
+                detected_circles = cv2.HoughCircles(img,
+                                cv2.HOUGH_GRADIENT,
+                                dp = 1,
+                                minDist = 100,
+                                param1 = 30, param2 = 50,
                                 minRadius = 210, maxRadius = 228) # radius hard coded !!!
                 # Extract center points and their pressing tool position
                 coords = [] # list to store reference coordinates
@@ -101,7 +101,7 @@ class TRANSFORM:
                                 # Draw the center point
                                 center = (int(ellipse[0][0]), int(ellipse[0][1]))  # Convert center coordinates to integers
                                 cv2.circle(img, center, 5, (0, 255, 0), -1)
-                
+
                 # Filter out similar ellipses
                 filtered_ellipses = []
                 coords_ellipses = []
@@ -125,9 +125,8 @@ class TRANSFORM:
         return self.ref
 
     # transform warped rectangle to straight rectangle ----------------------------------------------
-    def transform_pixel_coordinates(self):
+    def transform_pixel_coordinates(self, save = False):
         print("transform warped image in pixel coordinates")
-        transformed_images = [] # list to store transformed image arrays
         batch = 0 # iterate over each set of 1-6 batteries per pressing tool
         for name, img in self.data_list:
             height, width = img.shape[:2] # determine size of image
@@ -152,7 +151,7 @@ class TRANSFORM:
             # Transform Perspective
             M = cv2.getPerspectiveTransform(ctr_sorted, pts2)
             transformed_image = cv2.warpPerspective(img, M, (width, height))
-            transformed_images.append(transformed_image)
+            self.transformed_images.append(transformed_image)
 
             # Save the transformed_image to jpg
             if not os.path.exists(f'{self.savepath}/transformed_jpg'):
@@ -173,21 +172,29 @@ class TRANSFORM:
                 if int(name.split(".")[0].split("s")[1]) == 9: # in case there is only one cell in this batch
                     batch += 1
 
-        return transformed_images
-        
+        return self.transformed_images
 
 #%% RUN CODE
+if __name__ == '__main__':
+    # PARAMETER
+    # path to files
+    path = 'G:/Limit/Lina Scholz/robot_files_gen14'
+    # path to store transformed images
+    savepath = 'G:/Limit/Lina Scholz/robot_files_gen14/transformed'
 
-# PARAMETER
-# path to files
-path = 'G:/Limit/Lina Scholz/robot_files_gen14'
-# path to store transformed images
-if not os.path.exists('G:/Limit/Lina Scholz/robot_files_gen14/transformed'):
-    os.makedirs('G:/Limit/Lina Scholz/robot_files_gen14/transformed')
-savepath = 'G:/Limit/Lina Scholz/robot_files_gen14/transformed'
+    # EXECUTE
+    obj = TRANSFORM(path, savepath)
+    files = obj.load_files() # load all images from folder
+    reference = obj.get_reference() # get center points from first step of assembly as reference
+    transformed = obj.transform_pixel_coordinates() # transform pixel coordinates to get "rectangular shape"
+    # combine these objects
+    images_detected = obj.get_coordinates() # get coordinates of all circles
+    images_alignment = obj.alignment_number() # get alignment
+    images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm 
+    # somehow save this data
+    # probably we add a table in the chemspeed db with all the data
+    # then we can process that in output_csv and deal with that later
 
-# EXECUTE
-obj = TRANSFORM(path, savepath)
-files = obj.load_files() # load all images from folder
-reference = obj.get_reference() # get center points from first step of assembly as reference
-transformed = obj.transform_pixel_coordinates() # transform pixel coordinates to get "rectangular shape"
+    # save as (json string) e.g.
+    data = {'cell': 1, 'data': [{'step': 1, 'x_mm': 0.5, 'y_mm': 0.12},{'step': 2, 'x_mm': 0.24, 'y_mm': 0.06}]}
+    json_str = json.dumps(data)
