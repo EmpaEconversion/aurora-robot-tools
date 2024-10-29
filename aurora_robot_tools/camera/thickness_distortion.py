@@ -64,7 +64,7 @@ cv2.destroyAllWindows()
 # 1mm thickness corresponds to ... pixel:
 pos1 = (3, 6) # pixel
 pos2 = (0, 6)
-pos3 = (2.5, 6) 
+pos3 = (2.5, 6)
 
 pos4 = (3, 3)
 pos5 = (0, 3)
