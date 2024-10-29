@@ -18,11 +18,17 @@ class ALIGNMENT:
         self.path = path
         self.savepath = path + "/processed" # path to save information
         self.data_list = [] # list to store images (name and array)
-        self.df_images = pd.DataFrame(columns=["pos", "cell"])
-        self.columns = ["s0_coords", "s1_coords", "s2_coords", "s3_coords", "s4_coords", "s5_coords",
+        self.df_images = pd.DataFrame() # columns=["pos", "cell"]
+        self.columns = ["pos", "cell",
+                        "s0_coords", "s1_coords", "s2_coords", "s4_coords", "s5_coords",
                         "s6_coords", "s7_coords", "s8_coords", "s9_coords", "s10_coords", # pixel coordinates
-                        "s0_r", "s1_r", "s2_r", "s3_r", "s4_r", "s5_r",
+                        "s0_r", "s1_r", "s2_r", "s4_r", "s5_r",
                         "s6_r", "s7_r", "s8_r", "s9_r", "s10_r"] # pixel radius
+
+        """"s1_align", "s2_align", "s4_align", "s5_align", "s6_align", "s7_align",
+            "s8_align", "s9_align", "s10_align", # alignment vs. pressing tool in pixel
+            "s1_align_mm", "s2_align_mm", "s4_align_mm", "s5_align_mm", "s6_align_mm", "s7_align_mm",
+            "s8_align_mm", "s9_align_mm", "s10_align_mm"] # alignment vs. pressing tool in mm"""
 
         # Parameter which might need to be changed if camera position changes
         """Steps:
@@ -43,7 +49,8 @@ class ALIGNMENT:
         """Coordinates for correction of z-distortion due to thickness of parts (from thickness_distortion.py)"""
         self.z_corr_1 = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)] # after step 1
         self.z_corr_4 = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)] # after step 4
-        self.z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3), (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
+        self.z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3),
+                         (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
 
     # read files in list ----------------------------------------------
     def read_files(self):
@@ -74,17 +81,17 @@ class ALIGNMENT:
         well as the constraining rectangle are drawn in the image and saved as jpg.
 
         Return:
-            self.df_images (data frame): stroing position, cell number, coordinate and radius (pixel)
+            self.df_images (data frame): storing position, cell number, coordinate and radius (pixel)
         """
         print("\n detect circles and get circle coordinates")
-        positions = [] # create lists & dictionaries to store informaiton
-        cell_numbers = []
+        positions = [] # list to store positions
+        cell_numbers = [] # list to store cell numbers
         coordinates = {0: [], 1: [], 2: [], 4: [], 5:[], 6: [], 7: [], 8: [], 9: [], 10:[]} # stores coordinates for all steps
         radius = {0: [], 1: [], 2: [], 4: [], 5:[], 6: [], 7: [], 8: [], 9: [], 10:[]} # stores radius for all steps
 
-        for name, img in self.data_list:
+        for name, img in self.data_list: # iterate over all images
             try:
-                step = int(name.split("_")[0].split("s")[1])
+                step = int(name.split("_")[0].split("s")[1]) # get step
             except:
                 step = int(name.split(".")[0].split("s")[1]) # in case there is only cell
                 print(f"fewer cells or wrong filename (check folder with files and their names): {name}")
@@ -92,13 +99,13 @@ class ALIGNMENT:
                 current_positions = []
                 img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Gaussian blur to image before detecting (to improve detection)
-                string = name.split(".")[0]
+                string = name.split(".")[0] # get name as string
                 for i in range(len(string.split("_"))):
                     if len(string.split("_")) > 1:
                         current_positions.append(str(string.split("_")[i].split("c")[0][-2:]))
                         positions.append(str(string.split("_")[i].split("c")[0][-2:]))
                         cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
-                    else:
+                    else: # only one cell
                         print("only one cell in pressing tools")
                         current_positions.append(str(string.split("c")[0][-2:]))
                         positions.append(str(string.split("c")[0][-2:]))
@@ -110,7 +117,7 @@ class ALIGNMENT:
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Gaussian blur to image before detecting (to improve detection)
             elif step == 8:
                 img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
-            else:
+            else: # default values to process image
                 img = cv2.convertScaleAbs(img, alpha=1.25, beta=0) # increase contrast
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Gaussian blur to image before detecting (to improve detection)
 
@@ -123,13 +130,14 @@ class ALIGNMENT:
                             minRadius = self.r_min[step], maxRadius = self.r_max[step])
 
             # Extract center points and their pressing tool position
+            # dictionaries updated with new coordinates & radius for each image (intermediate save before adding to df)
             coords_buffer_dict = {}
             r_buffer_dict = {}
             if detected_circles is not None:
                 detected_circles = np.uint16(np.around(detected_circles))
                 for circle in detected_circles[0, :]:
                     # assign circle pressing tool
-                    # constrain to avoid too many circles
+                    # constrain by rectangles to avoid too many circles
                     if (circle[1] > self.pos_4[0][1]) & (circle[1] < self.pos_4[1][1]): # position 4, 5, 6
                         if (circle[0] > self.pos_4[0][0]) & (circle[0] < self.pos_4[1][0]): # position 4
                             if "04" in current_positions:
@@ -143,7 +151,7 @@ class ALIGNMENT:
                             if "06" in current_positions:
                                 coords_buffer_dict[6] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[6] = circle[2] # radius
-                        else: 
+                        else:
                             print(f"\n circle in lower row couldnt be assigned: ({circle[0]}, {circle[1]})")
                             # Create a mask that identifies incorrectly positioned circles to be remove
                             mask = ~np.all(np.isin(detected_circles, circle), axis=-1)  # axis=-1 to compare along the last dimension
@@ -168,7 +176,7 @@ class ALIGNMENT:
                             mask = ~np.all(np.isin(detected_circles, circle), axis=-1)  # axis=-1 to compare along the last dimension
                             detected_circles = np.array(detected_circles[mask]).reshape(1, -1, 3)  # Reshape
                     else:
-                        print(f"\n circle couldnt be assigned for any pressing tool: ({circle[0]}, {circle[1]})") 
+                        print(f"\n circle couldnt be assigned for any pressing tool: ({circle[0]}, {circle[1]})")
                         # Create a mask that identifies incorrectly positioned circles to be remove
                         mask = ~np.all(np.isin(detected_circles, circle), axis=-1)  # axis=-1 to compare along the last dimension
                         detected_circles = np.array(detected_circles[mask]).reshape(1, -1, 3)  # Reshape
@@ -219,23 +227,54 @@ class ALIGNMENT:
                     r.extend(r_buffer_list)
                     radius[step] = r
 
+                    """["pos", "cell",
+                        "s0_coords", "s1_coords", "s2_coords", "s4_coords", "s5_coords",
+                        "s6_coords", "s7_coords", "s8_coords", "s9_coords", "s10_coords", # pixel coordinates
+                        "s0_r", "s1_r", "s2_r", "s4_r", "s5_r",
+                        "s6_r", "s7_r", "s8_r", "s9_r", "s10_r"] # pixel radius"""
+
         # fill values into dataframe
-        for num, column in enumerate(self.df_images.columns.tolist()):
+        for num, column in enumerate(self.columns):
             if column == "pos":
                 self.df_images[column] = positions
             elif column == "cell":
                 self.df_images[column] = cell_numbers
-            elif num < 13:
+            elif num < 12:
                 key = num - 2
-                if key != 3:
-                    self.df_images[column] = coordinates[key]
-            elif (num < 24) & (num > 12):
-                key = num - 13
-                if key != 3:
-                    self.df_images[column] = radius[key]
-        self.df_images= self.df_images.drop(columns=["s3_coords", "s3_r"]) # drop non existing step
+                self.df_images[column] = coordinates[key]
+            elif (num < 22) & (num > 11):
+                key = num - 12
+                self.df_images[column] = radius[key]
         self.df_images['pos'] = self.df_images['pos'].astype(int) # get cell number and position as integers not string
         self.df_images['cell'] = self.df_images['cell'].astype(int)
+        return self.df_images
+
+    # correct for z distortion from thickness ----------------------------
+    def z_correction(self) -> pd.DataFrame:
+        """Correct the pixel coordinates by accounting for the thickness of the thickest parts.
+
+        The amount to correct for is determined in the script "thickness_distortion.py" by using the
+        height of the pressing tool and the according shift in the centers from the bottom to the
+        top.
+
+        Return:
+            self.df_images (data frame): storing position, cell number, (un)corrected coordinate and radius (pixel)
+        """
+        print("correct for ")
+        for index, row in self.df_images.iterrows():
+            # correct distortion for step 1, 4, 7 (bottom, separator, spacer)
+            pos = row["pos"]
+            """self.z_corr_1 = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)]
+            self.z_corr_4 = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)]
+            self.z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3), (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)]"""
+            # correct for z distortion
+            s1_corr = self.z_corr_1[(pos - 1)]
+            s4_corr = self.z_corr_4[(pos - 1)]
+            s7_corr = self.z_corr_7[(pos - 1)]
+            for i, col_name in enumerate(self.columns)
+
+
+
         return self.df_images
 
     # get alignment numbers ----------------------------------------------
@@ -244,22 +283,8 @@ class ALIGNMENT:
         for index, row in self.df_images.iterrows():
             x_ref = row["s0_coords"][0]
             y_ref = row["s0_coords"][1]
-
-            # correct distortion for step 1, 4, 7 (bottom, separator, spacer)
-            pos = row["pos"]
-            """
-            self.z_corr_1 = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)]
-            self.z_corr_4 = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)]
-            self.z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3), (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)]
-            """
-
             for i, col_name in enumerate(self.df_images.columns.tolist()[3:12]):
                 n = self.df_images.columns.tolist()[-18:][i] # column name of alignment entry
-
-                # correct for z distortion
-                step = n.split("_")[0].split("s")[1]
-
-
                 x = int(x_ref) - int(row[col_name][0])
                 y = int(y_ref) - int(row[col_name][1])
                 z = round(math.sqrt(x**2 + y**2), 1) # round number to one digit
@@ -308,6 +333,7 @@ path = "G:/Limit/Lina Scholz/robot_files_gen14"
 obj = ALIGNMENT(path)
 imgages = obj.read_files() # list with all images given as a list
 images_detected = obj.get_coordinates() # get coordinates of all circles
+images_z_corrected = obj.z_correction() # correct coordinates for z distortion due to thickness
 images_alignment = obj.alignment_number() # get alignment
 images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm
 

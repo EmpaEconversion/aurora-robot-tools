@@ -3,22 +3,24 @@ Script to read in images from folder and detect circles
 
 """
 
-import cv2
 import os
 import ast
 import math
-import numpy as np
 import pandas as pd
-import h5py
-from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 #%%
 
 save = True
-path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed"
-plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed/plots"
+# path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed"
+# plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed/plots"
+# df_images = pd.read_excel(f"{path}/data/data.xlsx")
+# df_images.sort_values(by="cell", inplace=True)
+
+# Grahams Cells
+path = "G:/Limit/Lina Scholz/robot_files_names/transformed"
+plot_path = "G:/Limit/Lina Scholz/robot_files_names/transformed/plots_new"
 df_images = pd.read_excel(f"{path}/data/data.xlsx")
 df_images.sort_values(by="cell", inplace=True)
 

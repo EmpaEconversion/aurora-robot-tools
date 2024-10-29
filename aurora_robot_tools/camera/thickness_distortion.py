@@ -24,12 +24,12 @@ img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # 1.5
 
 img = cv2.GaussianBlur(img, (5, 5), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
 # Apply Hough transform
-detected_circles = cv2.HoughCircles(img,  
-                    cv2.HOUGH_GRADIENT, 
-                    dp = 1, 
-                    minDist = 100, 
-                    param1 = 30, param2 = 50, 
-                    minRadius = 520, maxRadius = 580)  
+detected_circles = cv2.HoughCircles(img,
+                    cv2.HOUGH_GRADIENT,
+                    dp = 1,
+                    minDist = 100,
+                    param1 = 30, param2 = 50,
+                    minRadius = 520, maxRadius = 580)
 
 print(detected_circles)
 
@@ -75,7 +75,7 @@ positions = [pos1, pos2, pos3, pos4, pos5, pos6] # pixel
 #%% CORRECT COORDINATE DATA BASE WITH OFFSET (bottom part, separator, spacer)
 
 # thickness in mm
-t_s1 = 0.3 # thickness bottom part 
+t_s1 = 0.3 # thickness bottom part
 t_s4 = 1.25 # thickness separator
 t_s7 = 1 # thickness spacer
 
