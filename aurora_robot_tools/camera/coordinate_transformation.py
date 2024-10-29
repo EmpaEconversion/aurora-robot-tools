@@ -23,34 +23,32 @@ class TRANSFORM:
     # read files (images) from folder ----------------------------------------------
     def load_files(self):
         print("load files")
-        self.data_list = []
-        self.reference = []
+        self.data_list = [] # list to store image data
+        self.reference = [] # list to store images from pressing tool (step 0)
         for filename in os.listdir(self.folderpath):
-            if filename.endswith('.h5'):
+            if filename.endswith('.h5'): # read all .h5 files
                 filepath = os.path.join(self.folderpath, filename)
                 with h5py.File(filepath, 'r') as f:
                     content = f['image'][:]
-                    # convert to 8 bit
-                    content = content/np.max(content)*255
+                    content = content/np.max(content)*255 # convert to 8 bit
                     content = content.astype(np.uint8)
                     try:
-                        if int(filename.split("_")[0].split("s")[1]) == 0: # only load images from first step as reference
+                        if int(filename.split("_")[0].split("s")[1]) == 0: # only load images from first step (step 0) as reference
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
-                    except:
+                    except: # if there is no _ in the name (name is either wrong or only one cell)
                         if int(filename.split(".")[0].split("s")[1]) == 0: # only load images from first step as reference
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
-                        print(f"fewer cells or wrong filename (check folder with files and their names): {filename}")
+                        print(f"fewer cells or wrong filename (check file): {filename}")
         return self.data_list
     
     # get reference coordinates ----------------------------------------------
-    def get_reference(self, circle_detection=False, ellipse_detection=True):
+    def get_reference(self, circle_detection=False, ellipse_detection=True): # decide it ellipse or circle detection
         print("get reference coordinates")
-        self.ref = []
+        self.ref = [] # list to store reference coordinates
         for name, img in self.reference:
             img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
-
             # img = cv2.GaussianBlur(img, (9, 9), 2) # Apply a Gaussian blur to the image before detecting circles (to improve detection)
             
             if circle_detection:
@@ -60,15 +58,13 @@ class TRANSFORM:
                                 dp = 1, 
                                 minDist = 100, 
                                 param1 = 30, param2 = 50, 
-                                minRadius = 210, maxRadius = 228) # HARD CODED!!!
-                
+                                minRadius = 210, maxRadius = 228) # radius hard coded !!!
                 # Extract center points and their pressing tool position
-                coords = []
+                coords = [] # list to store reference coordinates
                 if detected_circles is not None:
                     detected_circles = np.uint16(np.around(detected_circles))
                     for circle in detected_circles[0, :]:
-                        center = (circle[0], circle[1])
-                        coords.append(center)
+                        coords.append((circle[0], circle[1]))
                 self.ref.append((name, coords))
 
                 # Draw all detected circles and save image to check quality of detection
@@ -76,20 +72,16 @@ class TRANSFORM:
                     a, b, r = pt[0], pt[1], pt[2]
                     cv2.circle(img, (a, b), r, (0, 0, 255), 10) # Draw the circumference of the circle
                     cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
-                desired_width = 1200 # Change image size
-                desired_height = 800
-                resized_img = cv2.resize(img, (desired_width, desired_height))
+                resized_img = cv2.resize(img, (1200, 800)) # Set image size
                 # if folder doesn't exist, create it
                 if not os.path.exists(self.savepath + "/reference_detected_circles"):
                     os.makedirs(self.savepath + "/reference_detected_circles")
                 cv2.imwrite(self.savepath + f"/reference_detected_circles/{name.split(".")[0]}.jpg", resized_img) # Save the image with detected circles
 
             if ellipse_detection:
-                coords = []
-                # Edge detection for ellipses
-                edges = cv2.Canny(img, 50, 150)
-                # Find contours
-                contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                coords = [] # list to store reference coordinates
+                edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
+                contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
 
                 # Draw ellipses for each contour, constrained by aspect ratio and radius
                 for contour in contours:
@@ -103,7 +95,7 @@ class TRANSFORM:
                             # Calculate the average radius of the ellipse
                             avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
                             # Constrain to shapes that are slightly non-circular and within the radius range
-                            if 0.9 < aspect_ratio < 1.1 and 205 <= avg_radius <= 240:
+                            if 0.9 < aspect_ratio < 1.1 and 205 <= avg_radius <= 240: # radius hard coded !!!
                                 coords.append((ellipse[0], avg_radius))
                                 cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
                                 # Draw the center point
@@ -115,7 +107,7 @@ class TRANSFORM:
                 coords_ellipses = []
                 for ellipse in coords:
                     (cx, cy), r = ellipse
-                    # Check if the current circle is similar to any circle in the filtered list
+                    # Check if the current ellipse is similar to any ellipses in the filtered list
                     if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5 
                             for (fcx, fcy), fr in filtered_ellipses):
                         filtered_ellipses.append(ellipse)
@@ -124,39 +116,36 @@ class TRANSFORM:
                 self.ref.append((name, coords_ellipses))
 
                 # Draw all detected ellipses and save image to check quality of detection
-                desired_width = 1200 # Change image size
-                desired_height = 800
-                resized_img = cv2.resize(img, (desired_width, desired_height))
+                resized_img = cv2.resize(img, (1200, 800)) # Set image size
                 # if folder doesn't exist, create it
                 if not os.path.exists(self.savepath + "/reference_detected_ellipses"):
                     os.makedirs(self.savepath + "/reference_detected_ellipses")
-                cv2.imwrite(self.savepath + f"/reference_detected_ellipses/{name.split(".")[0]}.jpg", resized_img) # Save the image with detected circles
+                cv2.imwrite(self.savepath + f"/reference_detected_ellipses/{name.split(".")[0]}.jpg", resized_img) # Save the image with detected ellipses
 
         return self.ref
 
     # transform warped rectangle to straight rectangle ----------------------------------------------
     def transform_pixel_coordinates(self):
         print("transform warped image in pixel coordinates")
-        transformed_images = []
-        batch = 0
+        transformed_images = [] # list to store transformed image arrays
+        batch = 0 # iterate over each set of 1-6 batteries per pressing tool
         for name, img in self.data_list:
             height, width = img.shape[:2] # determine size of image
-
             ctr = self.ref[batch][1]
             ctr_sorted = [(0, 0), (0, 0), (0, 0), (0, 0)]
             for t in ctr:
-                if (t[0] < 650) & (t[1] < 850):
+                if (t[0] < 650) & (t[1] < 850): # edge of pressing tool position 1
                     ctr_sorted[0] = t
-                elif (t[0] > 4750) & (t[1] < 850):
+                elif (t[0] > 4750) & (t[1] < 850): # pressing tool position 3
                     ctr_sorted[1] = t
-                elif (t[0] > 4750) & (t[1] > 2800):
+                elif (t[0] > 4750) & (t[1] > 2800): # pressing tool position 6
                     ctr_sorted[2] = t
-                elif (t[0] < 650) & (t[1] > 2800):
+                elif (t[0] < 650) & (t[1] > 2800): # pressing tool position 4
                     ctr_sorted[3] = t
                 else:
                     pass
             ctr_sorted = np.float32(ctr_sorted)
-            # Calculate new coordinates to correct for distortion
+            # Calculate new coordinates to correct for distortion: fix pressing tool position 1 coordinates and correct all other edges
             a1 = ctr_sorted[0][0] + ((ctr_sorted[0][1] - ctr_sorted[1][1])) / math.sin(math.atan(((ctr_sorted[0][1] - ctr_sorted[1][1])) / (ctr_sorted[1][0] - ctr_sorted[0][0])))
             a2 = ctr_sorted[0][1] + ((ctr_sorted[0][0] - ctr_sorted[3][0])) / math.sin(math.atan(((ctr_sorted[0][0] - ctr_sorted[3][0])) / (ctr_sorted[3][1] - ctr_sorted[0][1])))
             pts2 = np.float32([ctr_sorted[0], [a1, ctr_sorted[0][1]], [a1, a2], [ctr_sorted[0][0], a2]]) # corrected coordinates
@@ -170,20 +159,18 @@ class TRANSFORM:
                 os.makedirs(f'{self.savepath}/transformed_jpg')
             cv2.imwrite(f'{self.savepath}/transformed_jpg/{name.split(".")[0]}.jpg', transformed_image)
 
-            # Save the transformed_image to an HDF5 file
+            # Save the transformed_image to an .h5 file
             p = self.savepath + f"/{name.split(".")[0]}.h5"
             with h5py.File(p, 'w') as h5_file:
                 h5_file.create_dataset('image', data=transformed_image)
 
             # update batch number in case batch is finished
-            print(name)
-            # print(int(name.split("_")[0].split("s")[1]))
             try:
                 if int(name.split("_")[0].split("s")[1]) == 9: # check if last step (9) is reached
                     batch += 1
             except:
                 print("only one battery in pressing tools")
-                if int(name.split(".")[0].split("s")[1]) == 9: 
+                if int(name.split(".")[0].split("s")[1]) == 9: # in case there is only one cell in this batch
                     batch += 1
 
         return transformed_images
