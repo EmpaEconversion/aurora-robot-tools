@@ -8,6 +8,7 @@ import h5py
 import math
 import os
 import json
+import re
 import numpy as np
 import pandas as pd
 import cv2
@@ -65,6 +66,21 @@ class Alignment:
         self.z_corr_7 = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3),
                          (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
         # ------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_filename(filename: str) -> list[dict]:
+        """Take photo filename and returns dict of lists of press cell and step.
+
+        Args:
+            filename (str): the filename of the photo used
+
+        Returns:
+            list of dictionaries containing keys 'p', 'c', 's' for press, cell, step in the photo
+
+        """
+        pattern = re.compile(r"p(\d+)c(\d+)s(\d+)")
+        matches = pattern.findall(filename)
+        return [{"p": int(p), "c": int(c), "s": int(s)} for p, c, s in matches]
 
     # read files (images) from folder --------------------------------------------------------------
     def load_files(self) -> list:
