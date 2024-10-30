@@ -49,7 +49,7 @@ class TRANSFORM:
         Returns:
             list: list containing filename and image array
         """
-        print("load files")
+        print("\n Setp: load files")
         for filename in os.listdir(self.folderpath):
             if filename.endswith('.h5'): # read all .h5 files
                 filepath = os.path.join(self.folderpath, filename)
@@ -76,7 +76,7 @@ class TRANSFORM:
             circle_detection (bool): True if circles should be detected to find reference coordinates
             ellipse_detection (bool): True if ellipses should be detected to find reference coordinates (better)
         """
-        print("get reference coordinates")
+        print("\n Step: get reference coordinates")
         for name, img in self.reference:
             img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
 
@@ -140,11 +140,11 @@ class TRANSFORM:
                 for ellipse in coords:
                     (cx, cy), r = ellipse
                     # Check if the current ellipse is similar to any ellipses in the filtered list
-                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5 
-                            for (fcx, fcy), fr in filtered_ellipses):
-                        filtered_ellipses.append(ellipse)
-                        center = (cx, cy)
-                        coords_ellipses.append(center)
+                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5
+                        for (fcx, fcy), fr in filtered_ellipses):
+                            filtered_ellipses.append(ellipse)
+                            center = (cx, cy)
+                            coords_ellipses.append(center)
                 self.ref.append((name, coords_ellipses))
 
                 # Draw all detected ellipses and save image to check quality of detection
@@ -168,7 +168,7 @@ class TRANSFORM:
         Returns:
             self.transformed_images (list): list with transformed image arrays
         """
-        print("transform warped image in pixel coordinates")
+        print("\n Step: transform warped image in pixel coordinates")
         batch = 0 # iterate over each set of 1-6 batteries per pressing tool
         for name, img in self.data_list:
             height, width = img.shape[:2] # determine size of image

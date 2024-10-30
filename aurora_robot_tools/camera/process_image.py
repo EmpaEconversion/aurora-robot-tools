@@ -63,11 +63,11 @@ class Alignment:
                         if int(filename.split("_")[0].split("s")[1]) == 0: # images from step 0 as reference
                             self.reference.append((filename, content))
                         self.data_list.append((filename, content))
-                    except: # if there is no _ in the name (name is either wrong or only one cell)
+                    except (IndexError, ValueError) as e:
+                        print(f"Error processing filename '{filename}': {e} \n only one cell or wrong filename")
+                        # if there is no _ in the name (name is either wrong or only one cell)
                         if int(filename.split(".")[0].split("s")[1]) == 0: # images from step 0 as reference
                             self.reference.append((filename, content))
-                        self.data_list.append((filename, content))
-                        print(f"fewer cells or wrong filename (check file): {filename}")
         return self.data_list
 
     # get reference coordinates ----------------------------------------------
@@ -142,11 +142,11 @@ class Alignment:
                 for ellipse in coords:
                     (cx, cy), r = ellipse
                     # Check if the current ellipse is similar to any ellipses in the filtered list
-                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5 
-                            for (fcx, fcy), fr in filtered_ellipses):
-                        filtered_ellipses.append(ellipse)
-                        center = (cx, cy)
-                        coords_ellipses.append(center)
+                    if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5
+                        for (fcx, fcy), fr in filtered_ellipses):
+                            filtered_ellipses.append(ellipse)
+                            center = (cx, cy)
+                            coords_ellipses.append(center)
                 self.ref.append((name, coords_ellipses))
 
                 # Draw all detected ellipses and save image to check quality of detection
@@ -217,8 +217,8 @@ class Alignment:
             try:
                 if int(name.split("_")[0].split("s")[1]) == 9: # check if last step (9) is reached
                     batch += 1
-            except:
-                print("only one battery in pressing tools")
+            except (IndexError, ValueError) as e:
+                print(f"Error processing name '{name}': {e} \n only one cell in pressing tools")
                 if int(name.split(".")[0].split("s")[1]) == 9: # in case there is only one cell in this batch
                     batch += 1
 
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     # include alignment class
     # images_detected = obj.get_coordinates() # get coordinates of all circles
     # images_alignment = obj.alignment_number() # get alignment
-    # images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm 
+    # images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm
 
     # somehow save this data
     # probably we add a table in the chemspeed db with all the data
