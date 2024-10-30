@@ -1,6 +1,6 @@
-"""
-Script to read in images from folder and transform warped rectangle in straight rectangle
+""" Lina Scholz
 
+Script to read in images from folder and transform warped rectangle in straight rectangle.
 """
 
 import h5py
