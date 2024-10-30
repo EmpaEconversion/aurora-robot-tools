@@ -14,16 +14,16 @@ import matplotlib.patches as mpatches
 save = True
 
 # Linas Cells (lisc_gen14)
-path = "G:/Limit/Lina Scholz/robot_files_gen14/processed"
-plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/processed/plots"
-df_images = pd.read_excel(f"{path}/data/data.xlsx")
-df_images.sort_values(by="cell", inplace=True)
-
-# Grahams Cells (kigr_gen5)
-# path = "G:/Limit/Lina Scholz/robot_files_names/transformed"
-# plot_path = "G:/Limit/Lina Scholz/robot_files_names/transformed/plots_new"
+# path = "G:/Limit/Lina Scholz/robot_files_gen14/processed"
+# plot_path = "G:/Limit/Lina Scholz/robot_files_gen14/processed/plots"
 # df_images = pd.read_excel(f"{path}/data/data.xlsx")
 # df_images.sort_values(by="cell", inplace=True)
+
+# Grahams Cells (kigr_gen5)
+path = "G:/Limit/Lina Scholz/robot_files/kigr_gen5/processed/transformed_h5/processed"
+plot_path = path + "/plots_new"
+df_images = pd.read_excel(f"{path}/data/data.xlsx")
+df_images.sort_values(by="cell", inplace=True)
 
 #%% ANODE VS CATHODE
 
@@ -117,8 +117,8 @@ for i in range(grid_size):
             ax.add_artist(circle1)
             ax.add_artist(circle2)
             # Plot points for the centers of both circles (smaller markers)
-            ax.plot(3 * (i + 1), 2 * (j + 1), 'bo', markersize=3)  # Anode circle center
-            ax.plot(3 * (i + 1) + misalign_x, 2 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+            ax.plot(3*(i+1), 2*(j+1), 'bo', markersize=3)  # Anode circle center
+            ax.plot(3*(i+1) + misalign_x, 2*(j+1) - misalign_y, 'ro', markersize=3)  # Cathode circle center
         except (IndexError, TypeError, ValueError) as e:
             print(f" Error plotting circles at batch {i}, pos {j}: {e}\n")
             print(f" No more circles in list to plot: batch {i}, pos {j}")
@@ -244,8 +244,8 @@ for i in range(grid_size):
             ax.add_artist(circle1)
             ax.add_artist(circle2)
             # Plot points for the centers of both circles (smaller markers)
-            ax.plot(4 * (i + 1), 3 * (j + 1), 'bo', markersize=3)  # Anode circle center
-            ax.plot(4 * (i + 1) + misalign_x, 3 * (j + 1) + misalign_y, 'ro', markersize=3)  # Cathode circle center
+            ax.plot(4*(i+1), 3*(j+1), 'bo', markersize=3)  # Anode circle center
+            ax.plot(4*(i+1) + misalign_x, 3*(j+1) - misalign_y, 'ro', markersize=3)  # Cathode circle center
         except (IndexError, TypeError, ValueError) as e:
             print(f" Error plotting circles at batch {i}, pos {j}: {e}\n")
             print(f" No more circles in list to plot: batch {i}, pos {j}")
