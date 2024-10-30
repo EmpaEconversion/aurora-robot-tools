@@ -49,7 +49,7 @@ class TRANSFORM:
         Returns:
             list: list containing filename and image array
         """
-        print("\n Setp: load files")
+        print("\n Step: load files")
         for filename in os.listdir(self.folderpath):
             if filename.endswith('.h5'): # read all .h5 files
                 filepath = os.path.join(self.folderpath, filename)
@@ -69,7 +69,7 @@ class TRANSFORM:
         return self.data_list
 
     # get reference coordinates ----------------------------------------------
-    def get_reference(self, circle_detection=False, ellipse_detection=True): # decide it ellipse or circle detection
+    def get_reference(self, circle_detection=True, ellipse_detection=False): # decide it ellipse or circle detection
         """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
 
         Args:
@@ -89,7 +89,7 @@ class TRANSFORM:
                                 dp = 1,
                                 minDist = 100,
                                 param1 = 30, param2 = 50,
-                                minRadius = self.r[0], maxRadius = self.r[1]) 
+                                minRadius = self.r[0], maxRadius = self.r[1])
                 # Extract center points and their pressing tool position
                 coords = [] # list to store reference coordinates
                 if detected_circles is not None:
@@ -156,7 +156,7 @@ class TRANSFORM:
                 cv2.imwrite(self.savepath + f"/reference_detected_ellipses/{name.split(".")[0]}.jpg", resized_img)
 
     # transform warped rectangle to straight rectangle ----------------------------------------------
-    def transform_pixel_coordinates(self, save = False) -> list:
+    def transform_pixel_coordinates(self, save = True) -> list:
         """ Transform each image to get pressing tools in rectangular shape
 
         Transforms each image by the reference coordinates of the pressing tools to get pressing
@@ -188,10 +188,10 @@ class TRANSFORM:
             ctr_sorted = np.float32(ctr_sorted)
             # Calculate new coordinates to correct for distortion:
             # fix coordinates of pressing tool position 1 and correct all other edges
-            a1 = (ctr_sorted[0][0] + ((ctr_sorted[0][1] - ctr_sorted[1][1]))) / \
-                (math.sin(math.atan(((ctr_sorted[0][1] - ctr_sorted[1][1])) / (ctr_sorted[1][0] - ctr_sorted[0][0]))))
-            a2 = (ctr_sorted[0][1] + ((ctr_sorted[0][0] - ctr_sorted[3][0]))) / \
-                (math.sin(math.atan(((ctr_sorted[0][0] - ctr_sorted[3][0])) / (ctr_sorted[3][1] - ctr_sorted[0][1]))))
+            a1 = ctr_sorted[0][0] + ((ctr_sorted[0][1] - ctr_sorted[1][1])) / \
+                math.sin(math.atan(((ctr_sorted[0][1] - ctr_sorted[1][1])) / (ctr_sorted[1][0] - ctr_sorted[0][0])))
+            a2 = ctr_sorted[0][1] + ((ctr_sorted[0][0] - ctr_sorted[3][0])) / \
+                math.sin(math.atan(((ctr_sorted[0][0] - ctr_sorted[3][0])) / (ctr_sorted[3][1] - ctr_sorted[0][1])))
             # corrected coordinates: a1 (corrected x coordinate), a2 (corrected y coordinate)
             pts2 = np.float32([ctr_sorted[0], [a1, ctr_sorted[0][1]], [a1, a2], [ctr_sorted[0][0], a2]])
             # Transform Perspective
@@ -226,7 +226,10 @@ class TRANSFORM:
 if __name__ == '__main__':
     # PARAMETER
     # path to files
-    path = 'G:/Limit/Lina Scholz/robot_files_gen14'
+    # Linas Cells
+    # path = 'G:/Limit/Lina Scholz/robot_files_gen14'
+    # Grahams Cells (kigr_gen5)
+    path = "G:/Limit/Lina Scholz/robot_files/kigr_gen5"
 
     # EXECUTE
     obj = TRANSFORM(path)

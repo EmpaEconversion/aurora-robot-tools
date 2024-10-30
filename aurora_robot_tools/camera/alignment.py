@@ -99,13 +99,13 @@ class ALIGNMENT:
                 string = name.split(".")[0] # get name as string
                 for i in range(len(string.split("_"))):
                     if len(string.split("_")) > 1:
-                        current_positions.append(str(string.split("_")[i].split("c")[0][-2:]))
-                        positions.append(str(string.split("_")[i].split("c")[0][-2:]))
+                        current_positions.append(str(string.split("_")[i].split("c")[0][-1:]))
+                        positions.append(str(string.split("_")[i].split("c")[0][-1:]))
                         cell_numbers.append(str(string.split("_")[i].split("c")[1].split("s")[0]))
                     else: # only one cell
                         print(" only one cell in pressing tools")
-                        current_positions.append(str(string.split("c")[0][-2:]))
-                        positions.append(str(string.split("c")[0][-2:]))
+                        current_positions.append(str(string.split("c")[0][-1:]))
+                        positions.append(str(string.split("c")[0][-1:]))
                         cell_numbers.append(str(string.split("c")[1].split("s")[0]))
             elif step == 2: # increase constrast for the anode
                 img = cv2.convertScaleAbs(img, alpha=2, beta=0)
@@ -137,15 +137,15 @@ class ALIGNMENT:
                     # constrain by rectangles to avoid too many circles
                     if (circle[1] > self.pos_4[0][1]) & (circle[1] < self.pos_4[1][1]): # position 4, 5, 6
                         if (circle[0] > self.pos_4[0][0]) & (circle[0] < self.pos_4[1][0]): # position 4
-                            if "04" in current_positions:
+                            if "4" in current_positions:
                                 coords_buffer_dict[4] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[4] = circle[2] # radius
                         elif (circle[0] > self.pos_5[0][0]) & (circle[0] < self.pos_5[1][0]): # position 5
-                            if "05" in current_positions:
+                            if "5" in current_positions:
                                 coords_buffer_dict[5] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[5] = circle[2] # radius
                         elif (circle[0] > self.pos_6[0][0]) & (circle[0] < self.pos_6[1][0]): # position 6
-                            if "06" in current_positions:
+                            if "6" in current_positions:
                                 coords_buffer_dict[6] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[6] = circle[2] # radius
                         else:
@@ -157,15 +157,15 @@ class ALIGNMENT:
 
                     elif (circle[1] > self.pos_1[0][1]) & (circle[1] < self.pos_1[1][1]): # position 1, 2, 3
                         if (circle[0] > self.pos_1[0][0]) & (circle[0] < self.pos_1[1][0]): # position 1
-                            if "01" in current_positions:
+                            if "1" in current_positions:
                                 coords_buffer_dict[1] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[1] = circle[2] # radius
                         elif (circle[0] > self.pos_2[0][0]) & (circle[0] < self.pos_2[1][0]): # position 2
-                            if "02" in current_positions:
+                            if "2" in current_positions:
                                 coords_buffer_dict[2] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[2] = circle[2] # radius
                         elif (circle[0] > self.pos_3[0][0]) & (circle[0] < self.pos_3[1][0]): # position 3
-                            if "03" in current_positions:
+                            if "3" in current_positions:
                                 coords_buffer_dict[3] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[3] = circle[2] # radius
                         else:
@@ -243,6 +243,12 @@ class ALIGNMENT:
         # get cell number and position as integers not string
         self.df_images['pos'] = self.df_images['pos'].astype(int)
         self.df_images['cell'] = self.df_images['cell'].astype(int)
+
+        # Save data
+        self.df_images.sort_values(by="cell", inplace=True)
+        if not os.path.exists(self.savepath + "/data"):
+            os.makedirs(self.savepath + "/data")
+        self.df_images.to_excel(self.savepath + "/data/data.xlsx")
         return self.df_images
 
     # correct for z distortion from thickness ----------------------------
@@ -285,7 +291,7 @@ class ALIGNMENT:
         return self.df_images
 
     # get alignment numbers ----------------------------------------------
-    def alignment_number(self, z_corrected = True) -> pd.DataFrame:
+    def alignment_number(self, z_corrected = False) -> pd.DataFrame:
         """Determine alignment (x, y, z) vs. pressing tool for each part
 
         Args:
@@ -379,13 +385,16 @@ class ALIGNMENT:
 #%% RUN CODE
 
 # PARAMETER
-path = "G:/Limit/Lina Scholz/robot_files_gen14"
+# Linas Cells
+# path = 'G:/Limit/Lina Scholz/robot_files_gen14'
+# Grahams Cells (kigr_gen5)
+path = "G:/Limit/Lina Scholz/robot_files/kigr_gen5/processed/transformed_h5"
 
 # EXECUTE
 obj = ALIGNMENT(path)
 imgages = obj.read_files() # list with all images given as a list
 images_detected = obj.get_coordinates() # get coordinates of all circles
-images_z_corrected = obj.z_correction() # correct coordinates for z distortion due to thickness
+# images_z_corrected = obj.z_correction() # correct coordinates for z distortion due to thickness
 images_alignment = obj.alignment_number() # get alignment
 images_alignment_mm = obj.pixel_to_mm() # get alignment number in mm
 
