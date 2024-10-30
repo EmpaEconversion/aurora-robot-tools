@@ -107,6 +107,7 @@ class ALIGNMENT:
                         current_positions.append(str(string.split("c")[0][-1:]))
                         positions.append(str(string.split("c")[0][-1:]))
                         cell_numbers.append(str(string.split("c")[1].split("s")[0]))
+                current_positions = [int(x) for x in current_positions]
             elif step == 2: # increase constrast for the anode
                 img = cv2.convertScaleAbs(img, alpha=2, beta=0)
                 img = cv2.GaussianBlur(img, (5, 5), 2) # Gaussian blur to image before detecting
@@ -137,15 +138,15 @@ class ALIGNMENT:
                     # constrain by rectangles to avoid too many circles
                     if (circle[1] > self.pos_4[0][1]) & (circle[1] < self.pos_4[1][1]): # position 4, 5, 6
                         if (circle[0] > self.pos_4[0][0]) & (circle[0] < self.pos_4[1][0]): # position 4
-                            if "4" in current_positions:
+                            if 4 in current_positions:
                                 coords_buffer_dict[4] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[4] = circle[2] # radius
                         elif (circle[0] > self.pos_5[0][0]) & (circle[0] < self.pos_5[1][0]): # position 5
-                            if "5" in current_positions:
+                            if 5 in current_positions:
                                 coords_buffer_dict[5] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[5] = circle[2] # radius
                         elif (circle[0] > self.pos_6[0][0]) & (circle[0] < self.pos_6[1][0]): # position 6
-                            if "6" in current_positions:
+                            if 6 in current_positions:
                                 coords_buffer_dict[6] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[6] = circle[2] # radius
                         else:
@@ -157,15 +158,15 @@ class ALIGNMENT:
 
                     elif (circle[1] > self.pos_1[0][1]) & (circle[1] < self.pos_1[1][1]): # position 1, 2, 3
                         if (circle[0] > self.pos_1[0][0]) & (circle[0] < self.pos_1[1][0]): # position 1
-                            if "1" in current_positions:
+                            if 1 in current_positions:
                                 coords_buffer_dict[1] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[1] = circle[2] # radius
                         elif (circle[0] > self.pos_2[0][0]) & (circle[0] < self.pos_2[1][0]): # position 2
-                            if "2" in current_positions:
+                            if 2 in current_positions:
                                 coords_buffer_dict[2] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[2] = circle[2] # radius
                         elif (circle[0] > self.pos_3[0][0]) & (circle[0] < self.pos_3[1][0]): # position 3
-                            if "3" in current_positions:
+                            if 3 in current_positions:
                                 coords_buffer_dict[3] = [circle[0], circle[1]]  # (x, y) coordinates
                                 r_buffer_dict[3] = circle[2] # radius
                         else:
