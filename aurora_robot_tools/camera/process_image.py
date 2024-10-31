@@ -249,3 +249,5 @@ if __name__ == '__main__':
     obj = ProcessData(folderpath)
     images_list = obj.load_files()
     image_info_df = obj.store_data()
+
+print(image_info_df)
