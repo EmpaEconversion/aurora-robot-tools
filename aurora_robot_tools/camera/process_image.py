@@ -46,27 +46,37 @@ class ProcessData:
         # [{"p": 1, "c": 1, "s": 0}, {"p": 3, "c": 2, "s": 0}]
         return [{"p": int(p), "c": int(c), "s": int(s)} for p, c, s in matches]
 
-    def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
-        """ Takes center points of reference image and gets transformation matrix.
+    def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
+        """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
 
         Args:
-            centers (list[tuple]): list with the four corner coordinates
+            filenameinfo (list[dicts]): list of dicts with press, cell, step
+            img (array): image array
+            ellipse_detection (bool): True if circles should be detected to find reference coordinates
 
         Returns:
-            M (array): transformation matrix
+            tuple with transformation matrix and list of cell numbers
         """
-        pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
-        # Sort by y-coordinate to separate "upper" and "lower" points
-        centers = sorted(centers, key=lambda point: point[1])
-        # Now `corner_points[:2]` are the upper points, `corner_points[2:]` are the lower points
-        upper_points = sorted(centers[:2], key=lambda point: point[0])  # Sort left to right
-        lower_points = sorted(centers[2:], key=lambda point: point[0])  # Sort left to right
-        # Combine in the order [upper_left, upper_right, lower_right, lower_left]
-        centers_sorted = np.float32([upper_points[0], upper_points[1], lower_points[1], lower_points[0]])
-        # Transform Perspective
-        M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
-        print(type(M)) # check type of character of M
-        return M
+        img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
+        ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
+
+        if ellipse_detection:
+            coordinates = self._detect_ellipses(img)
+        else:
+            coordinates = self._detect_circles(img)
+
+        hull = ConvexHull(coordinates) # Compute the convex hull
+        ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
+        # Draw all detected ellipses and save image to check quality of detection
+        resized_img = cv2.resize(img, (1200, 800)) # Set image size
+        # if folder doesn't exist, create it
+        if not os.path.exists(self.path + "/reference"):
+            os.makedirs(self.path + "/reference")
+        # Save the image with detected ellipses
+        cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", resized_img)
+
+        transformation_M = self._get_transformation_matrix(ref_coords)
+        return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
     def _detect_ellipses(self, img: np.array) -> list[list]:
         """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
@@ -79,7 +89,6 @@ class ProcessData:
         coords = [] # list to store reference coordinates
         edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
         contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
-
         # Draw ellipses for each contour, constrained by aspect ratio and radius
         for contour in contours:
             if len(contour) >= 5:  # Need at least 5 points to fit an ellipse
@@ -98,7 +107,6 @@ class ProcessData:
                         # Draw the center point
                         center = (int(ellipse[0][0]), int(ellipse[0][1]))  # Convert coordinates to integers
                         cv2.circle(img, center, 5, (0, 255, 0), -1)
-
         # Filter out similar ellipses
         filtered_ellipses = []
         coords_ellipses = []
@@ -134,7 +142,6 @@ class ProcessData:
             detected_circles = np.uint16(np.around(detected_circles))
             for circle in detected_circles[0, :]:
                 coords_circles.append((circle[0], circle[1]))
-
         # Draw all detected circles and save image to check quality of detection
         for pt in detected_circles[0, :]:
             a, b, r = pt[0], pt[1], pt[2]
@@ -142,44 +149,34 @@ class ProcessData:
             cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
         return coords_circles
 
-    def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
-        """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
+    def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
+        """ Takes center points of reference image and gets transformation matrix.
 
         Args:
-            filenameinfo (list[dicts]): list of dicts with press, cell, step
-            img (array): image array
-            ellipse_detection (bool): True if circles should be detected to find reference coordinates
+            centers (list[tuple]): list with the four corner coordinates
 
         Returns:
-            tuple with transformation matrix and list of cell numbers
+            M (array): transformation matrix
         """
-        img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
-        ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
+        pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
+        # Sort by y-coordinate to separate "upper" and "lower" points
+        centers = sorted(centers, key=lambda point: point[1])
+        # Now `corner_points[:2]` are the upper points, `corner_points[2:]` are the lower points
+        upper_points = sorted(centers[:2], key=lambda point: point[0])  # Sort left to right
+        lower_points = sorted(centers[2:], key=lambda point: point[0])  # Sort left to right
+        # Combine in the order [upper_left, upper_right, lower_right, lower_left]
+        centers_sorted = np.float32([upper_points[0], upper_points[1], lower_points[1], lower_points[0]])
+        # Transform Perspective
+        M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
+        return M
 
-        if ellipse_detection:
-            coordinates = self._detect_ellipses(img)
-        else:
-            coordinates = self._detect_circles(img)
-
-        hull = ConvexHull(coordinates) # Compute the convex hull
-        ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
-        # Draw all detected ellipses and save image to check quality of detection
-        resized_img = cv2.resize(img, (1200, 800)) # Set image size
-        # if folder doesn't exist, create it
-        if not os.path.exists(self.path + "/reference"):
-            os.makedirs(self.path + "/reference")
-        # Save the image with detected ellipses
-        cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", resized_img)
-
-        transformation_M = self._get_transformation_matrix(ref_coords)
-        return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
-
-    def _transform_split(self, img: np.array, m: np.array) -> list[np.array]:
+    def _transform_split(self, img: np.array, m: np.array, filename: str) -> list[np.array]:
         """ Takes image and transformation matrix and returns transformed image.
 
         Args:
             img (array): image array
             m (array): transformation matrix
+            filename (str): filename
 
         Returns:
             cropped_images (array): transformed image splitted into subsections
@@ -195,10 +192,17 @@ class ProcessData:
             bottom_right_y = (c[1] + 2*self.offset_mm) * self.mm_to_pixel
             bottom_right_x = (c[0] + 2*self.offset_mm) * self.mm_to_pixel
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+            # for cross check save image:
+            resized_img = cv2.resize(cropped_image, (1200, 800)) # Set image size
+            # if folder doesn't exist, create it
+            if not os.path.exists(self.path + "/image_sections"):
+                os.makedirs(self.path + "/image_sections")
+            # Save the image with detected ellipses
+            cv2.imwrite(self.path + f"/image_sections/{filename}.jpg", resized_img)
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def load_files(self) -> list:
+    def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
 
         All images are loaded and stored in list with a tuple of their filename and 8 bit image
@@ -206,9 +210,8 @@ class ProcessData:
         reference for the coordinate transformation.
 
         Returns:
-            list: list containing filename and image array
+            list: list containing filename, information from image name and image array
         """
-        print("load files")
         for filename in os.listdir(self.path):
             if filename.endswith('.h5'): # read all .h5 files
                 filepath = os.path.join(self.path, filename)
@@ -220,7 +223,7 @@ class ProcessData:
                 if all(d["s"] == 0 for d in info): # if step 0, get reference coordinates
                     matrix = self._get_references(info, content) # transformation matrix with cell numbers
                     self.ref.append(matrix)
-                self.data_list.append((info, content)) # store info and image array
+                self.data_list.append((filename, info, content)) # store info and image array
         return self.data_list
 
     def store_data(self) -> pd.DataFrame:
@@ -229,15 +232,14 @@ class ProcessData:
         Returns:
             self.df (DataFrame): columns cell, step, press, transformed image section, center coordinates
         """
-        for information, image in self.data_list:
+        for name, information, image in self.data_list:
             for array, numbers in self.ref:
                 if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
                     transformation_matrix = array
-            image_sections = self._transform_split(image, transformation_matrix)
+            image_sections = self._transform_split(image, transformation_matrix, name)
             for num, dictionary in enumerate(information):
                 row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[num]]
                 self.df.loc[len(self.df)] = row
-
         return self.df
 
 #%% RUN CODE
