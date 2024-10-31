@@ -22,7 +22,7 @@ class ProcessData:
         self.path = path # path to images
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
-        self.df = pd.DataFrame() # data frame for all data
+        self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
 
         # Parameter which might need to be changes if camera position changes ----------------------
         self.press_position = [[0, 0], [95, 0], [190, 0], [190, 100], [95, 100], [0, 100]]
@@ -32,7 +32,7 @@ class ProcessData:
         self.r = (210, 228) # (min, max)
         self.r_ellipse = (205, 240) # (min, max)
 
-    def _parse_filename(filename: str) -> list[dict]:
+    def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
 
         Args:
@@ -56,20 +56,26 @@ class ProcessData:
             M (array): transformation matrix
         """
         pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
-        centers = np.float32(centers)
         # Sort by y-coordinate to separate "upper" and "lower" points
         centers = sorted(centers, key=lambda point: point[1])
         # Now `corner_points[:2]` are the upper points, `corner_points[2:]` are the lower points
         upper_points = sorted(centers[:2], key=lambda point: point[0])  # Sort left to right
         lower_points = sorted(centers[2:], key=lambda point: point[0])  # Sort left to right
         # Combine in the order [upper_left, upper_right, lower_right, lower_left]
-        centers_sorted = [upper_points[0], upper_points[1], lower_points[1], lower_points[0]]
+        centers_sorted = np.float32([upper_points[0], upper_points[1], lower_points[1], lower_points[0]])
         # Transform Perspective
         M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
         print(type(M)) # check type of character of M
         return M
 
-    def _detect_ellipses(self, img):
+    def _detect_ellipses(self, img: np.array) -> list[list]:
+        """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
+
+        Args:
+            img (array): image array
+        Return:
+            coords_ellipses (list[list]): list with all six center coordinates of pressing tools
+        """
         coords = [] # list to store reference coordinates
         edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
         contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
@@ -105,7 +111,14 @@ class ProcessData:
                     coords_ellipses.append((cx, cy))
         return coords_ellipses
 
-    def _detect_circles(self):
+    def _detect_circles(self, img):
+        """ Takes image, detects circles of pressing tools and provides list of coordinates.
+
+        Args:
+            img (array): image array
+        Return:
+            coords_circles (list[list]): list with all six center coordinates of pressing tools
+        """
         # Apply a Gaussian blur to the image before detecting circles (to improve detection)
         img = cv2.GaussianBlur(img, (9, 9), 2)
         # Apply Hough transform
@@ -149,7 +162,7 @@ class ProcessData:
             coordinates = self._detect_circles(img)
 
         hull = ConvexHull(coordinates) # Compute the convex hull
-        ref_coords = coordinates[hull.vertices].tolist() # Extract the corner points
+        ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
         # Draw all detected ellipses and save image to check quality of detection
         resized_img = cv2.resize(img, (1200, 800)) # Set image size
         # if folder doesn't exist, create it
@@ -161,7 +174,7 @@ class ProcessData:
         transformation_M = self._get_transformation_matrix(ref_coords)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
-    def _transform_split(self, img: np.array, m: np.array) -> np.array:
+    def _transform_split(self, img: np.array, m: np.array) -> list[np.array]:
         """ Takes image and transformation matrix and returns transformed image.
 
         Args:
@@ -169,13 +182,21 @@ class ProcessData:
             m (array): transformation matrix
 
         Returns:
-            transformed_image (array): transformed image
+            cropped_images (array): transformed image splitted into subsections
         """
         transformed_image = cv2.warpPerspective(img, m,
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
                                                  (100+ 2* self.offset_mm)*self.mm_to_pixel))
-        
-        return transformed_image
+        # Crop the image
+        cropped_images = {}
+        for i, c in enumerate(self.press_position):
+            top_left_y = (c[1] + self.offset_mm) * self.mm_to_pixel
+            top_left_x = (c[0] + self.offset_mm) * self.mm_to_pixel
+            bottom_right_y = (c[1] + 2*self.offset_mm) * self.mm_to_pixel
+            bottom_right_x = (c[0] + 2*self.offset_mm) * self.mm_to_pixel
+            cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+            cropped_images[i] = cropped_image
+        return cropped_images
 
     def load_files(self) -> list:
         """ Loads images and stores them in list with filename and image array
@@ -195,11 +216,11 @@ class ProcessData:
                     content = f['image'][:]
                     content = content/np.max(content)*255 # convert to 8 bit
                     content = content.astype(np.uint8) # image array
-                    info = self._parse_filename(filename) # extract info from filename
-                    if all(d["s"] == 0 for d in info): # if step 0, get reference coordinates
-                        matrix = self._get_reference(info, content)
-                        self.ref.append(matrix)
-                    self.data_list.append((info, content)) # store info and image array
+                info = self._parse_filename(filename) # extract info from filename
+                if all(d["s"] == 0 for d in info): # if step 0, get reference coordinates
+                    matrix = self._get_references(info, content) # transformation matrix with cell numbers
+                    self.ref.append(matrix)
+                self.data_list.append((info, content)) # store info and image array
         return self.data_list
 
     def store_data(self) -> pd.DataFrame:
@@ -209,7 +230,13 @@ class ProcessData:
             self.df (DataFrame): columns cell, step, press, transformed image section, center coordinates
         """
         for information, image in self.data_list:
-            print()
+            for array, numbers in self.ref:
+                if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
+                    transformation_matrix = array
+            image_sections = self._transform_split(image, transformation_matrix)
+            for num, dictionary in enumerate(information):
+                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[num]]
+                self.df.loc[len(self.df)] = row
 
         return self.df
 
@@ -217,7 +244,8 @@ class ProcessData:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "G:/Limit/Lina Scholz/test"
+    folderpath = "C:/test"
 
     obj = ProcessData(folderpath)
     images_list = obj.load_files()
+    image_info_df = obj.store_data()
