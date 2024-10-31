@@ -65,8 +65,8 @@ class ProcessData:
         else:
             coordinates = self._detect_circles(img)
 
-        hull = ConvexHull(coordinates) # Compute the convex hull
-        ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
+        # hull = ConvexHull(coordinates) # Compute the convex hull
+        # ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
         # Draw all detected ellipses and save image to check quality of detection
         resized_img = cv2.resize(img, (1200, 800)) # Set image size
         # if folder doesn't exist, create it
@@ -75,7 +75,7 @@ class ProcessData:
         # Save the image with detected ellipses
         cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", resized_img)
 
-        transformation_M = self._get_transformation_matrix(ref_coords)
+        transformation_M = self._get_transformation_matrix(coordinates)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
     def _detect_ellipses(self, img: np.array) -> list[list]:
@@ -159,13 +159,17 @@ class ProcessData:
             M (array): transformation matrix
         """
         pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
-        # Sort by y-coordinate to separate "upper" and "lower" points
-        centers = sorted(centers, key=lambda point: point[1])
-        # Now `corner_points[:2]` are the upper points, `corner_points[2:]` are the lower points
-        upper_points = sorted(centers[:2], key=lambda point: point[0])  # Sort left to right
-        lower_points = sorted(centers[2:], key=lambda point: point[0])  # Sort left to right
-        # Combine in the order [upper_left, upper_right, lower_right, lower_left]
-        centers_sorted = np.float32([upper_points[0], upper_points[1], lower_points[1], lower_points[0]])
+        # Sort centers by y-coordinate to separate top and bottom halves
+        centers_sorted_by_y = sorted(centers, key=lambda x: x[1])
+        # Top and bottom points
+        top_half = centers_sorted_by_y[:4]
+        bottom_half = centers_sorted_by_y[4:]
+        # Sort top and bottom points by x
+        top_half_sorted = sorted(top_half, key=lambda x: x[0])
+        bottom_half_sorted = sorted(bottom_half, key=lambda x: x[0])
+
+        # Arrange in desired order: upper left, upper right, lower right, lower left
+        centers_sorted = np.float32([top_half_sorted[0], top_half_sorted[-1], bottom_half_sorted[-1], bottom_half_sorted[0]])
         # Transform Perspective
         M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
         return M
