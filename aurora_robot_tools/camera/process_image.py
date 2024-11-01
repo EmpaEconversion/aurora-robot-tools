@@ -28,8 +28,17 @@ class ProcessImages:
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
         self.mm_to_pixel = 10
         self.offset_mm = 20 # mm
-        self.r = (210, 228) # (min, max)
-        self.r_ellipse = (205, 240) # (min, max)
+        self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
+        self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
+
+        # ALIGNMENT --------------------------------------------------------------------------------
+        # radius of all parts from cell in mm (key corresponds to step)
+        self.r_part = {0: (9, 11), 1: (9, 11), 2: (6, 8), 3: (6, 8), 4: (7, 9),
+                       5: (7, 9), 6: (6, 8), 7: (7, 10), 8: (6, 8), 9: (7, 11),
+                       10: (7, 11)}
+        # self.r_part = {0: (200, 230), 1: (200, 230), 2: (145, 175), 3: (145, 175), 4: (170, 190),
+        #                5: (140, 162), 6: (140, 162), 7: (150, 178), 8: (140, 170), 9: (140, 185),
+        #                10: (160, 190)}
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -60,13 +69,13 @@ class ProcessImages:
         ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
 
         if ellipse_detection:
-            coordinates = self._detect_ellipses(img)
+            coordinates, image_with_circles = self._detect_ellipses(img)
         else:
-            coordinates = self._detect_circles(img)
+            coordinates, _, image_with_circles = self._detect_circles(img, self.r) # TODO: not really working
 
         # Draw all detected ellipses and save image to check quality of detection
-        height, width = img.shape[:2] # Get height, width
-        resized_img = cv2.resize(img, (width, height)) # Set image size
+        height, width = image_with_circles.shape[:2] # Get height, width
+        resized_img = cv2.resize(image_with_circles, (width, height)) # Set image size
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/reference"):
             os.makedirs(self.path + "/reference")
@@ -76,7 +85,7 @@ class ProcessImages:
         transformation_M = self._get_transformation_matrix(coordinates)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
-    def _detect_ellipses(self, img: np.array) -> list[list]:
+    def _detect_ellipses(self, img: np.array) -> tuple[list[list], np.array]:
         """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
 
         Args:
@@ -115,37 +124,41 @@ class ProcessImages:
                 for (fcx, fcy), fr in filtered_ellipses):
                     filtered_ellipses.append(ellipse)
                     coords_ellipses.append((cx, cy))
-        return coords_ellipses
+        return coords_ellipses, img
 
-    def _detect_circles(self, img):
+    def _detect_circles(self, img: np.array, radius: tuple) -> tuple[list[list], np.array]:
         """ Takes image, detects circles of pressing tools and provides list of coordinates.
 
         Args:
             img (array): image array
+            radius (tuple): (minimum_radius, maximum_radius) to detect
         Return:
-            coords_circles (list[list]): list with all six center coordinates of pressing tools
+            coords_circles (list[list]): list with all center coordinates of pressing tools
         """
-        # Apply a Gaussian blur to the image before detecting circles (to improve detection)
-        img = cv2.GaussianBlur(img, (9, 9), 2)
         # Apply Hough transform
         detected_circles = cv2.HoughCircles(img,
                         cv2.HOUGH_GRADIENT,
                         dp = 1,
                         minDist = 100,
                         param1 = 30, param2 = 50,
-                        minRadius = self.r[0], maxRadius = self.r[1])
+                        minRadius = radius[0], maxRadius = radius[1])
         # Extract center points and their pressing tool position
-        coords_circles = [] # list to store reference coordinates
+        coords_circles = [] # list to store coordinates
+        r_circles = [] # list to store radius
         if detected_circles is not None:
-            detected_circles = np.uint16(np.around(detected_circles))
+            detected_circles = np.uint16(np.around(detected_circles)) # TODO: round later
             for circle in detected_circles[0, :]:
                 coords_circles.append((circle[0], circle[1]))
-        # Draw all detected circles and save image to check quality of detection
-        for pt in detected_circles[0, :]:
-            a, b, r = pt[0], pt[1], pt[2]
-            cv2.circle(img, (a, b), r, (0, 0, 255), 10) # Draw the circumference of the circle
-            cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
-        return coords_circles
+                r_circles.append(circle[2])
+            # Draw all detected circles and save image to check quality of detection
+            for pt in detected_circles[0, :]:
+                a, b, r = pt[0], pt[1], pt[2]
+                cv2.circle(img, (a, b), r, (0, 0, 255), 10) # Draw the circumference of the circle
+                cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
+        else:
+            coords_circles = None # TODO
+            r_circles = None
+        return coords_circles, r_circles, img
 
     def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
         """ Takes center points of reference image and gets transformation matrix.
@@ -255,6 +268,43 @@ class ProcessImages:
                 self.df.loc[len(self.df)] = row
         return self.df
 
+    def get_centers(self) -> pd.DataFrame:
+        """ Detects centers of parts for each image section in data frame
+
+        Returns:
+            self.df (data frame): data frame with column of center coordinates added
+        """
+        coords = [] # list to store coordinates
+        radius = [] # list to store radius
+        for index, row in self.df.iterrows():
+            img = row["array"]
+            r = tuple(x * self.mm_to_pixel for x in self.r_part[row["step"]])
+            center, rad, image_with_circles = self._detect_circles(img, r)
+            # Assuming center is expected to be a list containing a tuple
+            if center is not None and isinstance(center, list) and len(center) > 0:
+                coords.append(center[0])
+                radius.append(rad[0]/self.mm_to_pixel)
+            else:
+                # Handle the case where center is None or not as expected
+                coords.append((np.nan, np.nan))
+                radius.append(None)
+            # for cross check save image:
+            height, width = image_with_circles.shape[:2] # Get height, width
+            resized_img = cv2.resize(image_with_circles, (width, height)) # Set image size
+            # if folder doesn't exist, create it
+            if not os.path.exists(self.path + "/detected_circles"):
+                os.makedirs(self.path + "/detected_circles")
+            # Save the image with detected ellipses
+            filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
+            cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", resized_img)
+        self.df["coords"] = coords
+        self.df["r_mm"] = radius
+        # Save data
+        if not os.path.exists(self.path + "/data"):
+            os.makedirs(self.path + "/data")
+        self.df.to_excel(self.path + "/data/data.xlsx")
+        return self.df
+
 #%% RUN CODE
 if __name__ == '__main__':
 
@@ -264,5 +314,6 @@ if __name__ == '__main__':
     obj = ProcessImages(folderpath)
     images_list = obj.load_files()
     image_info_df = obj.store_data()
+    image_info_df = obj.get_centers()
 
 print(image_info_df)
