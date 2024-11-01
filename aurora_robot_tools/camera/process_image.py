@@ -12,7 +12,6 @@ import re
 import numpy as np
 import pandas as pd
 import cv2
-from scipy.spatial import ConvexHull
 
 #%% CLASS
 
@@ -159,17 +158,18 @@ class ProcessData:
             M (array): transformation matrix
         """
         pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
-        # Sort centers by y-coordinate to separate top and bottom halves
-        centers_sorted_by_y = sorted(centers, key=lambda x: x[1])
-        # Top and bottom points
-        top_half = centers_sorted_by_y[:4]
-        bottom_half = centers_sorted_by_y[4:]
+        # Sort center coordinates in correct order for transformation matrix
+        y_values = [center[1] for center in centers] # Extract the y-values
+        median_y = sorted(y_values)[len(y_values) // 2] # Calculate the median of the y-values
+        # Split the list based on the median y-value
+        lower_y_group = [center for center in centers if center[1] < median_y]
+        higher_y_group = [center for center in centers if center[1] >= median_y]
         # Sort top and bottom points by x
-        top_half_sorted = sorted(top_half, key=lambda x: x[0])
-        bottom_half_sorted = sorted(bottom_half, key=lambda x: x[0])
-
+        top_half_sorted = sorted(lower_y_group, key=lambda x: x[0])
+        bottom_half_sorted = sorted(higher_y_group, key=lambda x: x[0])
         # Arrange in desired order: upper left, upper right, lower right, lower left
-        centers_sorted = np.float32([top_half_sorted[0], top_half_sorted[-1], bottom_half_sorted[-1], bottom_half_sorted[0]])
+        centers_sorted = np.float32([top_half_sorted[0], top_half_sorted[-1],
+                                     bottom_half_sorted[-1], bottom_half_sorted[0]])
         # Transform Perspective
         M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
         return M
@@ -188,6 +188,13 @@ class ProcessData:
         transformed_image = cv2.warpPerspective(img, m,
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
                                                  (100+ 2* self.offset_mm)*self.mm_to_pixel))
+        # for cross check save image:
+        resized_img = cv2.resize(transformed_image, (1200, 800)) # Set image size
+        # if folder doesn't exist, create it
+        if not os.path.exists(self.path + "/transformed"):
+            os.makedirs(self.path + "/transformed")
+        # Save the image with detected ellipses
+        cv2.imwrite(self.path + f"/transformed/{filename}.jpg", resized_img)
         # Crop the image
         cropped_images = {}
         for i, c in enumerate(self.press_position):
