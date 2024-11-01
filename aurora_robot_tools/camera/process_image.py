@@ -15,7 +15,7 @@ import cv2
 
 #%% CLASS
 
-class ProcessData:
+class ProcessImages:
     def __init__(self, path):
         # TRANSFORMATION ---------------------------------------------------------------------------
         self.path = path # path to images
@@ -64,10 +64,9 @@ class ProcessData:
         else:
             coordinates = self._detect_circles(img)
 
-        # hull = ConvexHull(coordinates) # Compute the convex hull
-        # ref_coords = [coordinates[i] for i in hull.vertices] # Extract the corner points
         # Draw all detected ellipses and save image to check quality of detection
-        resized_img = cv2.resize(img, (1200, 800)) # Set image size
+        height, width = img.shape[:2] # Get height, width
+        resized_img = cv2.resize(img, (width, height)) # Set image size
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/reference"):
             os.makedirs(self.path + "/reference")
@@ -188,8 +187,9 @@ class ProcessData:
         transformed_image = cv2.warpPerspective(img, m,
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
                                                  (100+ 2* self.offset_mm)*self.mm_to_pixel))
-        # for cross check save image:
-        resized_img = cv2.resize(transformed_image, (1200, 800)) # Set image size
+        # for cross check save image: # TODO delete later?
+        height, width = transformed_image.shape[:2] # Get height, width
+        resized_img = cv2.resize(transformed_image, (width, height)) # Set image size
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/transformed"):
             os.makedirs(self.path + "/transformed")
@@ -198,18 +198,20 @@ class ProcessData:
         # Crop the image
         cropped_images = {}
         for i, c in enumerate(self.press_position):
-            top_left_y = (c[1] + self.offset_mm) * self.mm_to_pixel
-            top_left_x = (c[0] + self.offset_mm) * self.mm_to_pixel
-            bottom_right_y = (c[1] + 2*self.offset_mm) * self.mm_to_pixel
-            bottom_right_x = (c[0] + 2*self.offset_mm) * self.mm_to_pixel
+            # set zero in case it gives a negative number
+            bottom_right_y = max((c[1] + 2*self.offset_mm) * self.mm_to_pixel, 0)
+            bottom_right_x = max((c[0] + 2*self.offset_mm) * self.mm_to_pixel, 0)
+            top_left_y = bottom_right_y - 400
+            top_left_x = bottom_right_x - 400
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             # for cross check save image:
-            resized_img = cv2.resize(cropped_image, (1200, 800)) # Set image size
+            height, width = cropped_image.shape[:2] # Get height, width
+            resized_img = cv2.resize(cropped_image, (width, height)) # Set image size
             # if folder doesn't exist, create it
             if not os.path.exists(self.path + "/image_sections"):
                 os.makedirs(self.path + "/image_sections")
             # Save the image with detected ellipses
-            cv2.imwrite(self.path + f"/image_sections/{filename}.jpg", resized_img)
+            cv2.imwrite(self.path + f"/image_sections/{filename}_pos_{i+1}.jpg", resized_img)
             cropped_images[i] = cropped_image
         return cropped_images
 
@@ -259,7 +261,7 @@ if __name__ == '__main__':
     # PARAMETER
     folderpath = "C:/test"
 
-    obj = ProcessData(folderpath)
+    obj = ProcessImages(folderpath)
     images_list = obj.load_files()
     image_info_df = obj.store_data()
 
