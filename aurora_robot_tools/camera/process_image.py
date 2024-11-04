@@ -228,6 +228,14 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
+    def _get_alignment(self, part_1, part_2):
+        """
+        """
+        cell_numbers = self.df['cell'].unique()
+        for num in cell_numbers:
+            pass
+        return
+
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
 
@@ -301,6 +309,10 @@ class ProcessImages:
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", resized_img)
         self.df["coords"] = coords
         self.df["r_mm"] = radius
+
+    def save(self) -> pd.DataFrame:
+        """ Saves data frame with all coordinates, redius and alignment
+        """
         # Save data
         if not os.path.exists(self.path + "/data"):
             os.makedirs(self.path + "/data")
@@ -317,5 +329,6 @@ if __name__ == '__main__':
     images_list = obj.load_files()
     image_info_df = obj.store_data()
     image_info_df = obj.get_centers()
+    saved_df = obj.save()
 
 print(image_info_df)
