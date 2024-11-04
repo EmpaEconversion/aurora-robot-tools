@@ -33,12 +33,10 @@ class ProcessImages:
 
         # ALIGNMENT --------------------------------------------------------------------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9, 11), 1: (9, 11), 2: (6, 8), 3: (6, 8), 4: (7, 9),
-                       5: (7, 9), 6: (6, 8), 7: (7, 10), 8: (6, 8), 9: (7, 11),
+        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
+                       5: (7.7, 8.5), 6: (6.5, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
                        10: (7, 11)}
-        # self.r_part = {0: (200, 230), 1: (200, 230), 2: (145, 175), 3: (145, 175), 4: (170, 190),
-        #                5: (140, 162), 6: (140, 162), 7: (150, 178), 8: (140, 170), 9: (140, 185),
-        #                10: (160, 190)}
+        self.alpha =[1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1] # contrast intensity per step
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -65,7 +63,7 @@ class ProcessImages:
         Returns:
             tuple with transformation matrix and list of cell numbers
         """
-        img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
+        img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
         ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
 
         if ellipse_detection:
@@ -90,6 +88,7 @@ class ProcessImages:
 
         Args:
             img (array): image array
+
         Return:
             coords_ellipses (list[list]): list with all six center coordinates of pressing tools
         """
@@ -132,6 +131,7 @@ class ProcessImages:
         Args:
             img (array): image array
             radius (tuple): (minimum_radius, maximum_radius) to detect
+
         Return:
             coords_circles (list[list]): list with all center coordinates of pressing tools
         """
@@ -153,8 +153,8 @@ class ProcessImages:
             # Draw all detected circles and save image to check quality of detection
             for pt in detected_circles[0, :]:
                 a, b, r = pt[0], pt[1], pt[2]
-                cv2.circle(img, (a, b), r, (0, 0, 255), 10) # Draw the circumference of the circle
-                cv2.circle(img, (a, b), 1, (0, 0, 255), 10) # Show center point drawing a small circle
+                cv2.circle(img, (a, b), r, (0, 0, 255), 5) # Draw the circumference of the circle
+                cv2.circle(img, (a, b), 1, (0, 0, 255), 5) # Show center point drawing a small circle
         else:
             coords_circles = None # TODO
             r_circles = None
@@ -278,7 +278,9 @@ class ProcessImages:
         radius = [] # list to store radius
         for index, row in self.df.iterrows():
             img = row["array"]
-            r = tuple(x * self.mm_to_pixel for x in self.r_part[row["step"]])
+            r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
+            a = self.alpha[row["step"]]
+            img = cv2.convertScaleAbs(img, alpha=a, beta=0) # increase contrast
             center, rad, image_with_circles = self._detect_circles(img, r)
             # Assuming center is expected to be a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
