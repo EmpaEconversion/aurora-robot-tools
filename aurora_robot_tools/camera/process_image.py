@@ -335,7 +335,7 @@ class ProcessImages:
         Return:
             self.alignment_df (data frame): alignments of all cells for different parts.
         """
-        self.alignment_df["cell"] = np.sort(self.df["cell"].unique()).tolist()
+        self.alignment_df = self.df.groupby('cell')['press'].first().reset_index()
         anode_cathode = self._get_alignment(2, 6)
         spring_press = self._get_alignment(8, 0)
         spacer_press = self._get_alignment(7, 0)
