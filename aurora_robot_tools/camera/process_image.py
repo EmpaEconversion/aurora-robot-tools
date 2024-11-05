@@ -172,10 +172,10 @@ class ProcessImages:
         pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
         # Sort center coordinates in correct order for transformation matrix
         y_values = [center[1] for center in centers] # Extract the y-values
-        median_y = sorted(y_values)[len(y_values) // 2] # Calculate the median of the y-values
+        mean_y = sum(y_values) / len(y_values) # Calculate the mean of the y-values
         # Split the list based on the median y-value
-        lower_y_group = [center for center in centers if center[1] < median_y]
-        higher_y_group = [center for center in centers if center[1] >= median_y]
+        lower_y_group = [center for center in centers if center[1] < mean_y]
+        higher_y_group = [center for center in centers if center[1] >= mean_y]
         # Sort top and bottom points by x
         top_half_sorted = sorted(lower_y_group, key=lambda x: x[0])
         bottom_half_sorted = sorted(higher_y_group, key=lambda x: x[0])
@@ -328,7 +328,7 @@ if __name__ == '__main__':
     obj = ProcessImages(folderpath)
     images_list = obj.load_files()
     image_info_df = obj.store_data()
-    image_info_df = obj.get_centers()
+    obj.get_centers()
     saved_df = obj.save()
 
 print(image_info_df)
