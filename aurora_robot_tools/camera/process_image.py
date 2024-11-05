@@ -345,7 +345,7 @@ class ProcessImages:
         return
 
     def save(self) -> pd.DataFrame:
-        """ Saves data frame with all coordinates, redius and alignment.
+        """ Saves data frames with all coordinates, redius and alignment.
         """
         if not os.path.exists(self.path + "/data"):
             os.makedirs(self.path + "/data")
@@ -367,5 +367,5 @@ if __name__ == '__main__':
     obj.get_alignment()
     coordinates_df, alignment_df = obj.save()
 
-print(coordinates_df)
-print(alignment_df)
+    print(coordinates_df)
+    print(alignment_df)
