@@ -32,6 +32,8 @@ class ProcessImages:
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
 
         # ALIGNMENT --------------------------------------------------------------------------------
+        self.alignment_df = pd.DataFrame()
+        # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
         self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
                        5: (7.7, 8.5), 6: (6.5, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
@@ -146,17 +148,17 @@ class ProcessImages:
         coords_circles = [] # list to store coordinates
         r_circles = [] # list to store radius
         if detected_circles is not None:
-            detected_circles = np.uint16(np.around(detected_circles)) # TODO: round later
             for circle in detected_circles[0, :]:
                 coords_circles.append((circle[0], circle[1]))
                 r_circles.append(circle[2])
             # Draw all detected circles and save image to check quality of detection
+            detected_circles = np.uint16(np.around(detected_circles))
             for pt in detected_circles[0, :]:
                 a, b, r = pt[0], pt[1], pt[2]
                 cv2.circle(img, (a, b), r, (0, 0, 255), 5) # Draw the circumference of the circle
                 cv2.circle(img, (a, b), 1, (0, 0, 255), 5) # Show center point drawing a small circle
         else:
-            coords_circles = None # TODO
+            coords_circles = None
             r_circles = None
         return coords_circles, r_circles, img
 
@@ -228,13 +230,29 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def _get_alignment(self, part_1, part_2):
+    def _get_alignment(self, step_a: int, step_b: int) -> dict[tuple]:
+        """ Get missalignment of the two steps.
+
+        Args:
+            step_1 (int): first part for missalignment calculation
+            step_2 (int): second part for missalignemnt calculation
+
+        Return:
+            missalignment_dict (dict): missalignemnt per cell in (x, y, z)
         """
-        """
-        cell_numbers = self.df['cell'].unique()
-        for num in cell_numbers:
-            pass
-        return
+        missalignment_dict = {}
+        cells = self.df["cell"].unique()
+        for i, cell in enumerate(cells):
+            cell_df = self.df[self.df["cell"] == cell]
+            part_a = cell_df.loc[cell_df['step'] == step_a, 'coords'].values
+            part_b = cell_df.loc[cell_df['step'] == step_b, 'coords'].values
+
+            x = (float(part_a[0][0]) - float(part_b[0][0])) / self.mm_to_pixel
+            y = (float(part_a[0][1]) - float(part_b[0][1])) / self.mm_to_pixel
+            z = round(math.sqrt(x**2 + y**2), 3)
+            missalignment_coords = (x, y, z)
+            missalignment_dict[cell] = missalignment_coords
+        return missalignment_dict
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -258,7 +276,7 @@ class ProcessImages:
                     matrix = self._get_references(info, content) # transformation matrix with cell numbers
                     self.ref.append(matrix)
                 self.data_list.append((filename, info, content)) # store info and image array
-        return self.data_list
+        return
 
     def store_data(self) -> pd.DataFrame:
         """ For each image array transform image and store image sections in DataFrame.
@@ -274,7 +292,7 @@ class ProcessImages:
             for num, dictionary in enumerate(information):
                 row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[num]]
                 self.df.loc[len(self.df)] = row
-        return self.df
+        return
 
     def get_centers(self) -> pd.DataFrame:
         """ Detects centers of parts for each image section in data frame
@@ -309,15 +327,32 @@ class ProcessImages:
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", resized_img)
         self.df["coords"] = coords
         self.df["r_mm"] = radius
+        return
+
+    def get_alignment(self) -> pd.DataFrame:
+        """ Get alignemnt between all specified parts into data frame.
+
+        Return:
+            self.alignment_df (data frame): alignments of all cells for different parts.
+        """
+        self.alignment_df["cell"] = np.sort(self.df["cell"].unique()).tolist()
+        anode_cathode = self._get_alignment(2, 6)
+        spring_press = self._get_alignment(8, 0)
+        spacer_press = self._get_alignment(7, 0)
+        self.alignment_df["anode/cathode"] = self.alignment_df['cell'].map(anode_cathode)
+        self.alignment_df["spring/press"] = self.alignment_df['cell'].map(spring_press)
+        self.alignment_df["spacer/press"] = self.alignment_df['cell'].map(spacer_press)
+        return
 
     def save(self) -> pd.DataFrame:
-        """ Saves data frame with all coordinates, redius and alignment
+        """ Saves data frame with all coordinates, redius and alignment.
         """
-        # Save data
         if not os.path.exists(self.path + "/data"):
             os.makedirs(self.path + "/data")
-        self.df.to_excel(self.path + "/data/data.xlsx")
-        return self.df
+        with pd.ExcelWriter(self.path + "/data/data.xlsx") as writer:
+            self.df.to_excel(writer, sheet_name='coordinates', index=False)
+            self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
+        return self.df, self.alignment_df
 
 #%% RUN CODE
 if __name__ == '__main__':
@@ -326,9 +361,11 @@ if __name__ == '__main__':
     folderpath = "C:/test"
 
     obj = ProcessImages(folderpath)
-    images_list = obj.load_files()
-    image_info_df = obj.store_data()
+    obj.load_files()
+    obj.store_data()
     obj.get_centers()
-    saved_df = obj.save()
+    obj.get_alignment()
+    coordinates_df, alignment_df = obj.save()
 
-print(image_info_df)
+print(coordinates_df)
+print(alignment_df)
