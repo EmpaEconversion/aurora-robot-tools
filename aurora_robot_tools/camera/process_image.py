@@ -123,7 +123,7 @@ class ProcessImages:
         for ellipse in coords:
             (cx, cy), r = ellipse
             # Check if the current ellipse is similar to any ellipses in the filtered list
-            if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 5 and abs(r - fr) < 5
+            if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 10 and abs(r - fr) < 10
                 for (fcx, fcy), fr in filtered_ellipses):
                     filtered_ellipses.append(ellipse)
                     coords_ellipses.append((cx, cy))
@@ -179,8 +179,8 @@ class ProcessImages:
         y_values = [center[1] for center in centers] # Extract the y-values
         mean_y = sum(y_values) / len(y_values) # Calculate the mean of the y-values
         # Split the list based on the median y-value
-        lower_y_group = [center for center in centers if center[1] < mean_y]
-        higher_y_group = [center for center in centers if center[1] >= mean_y]
+        lower_y_group = [center for center in centers if center[1] < (mean_y - 500)]
+        higher_y_group = [center for center in centers if center[1] > (mean_y + 500)]
         # Sort top and bottom points by x
         top_half_sorted = sorted(lower_y_group, key=lambda x: x[0])
         bottom_half_sorted = sorted(higher_y_group, key=lambda x: x[0])
@@ -374,7 +374,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/test"
+    folderpath = "C:/kigr_gen5"
 
     obj = ProcessImages(folderpath)
     obj.load_files()
