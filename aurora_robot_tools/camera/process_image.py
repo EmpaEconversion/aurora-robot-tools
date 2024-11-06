@@ -243,19 +243,24 @@ class ProcessImages:
         Return:
             missalignment_dict (dict): missalignemnt per cell in (x, y, z)
         """
-        missalignment_dict = {}
+        missalignment_dict_x = {}
+        missalignment_dict_y = {}
+        missalignment_dict_z = {}
         cells = self.df["cell"].unique()
         for i, cell in enumerate(cells):
             cell_df = self.df[self.df["cell"] == cell]
-            part_a = cell_df.loc[cell_df['step'] == step_a, 'coords'].values
-            part_b = cell_df.loc[cell_df['step'] == step_b, 'coords'].values
+            part_a_x = cell_df.loc[cell_df['step'] == step_a, 'x'].values
+            part_a_y = cell_df.loc[cell_df['step'] == step_a, 'y'].values
+            part_b_x = cell_df.loc[cell_df['step'] == step_b, 'x'].values
+            part_b_y = cell_df.loc[cell_df['step'] == step_b, 'y'].values
 
-            x = (float(part_a[0][0]) - float(part_b[0][0])) / self.mm_to_pixel
-            y = (float(part_a[0][1]) - float(part_b[0][1])) / self.mm_to_pixel
+            x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
+            y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
             z = round(math.sqrt(x**2 + y**2), 3)
-            missalignment_coords = (x, y, z)
-            missalignment_dict[cell] = missalignment_coords
-        return missalignment_dict
+            missalignment_dict_x[cell] = x
+            missalignment_dict_y[cell] = y
+            missalignment_dict_z[cell] = z
+        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -303,7 +308,8 @@ class ProcessImages:
         Returns:
             self.df (data frame): data frame with column of center coordinates added
         """
-        coords = [] # list to store coordinates
+        x = [] # list to store coordinates
+        y = []
         radius = [] # list to store radius
         for index, row in self.df.iterrows():
             img = row["array"]
@@ -317,11 +323,13 @@ class ProcessImages:
                 center, rad, image_with_circles = self._detect_circles(img, r)
             # Assuming center is expected to be a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
-                coords.append(center[0])
+                x.append(center[0][0])
+                y.append(center[0][1])
                 radius.append(rad[0]/self.mm_to_pixel)
             else:
                 # Handle the case where center is None or not as expected
-                coords.append((np.nan, np.nan))
+                x.append(np.nan)
+                y.append(np.nan)
                 radius.append(None)
             # for cross check save image:
             height, width = image_with_circles.shape[:2] # Get height, width
@@ -332,7 +340,8 @@ class ProcessImages:
             # Save the image with detected ellipses
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", resized_img)
-        self.df["coords"] = coords
+        self.df["x"] = x
+        self.df["y"] = y
         self.df["r_mm"] = radius
         return
 
@@ -343,12 +352,12 @@ class ProcessImages:
             self.alignment_df (data frame): alignments of all cells for different parts.
         """
         self.alignment_df = self.df.groupby('cell')['press'].first().reset_index()
-        anode_cathode = self._get_alignment(2, 6)
-        spring_press = self._get_alignment(8, 0)
-        spacer_press = self._get_alignment(7, 0)
-        self.alignment_df["anode/cathode"] = self.alignment_df['cell'].map(anode_cathode)
-        self.alignment_df["spring/press"] = self.alignment_df['cell'].map(spring_press)
-        self.alignment_df["spacer/press"] = self.alignment_df['cell'].map(spacer_press)
+        anode_cathode_x, anode_cathode_y, anode_cathode_z = self._get_alignment(2, 6)
+        spring_press_x, spring_press_y, spring_press_z = self._get_alignment(8, 0)
+        spacer_press_x, spacer_press_y, spacer_press_z = self._get_alignment(7, 0)
+        self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(anode_cathode_z)
+        self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(spring_press_z)
+        self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(spacer_press_z)
         return
 
     def save(self) -> pd.DataFrame:
