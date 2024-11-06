@@ -5,10 +5,16 @@ Script to handle undetected circles.
 
 import math
 import os
-import json
 import numpy as np
 import pandas as pd
 import cv2
+
+#%%
+
+# class UndetectedCirclesHandling:
+
+#     def __init__(self, path):
+#         pass
 
 def _detect_circles(img: np.array, radius: tuple) -> tuple[list[list], list[list], np.array]:
         """ Takes image, detects circles of pressing tools and provides list of coordinates.
@@ -111,16 +117,16 @@ for s in steps:
             r = tuple(int(x * mm_to_pixel) for x in (r_part[2][0], r_part[2][1]))
             center, rad, image_detected = _detect_circles(img, r)
             if center is not None and rad is not None:
-                centers[(cell, s)] = center[0], rad[0]/mm_to_pixel
+                centers[(cell, s)] = center[0], round(rad[0]/mm_to_pixel, 3)
             else:
-                centers[(cell, s)] = (0, 0), 0
+                centers[(cell, s)] = (None, None), None
     print(centers)
 
     for key, value in centers.items():
         row_index = df[(df["cell"] == key[0]) & (df["step"] == key[1])].index[0]
         df.iloc[row_index, df.columns.get_loc("x")] = value[0][0]
         df.iloc[row_index, df.columns.get_loc("y")] = value[0][1]
-        df.iloc[row_index, df.columns.get_loc("r_mm")] = round(value[1], 3)
+        df.iloc[row_index, df.columns.get_loc("r_mm")] = value[1]
 
 df.to_excel(f"{path}/data/data_corrected.xlsx", sheet_name = "coordinates")
 with pd.ExcelWriter(f"{path}/data/data_corrected.xlsx") as writer:
@@ -145,11 +151,9 @@ with pd.ExcelWriter(f"{path}/data/data_corrected.xlsx") as writer:
 
 #%% Save to plot
 
-alignment = pd.DataFrame()
-
 sample_ID = [
- '241022_lisc_gen14_2_13_2', '241022_lisc_gen14_2_13_3', '241022_lisc_gen14_2_13_4', '241022_lisc_gen14_2_13_5',
- '241022_lisc_gen14_2_13_6', '241022_lisc_gen14_2_13_7', '241022_lisc_gen14_2_13_8', '241022_lisc_gen14_2_13_9',
+ '241022_lisc_gen14_2_13_02', '241022_lisc_gen14_2_13_03', '241022_lisc_gen14_2_13_04', '241022_lisc_gen14_2_13_05',
+ '241022_lisc_gen14_2_13_06', '241022_lisc_gen14_2_13_07', '241022_lisc_gen14_2_13_08', '241022_lisc_gen14_2_13_09',
  '241022_lisc_gen14_2_13_10', '241022_lisc_gen14_2_13_11', '241022_lisc_gen14_2_13_12', '241022_lisc_gen14_2_13_13',
  '241022_lisc_gen13_14_36_14', '241022_lisc_gen13_14_36_15', '241022_lisc_gen13_14_36_16', '241022_lisc_gen13_14_36_17',
  '241022_lisc_gen13_14_36_18', '241022_lisc_gen13_14_36_19', '241022_lisc_gen13_14_36_20', '241022_lisc_gen13_14_36_21',
@@ -159,11 +163,10 @@ sample_ID = [
  '241022_lisc_gen13_14_36_34', '241022_lisc_gen13_14_36_35', '241022_lisc_gen13_14_36_36'
 ]
 
+alignment = pd.DataFrame()
 anode_cathode_z.pop(1)
-
 alignment["sample_ID"] = sample_ID
 alignment["alignment"] = list(anode_cathode_z.values())
-
 alignment.to_csv(f"{path}/data/alignment_data.csv", index=False)
 
 
