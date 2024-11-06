@@ -28,11 +28,12 @@ colors = ['#d73027', '#fc8d59', '#fee08b', '#91bfdb', '#4575b4', '#313695']
 # Grouping the data by the pressing tool position column and plotting each group separately
 for i, (group, df_group) in enumerate(df_alignment.groupby('press')):
     # Extract the z missalignment of each tuple, handling NaNs
+    # tuples = [tuple(ast.literal_eval(value)) for value in df_group["anode/cathode"].tolist()]
     z_values = [
         x[2] if isinstance(x, tuple) and not any(pd.isna(val) for val in x) else np.nan
         for x in df_group["anode/cathode"]
         ]
-    # TODO: error!!
+    # TODO: error!! tuples are packed as strings
     ax.scatter(df_group['cell'].tolist(), z_values,
                color=colors[i], s=50, label=f'Position {group}')
 # labeling
