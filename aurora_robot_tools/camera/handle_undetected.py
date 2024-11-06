@@ -110,7 +110,10 @@ for s in steps:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             r = tuple(int(x * mm_to_pixel) for x in (r_part[2][0], r_part[2][1]))
             center, rad, image_detected = _detect_circles(img, r)
-            centers[(cell, s)] = center[0], rad[0]/mm_to_pixel
+            if center is not None and rad is not None:
+                centers[(cell, s)] = center[0], rad[0]/mm_to_pixel
+            else:
+                centers[(cell, s)] = (0, 0), 0
     print(centers)
 
     for key, value in centers.items():
@@ -140,11 +143,27 @@ with pd.ExcelWriter(f"{path}/data/data_corrected.xlsx") as writer:
     data.to_excel(writer, sheet_name='coordinates', index=False)
     data_alignment.to_excel(writer, sheet_name='alignment', index=False)
 
-#%% Save as Json
+#%% Save to plot
 
-json_string = data_alignment[["anode/cathode", "spring/press", "spacer/press"]].to_json(orient="columns")
-# Save the JSON data to a file
-if not os.path.exists(f"{path}/json"):
-            os.makedirs(f"{path}/json")
-with open(f"{path}/json/alignment.json", "w") as json_file:
-    json.dump(json_string, json_file, indent=4)
+alignment = pd.DataFrame()
+
+sample_ID = [
+ '241022_lisc_gen14_2_13_2', '241022_lisc_gen14_2_13_3', '241022_lisc_gen14_2_13_4', '241022_lisc_gen14_2_13_5',
+ '241022_lisc_gen14_2_13_6', '241022_lisc_gen14_2_13_7', '241022_lisc_gen14_2_13_8', '241022_lisc_gen14_2_13_9',
+ '241022_lisc_gen14_2_13_10', '241022_lisc_gen14_2_13_11', '241022_lisc_gen14_2_13_12', '241022_lisc_gen14_2_13_13',
+ '241022_lisc_gen13_14_36_14', '241022_lisc_gen13_14_36_15', '241022_lisc_gen13_14_36_16', '241022_lisc_gen13_14_36_17',
+ '241022_lisc_gen13_14_36_18', '241022_lisc_gen13_14_36_19', '241022_lisc_gen13_14_36_20', '241022_lisc_gen13_14_36_21',
+ '241022_lisc_gen13_14_36_22', '241022_lisc_gen13_14_36_23', '241022_lisc_gen13_14_36_24', '241022_lisc_gen13_14_36_25',
+ '241022_lisc_gen13_14_36_26', '241022_lisc_gen13_14_36_27', '241022_lisc_gen13_14_36_28', '241022_lisc_gen13_14_36_29',
+ '241022_lisc_gen13_14_36_30', '241022_lisc_gen13_14_36_31', '241022_lisc_gen13_14_36_32', '241022_lisc_gen13_14_36_33',
+ '241022_lisc_gen13_14_36_34', '241022_lisc_gen13_14_36_35', '241022_lisc_gen13_14_36_36'
+]
+
+anode_cathode_z.pop(1)
+
+alignment["sample_ID"] = sample_ID
+alignment["alignment"] = list(anode_cathode_z.values())
+
+alignment.to_csv(f"{path}/data/alignment_data.csv", index=False)
+
+
