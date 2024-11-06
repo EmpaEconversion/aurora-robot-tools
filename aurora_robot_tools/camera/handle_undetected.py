@@ -87,7 +87,7 @@ path = "C:/lisc_gen14"
 steps = [2, 6]
 mm_to_pixel = 10
 r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
-          5: (7.7, 8.5), 6: (6.5, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5), 10: (7, 11)}
+          5: (7.7, 8.5), 6: (6, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5), 10: (7, 11)}
 
 df = pd.read_excel(f"{path}/data/data.xlsx", sheet_name = "coordinates")
 df_alignment = pd.read_excel(f"{path}/data/data.xlsx", sheet_name = "alignment")
@@ -114,8 +114,17 @@ for s in steps:
 
             # Convert to grayscale
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            r = tuple(int(x * mm_to_pixel) for x in (r_part[2][0], r_part[2][1]))
+            # img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
+            r = tuple(int(x * mm_to_pixel) for x in (r_part[s][0], r_part[s][1]))
             center, rad, image_detected = _detect_circles(img, r)
+            # Draw all detected ellipses and save image to check quality of detection
+            height, width = image_detected.shape[:2] # Get height, width
+            resized_img = cv2.resize(image_detected, (width, height)) # Set image size
+            # if folder doesn't exist, create it
+            if not os.path.exists(path + "/corrected"):
+                os.makedirs(path + "/corrected")
+            # Save the image with detected ellipses
+            cv2.imwrite(path + f"/corrected/{filename}.jpg", resized_img)
             if center is not None and rad is not None:
                 centers[(cell, s)] = center[0], round(rad[0]/mm_to_pixel, 3)
             else:
@@ -151,22 +160,26 @@ with pd.ExcelWriter(f"{path}/data/data_corrected.xlsx") as writer:
 
 #%% Save to plot
 
+base_string = "241022_lisc_gen14_"
 sample_ID = [
- '241022_lisc_gen14_2_13_02', '241022_lisc_gen14_2_13_03', '241022_lisc_gen14_2_13_04', '241022_lisc_gen14_2_13_05',
- '241022_lisc_gen14_2_13_06', '241022_lisc_gen14_2_13_07', '241022_lisc_gen14_2_13_08', '241022_lisc_gen14_2_13_09',
- '241022_lisc_gen14_2_13_10', '241022_lisc_gen14_2_13_11', '241022_lisc_gen14_2_13_12', '241022_lisc_gen14_2_13_13',
- '241022_lisc_gen13_14_36_14', '241022_lisc_gen13_14_36_15', '241022_lisc_gen13_14_36_16', '241022_lisc_gen13_14_36_17',
- '241022_lisc_gen13_14_36_18', '241022_lisc_gen13_14_36_19', '241022_lisc_gen13_14_36_20', '241022_lisc_gen13_14_36_21',
- '241022_lisc_gen13_14_36_22', '241022_lisc_gen13_14_36_23', '241022_lisc_gen13_14_36_24', '241022_lisc_gen13_14_36_25',
- '241022_lisc_gen13_14_36_26', '241022_lisc_gen13_14_36_27', '241022_lisc_gen13_14_36_28', '241022_lisc_gen13_14_36_29',
- '241022_lisc_gen13_14_36_30', '241022_lisc_gen13_14_36_31', '241022_lisc_gen13_14_36_32', '241022_lisc_gen13_14_36_33',
- '241022_lisc_gen13_14_36_34', '241022_lisc_gen13_14_36_35', '241022_lisc_gen13_14_36_36'
+ '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04', '241022_lisc_gen14_2-13_05',
+ '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07', '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09',
+ '241022_lisc_gen14_2-13_10', '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
+ '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16', '241022_lisc_gen14_14_36_17',
+ '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19', '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21',
+ '241022_lisc_gen14_14_36_22', '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
+ '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28', '241022_lisc_gen14_14_36_29',
+ '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31', '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33',
+ '241022_lisc_gen14_14_36_34', '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
 ]
+# base_string = "241004_kigr_gen5_"
+# Create a list with formatted strings
+# sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
 
 alignment = pd.DataFrame()
 anode_cathode_z.pop(1)
 alignment["sample_ID"] = sample_ID
 alignment["alignment"] = list(anode_cathode_z.values())
-alignment.to_csv(f"{path}/data/alignment_data.csv", index=False)
+alignment.to_csv(f"{path}/{base_string}alignment.csv", index=False)
 
 
