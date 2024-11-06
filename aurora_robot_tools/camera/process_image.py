@@ -38,7 +38,7 @@ class ProcessImages:
         self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
                        5: (7.7, 8.5), 6: (6.5, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
                        10: (7, 11)}
-        self.alpha =[1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1] # contrast intensity per step
+        self.alpha =[1, 1, 1.5, 1, 1, 1, 1, 1, 1, 1, 1] # contrast intensity per step
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -69,9 +69,9 @@ class ProcessImages:
         ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
 
         if ellipse_detection:
-            coordinates, image_with_circles = self._detect_ellipses(img)
+            coordinates, _, image_with_circles = self._detect_ellipses(img, self.r_ellipse)
         else:
-            coordinates, _, image_with_circles = self._detect_circles(img, self.r) # TODO: not really working
+            coordinates, _, image_with_circles = self._detect_circles(img, self.r)
 
         # Draw all detected ellipses and save image to check quality of detection
         height, width = image_with_circles.shape[:2] # Get height, width
@@ -85,7 +85,7 @@ class ProcessImages:
         transformation_M = self._get_transformation_matrix(coordinates)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
-    def _detect_ellipses(self, img: np.array) -> tuple[list[list], np.array]:
+    def _detect_ellipses(self, img: np.array, r: tuple) -> tuple[list[list], np.array]:
         """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
 
         Args:
@@ -94,6 +94,7 @@ class ProcessImages:
         Return:
             coords_ellipses (list[list]): list with all six center coordinates of pressing tools
         """
+        # center, rad, image_with_circles = self._detect_ellipses(img, r)
         coords = [] # list to store reference coordinates
         edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
         contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
@@ -109,7 +110,7 @@ class ProcessImages:
                     # Calculate the average radius of the ellipse
                     avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
                     # Constrain to shapes that are slightly non-circular and within the radius range
-                    if 0.9 < aspect_ratio < 1.1 and self.r_ellipse[0] <= avg_radius <= self.r_ellipse[1]:
+                    if 0.9 < aspect_ratio < 1.1 and r[0] <= avg_radius <= r[1]:
                         coords.append((ellipse[0], avg_radius))
                         cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
                         # Draw the center point
@@ -118,6 +119,7 @@ class ProcessImages:
         # Filter out similar ellipses
         filtered_ellipses = []
         coords_ellipses = []
+        r_ellipses = []
         for ellipse in coords:
             (cx, cy), r = ellipse
             # Check if the current ellipse is similar to any ellipses in the filtered list
@@ -125,9 +127,10 @@ class ProcessImages:
                 for (fcx, fcy), fr in filtered_ellipses):
                     filtered_ellipses.append(ellipse)
                     coords_ellipses.append((cx, cy))
-        return coords_ellipses, img
+                    r_ellipses.append(r)
+        return coords_ellipses, r_ellipses, img
 
-    def _detect_circles(self, img: np.array, radius: tuple) -> tuple[list[list], np.array]:
+    def _detect_circles(self, img: np.array, radius: tuple) -> tuple[list[list], list[list], np.array]:
         """ Takes image, detects circles of pressing tools and provides list of coordinates.
 
         Args:
@@ -306,8 +309,12 @@ class ProcessImages:
             img = row["array"]
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
             a = self.alpha[row["step"]]
+            step = row["step"]
             img = cv2.convertScaleAbs(img, alpha=a, beta=0) # increase contrast
-            center, rad, image_with_circles = self._detect_circles(img, r)
+            if step == "type in step of part which should be detected as ellipse":
+                center, rad, image_with_circles = self._detect_ellipses(img, r)
+            else: # detect circle
+                center, rad, image_with_circles = self._detect_circles(img, r)
             # Assuming center is expected to be a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
                 coords.append(center[0])
