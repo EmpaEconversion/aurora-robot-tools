@@ -36,7 +36,7 @@ class ProcessImages:
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
         self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.5, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
+                       5: (7.7, 8.5), 6: (6, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
                        10: (7, 11)}
         self.alpha =[1, 1, 1.5, 1, 1, 1, 1, 1, 1, 1, 1] # contrast intensity per step
 
@@ -316,7 +316,7 @@ class ProcessImages:
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
             a = self.alpha[row["step"]]
             step = row["step"]
-            img = cv2.convertScaleAbs(img, alpha=a, beta=0) # increase contrast
+            # img = cv2.convertScaleAbs(img, alpha=a, beta=0) # increase contrast
             if step == "type in step of part which should be detected as ellipse":
                 center, rad, image_with_circles = self._detect_ellipses(img, r)
             else: # detect circle
@@ -374,7 +374,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/kigr_gen5"
+    folderpath = "C:/lisc_gen14"
 
     obj = ProcessImages(folderpath)
     obj.load_files()
