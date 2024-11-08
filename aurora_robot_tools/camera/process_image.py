@@ -215,7 +215,7 @@ class ProcessImages:
         if not os.path.exists(self.path + "/transformed"):
             os.makedirs(self.path + "/transformed")
         # Save the image with detected ellipses
-        cv2.imwrite(self.path + f"/transformed/{filename}.jpg", resized_img)
+        cv2.imwrite(self.path + f"/transformed/{filename.split(".")[0]}.jpg", resized_img)
         # Crop the image
         cropped_images = {}
         for i, c in enumerate(self.press_position):
@@ -232,7 +232,7 @@ class ProcessImages:
             if not os.path.exists(self.path + "/image_sections"):
                 os.makedirs(self.path + "/image_sections")
             # Save the image with detected ellipses
-            cv2.imwrite(self.path + f"/image_sections/{filename}_pos_{i+1}.jpg", resized_img)
+            cv2.imwrite(self.path + f"/image_sections/{filename.split(".")[0]}_pos_{i+1}.jpg", resized_img)
             cropped_images[i] = cropped_image
         return cropped_images
 
