@@ -35,10 +35,12 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.5, 8), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6, 7.5), 7: (7, 8.25), 8: (6, 7.75), 9: (9.5, 10.5),
+        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.75, 8), 3: (7, 8), 4: (7.5, 8.5),
+                       5: (7.7, 8.5), 6: (6.25, 7.5), 7: (7, 8.25), 8: (6.25, 7.7), 9: (9.5, 10.5),
                        10: (7, 11)}
-        self.alpha =[1, 1, 1.5, 1, 1, 1, 1, 1, 1, 1, 1] # contrast intensity per step
+        # parameter for HoughCircles (param1, param2)
+        self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
+                      (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -130,12 +132,13 @@ class ProcessImages:
                     r_ellipses.append(r)
         return coords_ellipses, r_ellipses, img
 
-    def _detect_circles(self, img: np.array, radius: tuple) -> tuple[list[list], list[list], np.array]:
+    def _detect_circles(self, img: np.array, radius: tuple, params: tuple) -> tuple[list[list], list[list], np.array]:
         """ Takes image, detects circles of pressing tools and provides list of coordinates.
 
         Args:
             img (array): image array
             radius (tuple): (minimum_radius, maximum_radius) to detect
+            params (tuple): (param1, param2) for HoughCircles
 
         Return:
             coords_circles (list[list]): list with all center coordinates of pressing tools
@@ -144,8 +147,8 @@ class ProcessImages:
         detected_circles = cv2.HoughCircles(img,
                         cv2.HOUGH_GRADIENT,
                         dp = 1,
-                        minDist = 100,
-                        param1 = 30, param2 = 50,
+                        minDist = 500,
+                        param1 = params[0], param2 = params[1],
                         minRadius = radius[0], maxRadius = radius[1])
         # Extract center points and their pressing tool position
         coords_circles = [] # list to store coordinates
@@ -262,6 +265,24 @@ class ProcessImages:
             missalignment_dict_z[cell] = z
         return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z
 
+    def _preprocess_image(self, image: np.array, step: int) -> np.array:
+        """ Takes image and applies preprocessing steps (blur, contrast)
+
+        Args:
+            image (array): image array
+            step (int): robot assembly step
+
+        Return:
+            processed_image (array): processed image
+        """
+        if step == 2:
+            # Apply a Gaussian blur to reduce noise and improve detection accuracy
+            processed_image = cv2.convertScaleAbs(image, alpha=3, beta=0) # increase contrast
+            processed_image = cv2.GaussianBlur(processed_image, (9, 9), 2)
+        else: # no preprossessing
+            processed_image = image
+        return processed_image
+
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
 
@@ -313,15 +334,13 @@ class ProcessImages:
         y = []
         radius = [] # list to store radius
         for index, row in self.df.iterrows():
-            img = row["array"]
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
-            a = self.alpha[row["step"]]
-            step = row["step"]
-            # img = cv2.convertScaleAbs(img, alpha=a, beta=0) # increase contrast
-            if step == "type in step of part which should be detected as ellipse":
-                center, rad, image_with_circles = self._detect_ellipses(img, r)
+            img = self._preprocess_image(row["array"], row["step"])
+            parameter = self.params[row["step"]]
+            if row["step"] == "type in step of part which should be detected as ellipse":
+                center, rad, image_with_circles = self._detect_ellipses(img, r, parameter)
             else: # detect circle
-                center, rad, image_with_circles = self._detect_circles(img, r)
+                center, rad, image_with_circles = self._detect_circles(img, r, parameter)
             # Assuming center is expected to be a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
                 x.append(center[0][0])
@@ -386,3 +405,24 @@ if __name__ == '__main__':
 
     print(coordinates_df)
     print(alignment_df)
+
+    # base_string = "241004_kigr_gen5_"
+    # Create a list with formatted strings
+    # sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
+
+    base_string = "241022_lisc_gen14_"
+    sample_ID = [
+    '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04', '241022_lisc_gen14_2-13_05',
+    '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07', '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09',
+    '241022_lisc_gen14_2-13_10', '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
+    '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16', '241022_lisc_gen14_14_36_17',
+    '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19', '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21',
+    '241022_lisc_gen14_14_36_22', '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
+    '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28', '241022_lisc_gen14_14_36_29',
+    '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31', '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33',
+    '241022_lisc_gen14_14_36_34', '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
+    ]
+
+    alignments = alignment_df["anode/cathode_z"]
+    alignments["sample_ID"] = sample_ID
+    alignments.to_csv(f"{folderpath}/data/{base_string}alignment.csv", index=False)
