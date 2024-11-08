@@ -297,8 +297,9 @@ class ProcessImages:
                 if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
                     transformation_matrix = array
             image_sections = self._transform_split(image, transformation_matrix, name)
-            for num, dictionary in enumerate(information):
-                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[num]]
+            for dictionary in information:
+                position = int(dictionary["p"])-1
+                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[position]]
                 self.df.loc[len(self.df)] = row
         return
 
