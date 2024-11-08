@@ -11,16 +11,27 @@ import cv2
 
 # save image?
 save = False
+jpg = True
 
 # File path
-path = "G:/Limit/Lina Scholz/robot_files_gen14/transformed/p01c01s0_p03c02s0_p05c03s0_p02c04s0_p04c05s0_p06c06s0.h5"
+path = "C:/lisc_gen14/transformed/p03c02s0_p05c03s0_p02c04s0_p04c05s0_p06c06s0.jpg"
 
-# Load image from .h5 file
-with h5py.File(path, 'r') as f:
-    content = f['image'][:]
-    # In 8-Bit umwandeln
-    content = content / np.max(content) * 255
-    img = content.astype(np.uint8)
+if jpg:
+    # Load the JPG image
+    img = cv2.imread(path)
+    # Convert the image to a NumPy array (if not already)
+    img = np.array(img)
+    # convert to 8 bit
+    img = img/np.max(img)*255
+    img = img.astype(np.uint8)
+
+else:
+    # Load image from .h5 file
+    with h5py.File(path, 'r') as f:
+        content = f['image'][:]
+        # In 8-Bit umwandeln
+        content = content / np.max(content) * 255
+        img = content.astype(np.uint8)
 
 # image processing
 img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
@@ -35,7 +46,7 @@ detected_circles = cv2.HoughCircles(img,
 print(detected_circles)
 
 if detected_circles is not None:
-        detected_circles = np.uint16(np.around(detected_circles))
+    detected_circles = np.uint16(np.around(detected_circles))
 
 if detected_circles is not None:
     # Draw all detected circles
