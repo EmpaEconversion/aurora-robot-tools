@@ -4,140 +4,70 @@ Script to plot the alignment
 """
 
 import os
-import ast
-import math
+import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 #%%
 save = False
 
-folderpath = "C:/test"
-df_coords = pd.read_excel(f"{folderpath}/data/data.xlsx", sheet_name='coordinates')
-df_coords.sort_values(by="cell", inplace=True)
-df_alignment = pd.read_excel(f"{folderpath}/data/data.xlsx", sheet_name='alignment')
+folderpath_alignment = "G:/Limit/Lina Scholz/Alignment"
+folderpath_cellperformance = "G:/Limit/Lina Scholz/Data"
+
+alignment = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_alignment.csv")
+alignment.set_index('sample_ID', inplace=True)
+spring = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_alignment_spring.csv")
+spacer = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_alignment_spacer.csv")
+alignment["spring"] = spring["spring/press"].to_list()
+alignment["spacer"] = spacer["spacer/press"].to_list()
+print("\n")
+print(alignment)
+
+all_keys = set()
+x_columns = ["anode/cathode", "spring", "spacer"]
+plot_strings = ["Cycles to 90% capacity", "Cycles to 80% capacity", "Initial efficiency (%)"]
+# "Formation C", "Efficiency (%)"
+
+for string in plot_strings:
+    cell_data = {}
+    # Loop through all files in the folder
+    for filename in os.listdir(folderpath_cellperformance):
+        if filename.endswith('.json'):  # Check if the file is a JSON file
+            file_path = os.path.join(folderpath_cellperformance, filename)
+
+            # Open and load the JSON file
+            with open(file_path, 'r') as file:
+                json_data = json.load(file)
+
+                # Extract the data associated with the key "data"
+                if "data" in json_data and isinstance(json_data["data"], dict):
+                    name = filename.split(".")[1]
+                    cell_data[name] = (json_data["data"][string])
+                    all_keys.update(json_data["data"].keys())
+    # add cell performance data to aligment data frame
+    alignment[string] = alignment.index.map(cell_data)
+
+# show json data
+print("\n")
+print(all_keys)
+print("\n")
+print(alignment)
+
 
 #%% ANODE VS CATHODE
 
-# anode: s2_align_mm & cathode: s6_align_mm
-fig, ax = plt.subplots(layout="tight", figsize=(16, 10))
-# plot alignment in mm
-colors = ['#d73027', '#fc8d59', '#fee08b', '#91bfdb', '#4575b4', '#313695']
-# Grouping the data by the pressing tool position column and plotting each group separately
-for i, (group, df_group) in enumerate(df_alignment.groupby('press')):
-    # Extract the z missalignment of each tuple, handling NaNs
-    # tuples = [tuple(ast.literal_eval(value)) for value in df_group["anode/cathode"].tolist()]
-    z_values = [
-        x[2] if isinstance(x, tuple) and not any(pd.isna(val) for val in x) else np.nan
-        for x in df_group["anode/cathode"]
-        ]
-    # TODO: error!! tuples are packed as strings
-    ax.scatter(df_group['cell'].tolist(), z_values,
-               color=colors[i], s=50, label=f'Position {group}')
-# labeling
-ax.set_xlabel("cell number", fontsize=18)
-ax.set_ylabel("alignment offset [mm]", fontsize=18)
-ax.set_xticks(df_alignment["cell"], minor=True)
-ax.tick_params(axis='x', labelsize=14)
-ax.tick_params(axis='y', labelsize=14)
-# ax.set_ylim([-0.1, 3])
-ax.set_title("Anode vs. Cathode Alignment", fontsize=18)
-ax.grid(True, axis='y')
-ax.legend(title="Pressing Tool", fontsize=14)
-# Display the plot
+# Create a figure and axis array for a 3x3 grid
+fig, axes = plt.subplots(3, 3, figsize=(15, 10))
+
+# Loop through each x_column and each y_column in plot_strings
+for i, x_col in enumerate(x_columns):
+    for j, y_col in enumerate(plot_strings):
+        axes[i, j].scatter(alignment[x_col], alignment[y_col], marker='o')
+        axes[i, j].set_title(f"{y_col} vs {x_col} alignment", fontsize=9)
+        axes[i, j].set_xlabel(f"{x_col} alignment [mm]", fontsize=8)
+        axes[i, j].set_ylabel(y_col, fontsize=8)
+
+# Adjust layout
+plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the title
 plt.show()
-
-if save:
-    unique_filename = "anode_vs_cathode.png"
-    i = 0
-    while os.path.exists(folderpath + "/plot/" + unique_filename):
-        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
-        i += 1
-    # create path if not existing
-    if not os.path.exists(folderpath + "/plot"):
-        os.makedirs(folderpath + "/plot")
-    # save plot
-    fig.savefig(folderpath + "/plot/" + unique_filename, format='png')
-
-# --------------------------
-# Grid size
-grid_size = 6
-
-# List of misalignments (y-values correspond to batches, x-values to pressing tool position)
-missalignments = [(x/10, y/10) for x, y in zip(x_values, y_values)] # in um
-cat_missalign = [missalignments[0:6], missalignments[6:12], missalignments[12:18],
-                 missalignments[18:24], missalignments[24:30], missalignments[30:36]]
-
-cat_radius = df_images["s6_r_mm"].to_list() # cathode radius
-cat_radius = [x/10 for x in cat_radius]
-radii_cat = [cat_radius[0:6], cat_radius[6:12], cat_radius[12:18],
-             cat_radius[18:24], cat_radius[24:30], cat_radius[30:36]]
-
-ano_radius = df_images["s4_r_mm"].to_list() # anode radius
-ano_radius = [x/10 for x in ano_radius]
-radii_ano = [ano_radius[0:6], ano_radius[6:12], ano_radius[12:18],
-             ano_radius[18:24], ano_radius[24:30], ano_radius[30:36]]
-
-# Set up the figure and axis
-fig, ax = plt.subplots(figsize=(12, 10))
-
-# Loop over grid points and draw circles
-for i in range(grid_size):
-    for j in range(grid_size):
-        try:
-            # Get the base radius for each point
-            base_radius = radii_ano[j][i]
-            # First circle (centered at (i+1, j+1) because we want labels 1 to 6)
-            circle1 = plt.Circle((3*(i+1), 2*(j+1)), base_radius, color='blue', fill=False)
-            # Get the misalignment and radius for the second circle
-            misalign_x, misalign_y = cat_missalign[j][i]
-            misalign_radius = radii_cat[j][i]
-            # Second circle (misaligned by (misalign_x, misalign_y))
-            # minus missalign_y to reverse axis (from image to plot)
-            circle2 = plt.Circle((3*(i+1) + misalign_x, 2*(j+1) - misalign_y), misalign_radius, color='red', fill=False)
-            # Add circles to plot
-            ax.add_artist(circle1)
-            ax.add_artist(circle2)
-            # Plot points for the centers of both circles (smaller markers)
-            ax.plot(3*(i+1), 2*(j+1), 'bo', markersize=3)  # Anode circle center
-            ax.plot(3*(i+1) + misalign_x, 2*(j+1) - misalign_y, 'ro', markersize=3)  # Cathode circle center
-        except (IndexError, TypeError, ValueError) as e:
-            print(f" Error plotting circles at batch {i}, pos {j}: {e}\n")
-            print(f" No more circles in list to plot: batch {i}, pos {j}")
-
-# Set limits and aspect ratio
-ax.set_xlim(0, 3 * grid_size + 3)
-ax.set_ylim(0, 2 * grid_size + 2)
-ax.set_aspect('equal')
-# Invert the y-axis so that it increases from top to bottom
-# ax.invert_yaxis()
-# Set axis labels from 1 to 6 at the correct positions
-ax.set_xticks([3, 6, 9, 12, 15, 18])
-ax.set_xticklabels([1, 3, 5, 2, 4, 6])
-ax.set_yticks([2, 4, 6, 8, 10, 12])
-# ax.set_yticklabels(range(1, grid_size + 1)[::-1])  # Reverse the labels for the y-axis
-ax.set_yticklabels([1, 2, 3, 4, 5, 6])
-ax.tick_params(axis='x', labelsize=14)
-ax.tick_params(axis='y', labelsize=14)
-# axis labels
-ax.set_xlabel("Pressing Tool Position", fontsize=16)
-ax.set_ylabel("Production Batch", fontsize=16)
-# Create legend
-base_patch = mpatches.Patch(color='blue', label='Anode')
-second_circle_patch = mpatches.Patch(color='red', label='Cathode')
-ax.legend(handles=[base_patch, second_circle_patch], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
-plt.show()
-
-if save:
-    unique_filename = "anode_vs_cathode_circles.png"
-    i = 0
-    while os.path.exists(plot_path + "/" + unique_filename):
-        unique_filename = f"{unique_filename.split(".")[0].split("-")[0]}-{i}.png"
-        i += 1
-    # create path if not existing
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
-    # save plot
-    fig.savefig(plot_path + "/" + unique_filename, format='png')
