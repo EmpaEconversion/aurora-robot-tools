@@ -242,35 +242,6 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def _get_alignment(self, step_a: int, step_b: int) -> dict[tuple]:
-        """ Get missalignment of the two steps.
-
-        Args:
-            step_1 (int): first part for missalignment calculation
-            step_2 (int): second part for missalignemnt calculation
-
-        Return:
-            missalignment_dict (dict): missalignemnt per cell in (x, y, z)
-        """
-        missalignment_dict_x = {}
-        missalignment_dict_y = {}
-        missalignment_dict_z = {}
-        cells = self.df["cell"].unique()
-        for cell in cells:
-            cell_df = self.df[self.df["cell"] == cell]
-            part_a_x = cell_df.loc[cell_df['step'] == step_a, 'x'].values
-            part_a_y = cell_df.loc[cell_df['step'] == step_a, 'y'].values
-            part_b_x = cell_df.loc[cell_df['step'] == step_b, 'x'].values
-            part_b_y = cell_df.loc[cell_df['step'] == step_b, 'y'].values
-
-            x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
-            y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
-            z = round(math.sqrt(x**2 + y**2), 3)
-            missalignment_dict_x[cell] = x
-            missalignment_dict_y[cell] = y
-            missalignment_dict_z[cell] = z
-        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z
-
     def _preprocess_image(self, image: np.array, step: int) -> np.array:
         """ Takes image and applies preprocessing steps (blur, contrast)
 
@@ -288,6 +259,42 @@ class ProcessImages:
         else: # no preprossessing
             processed_image = image
         return processed_image
+
+    def _get_alignment(self, step_a: int, step_b: int, correct=True) -> dict[tuple]:
+        """ Get missalignment of the two steps.
+
+        Args:
+            step_1 (int): first part for missalignment calculation
+            step_2 (int): second part for missalignemnt calculation
+            correct (bool): whether to account for z distortion or not
+
+        Return:
+            missalignment_dict (dict): missalignemnt per cell in (x, y, z)
+        """
+        if correct:
+            x_column = "x_corrected"
+            y_column = "y_corrected"
+        else:
+            x_column = "x"
+            y_column = "y"
+        missalignment_dict_x = {}
+        missalignment_dict_y = {}
+        missalignment_dict_z = {}
+        cells = self.df["cell"].unique()
+        for cell in cells:
+            cell_df = self.df[self.df["cell"] == cell]
+            part_a_x = cell_df.loc[cell_df['step'] == step_a, x_column].values
+            part_a_y = cell_df.loc[cell_df['step'] == step_a, y_column].values
+            part_b_x = cell_df.loc[cell_df['step'] == step_b, x_column].values
+            part_b_y = cell_df.loc[cell_df['step'] == step_b, y_column].values
+
+            x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
+            y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
+            z = round(math.sqrt(x**2 + y**2), 3)
+            missalignment_dict_x[cell] = x
+            missalignment_dict_y[cell] = y
+            missalignment_dict_z[cell] = z
+        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -393,7 +400,7 @@ class ProcessImages:
         self.df["y_corrected"] = y_corrected
         return
 
-    def get_alignment(self) -> pd.DataFrame:
+    def alignment(self) -> pd.DataFrame:
         """ Get alignemnt between all specified parts into data frame.
 
         Return:
@@ -435,8 +442,8 @@ if __name__ == '__main__':
     obj.load_files()
     obj.store_data()
     obj.get_centers()
-    obj.get_alignment()
     obj.correct_for_thickness()
+    obj.alignment()
     coordinates_df, alignment_df = obj.save()
 
     print(coordinates_df)
