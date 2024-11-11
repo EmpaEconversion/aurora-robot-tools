@@ -250,7 +250,7 @@ class ProcessImages:
         missalignment_dict_y = {}
         missalignment_dict_z = {}
         cells = self.df["cell"].unique()
-        for i, cell in enumerate(cells):
+        for cell in cells:
             cell_df = self.df[self.df["cell"] == cell]
             part_a_x = cell_df.loc[cell_df['step'] == step_a, 'x'].values
             part_a_y = cell_df.loc[cell_df['step'] == step_a, 'y'].values
@@ -375,6 +375,12 @@ class ProcessImages:
         anode_cathode_x, anode_cathode_y, anode_cathode_z = self._get_alignment(2, 6)
         spring_press_x, spring_press_y, spring_press_z = self._get_alignment(8, 0)
         spacer_press_x, spacer_press_y, spacer_press_z = self._get_alignment(7, 0)
+        self.alignment_df["anode/cathode_x"] = self.alignment_df['cell'].map(anode_cathode_x)
+        self.alignment_df["spring/press_x"] = self.alignment_df['cell'].map(spring_press_x)
+        self.alignment_df["spacer/press_x"] = self.alignment_df['cell'].map(spacer_press_x)
+        self.alignment_df["anode/cathode_y"] = self.alignment_df['cell'].map(anode_cathode_y)
+        self.alignment_df["spring/press_y"] = self.alignment_df['cell'].map(spring_press_y)
+        self.alignment_df["spacer/press_y"] = self.alignment_df['cell'].map(spacer_press_y)
         self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(anode_cathode_z)
         self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(spring_press_z)
         self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(spacer_press_z)
@@ -410,24 +416,27 @@ if __name__ == '__main__':
     # store data for plotting
     alignments = pd.DataFrame()
 
-    if graham:
+    if graham: # Grahams cells
         base_string = "241004_kigr_gen5_"
         # Create a list with formatted strings
         sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
         alignments["sample_ID"] = sample_ID
         alignments["anode/cathode"] = alignment_df["anode/cathode_z"]
-    else:
+    else: # Linas cells
         base_string = "241022_lisc_gen14_"
         sample_ID = [
-        '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04', '241022_lisc_gen14_2-13_05',
-        '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07', '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09',
-        '241022_lisc_gen14_2-13_10', '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
-        '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16', '241022_lisc_gen14_14_36_17',
-        '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19', '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21',
-        '241022_lisc_gen14_14_36_22', '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
-        '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28', '241022_lisc_gen14_14_36_29',
-        '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31', '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33',
-        '241022_lisc_gen14_14_36_34', '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
+        '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04',
+        '241022_lisc_gen14_2-13_05', '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07',
+        '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09', '241022_lisc_gen14_2-13_10',
+        '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
+        '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16',
+        '241022_lisc_gen14_14_36_17', '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19',
+        '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21', '241022_lisc_gen14_14_36_22',
+        '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
+        '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28',
+        '241022_lisc_gen14_14_36_29', '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31',
+        '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33', '241022_lisc_gen14_14_36_34',
+        '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
         ]
         alignments["sample_ID"] = sample_ID
         alignments["spacer/press"] = alignment_df["spacer/press_z"]
