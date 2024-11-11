@@ -33,7 +33,16 @@ spacer = spacer.rename(columns={'spacer/press': 'alignment'})
 
 # get performance
 all_keys = set()
-plot_strings = ["Cycles to 80% capacity", "Specific discharge capacity (mAh/g)", "Initial efficiency (%)"]
+plot_strings = ["Cycles to 80% capacity",
+                "Cycles to 85% energy",
+                "Last specific discharge capacity (mAh/g)"]
+
+# possible strings:
+"""
+Capacity loss (%), Initial efficiency (%), First formation specific discharge capacity (mAh/g),
+First formation efficiency (%), Cycles to 85% energy, Last specific discharge capacity (mAh/g),
+Initial specific discharge capacity (mAh/g)
+"""
 
 for string in plot_strings:
     cell_data = {}
