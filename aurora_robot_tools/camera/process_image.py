@@ -7,11 +7,11 @@ detect centers of all parts, determine alignment vs. pressing tool (reference).
 import h5py
 import math
 import os
-import json
+import cv2
 import re
+import json
 import numpy as np
 import pandas as pd
-import cv2
 
 #%% CLASS
 
@@ -27,7 +27,7 @@ class ProcessImages:
         self.press_position = [[0, 0], [95, 0], [190, 0], [190, 100], [95, 100], [0, 100]]
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
         self.mm_to_pixel = 10
-        self.offset_mm = 20 # mm
+        self.offset_mm = 32 # mm
         self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
 
@@ -220,10 +220,10 @@ class ProcessImages:
         cropped_images = {}
         for i, c in enumerate(self.press_position):
             # set zero in case it gives a negative number
-            bottom_right_y = max((c[1] + 2*self.offset_mm) * self.mm_to_pixel, 0)
-            bottom_right_x = max((c[0] + 2*self.offset_mm) * self.mm_to_pixel, 0)
-            top_left_y = bottom_right_y - 400
-            top_left_x = bottom_right_x - 400
+            bottom_right_y = (c[1] + 2*self.offset_mm) * self.mm_to_pixel
+            bottom_right_x = (c[0] + 2*self.offset_mm) * self.mm_to_pixel
+            top_left_y = max(bottom_right_y - 2*self.offset_mm*self.mm_to_pixel, 0)
+            top_left_x = max(bottom_right_x - 2*self.offset_mm*self.mm_to_pixel, 0)
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             # for cross check save image:
             height, width = cropped_image.shape[:2] # Get height, width
@@ -384,6 +384,9 @@ class ProcessImages:
         self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(anode_cathode_z)
         self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(spring_press_z)
         self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(spacer_press_z)
+        return
+
+    def correct_for_thickness(self):
         return
 
     def save(self) -> pd.DataFrame:
