@@ -41,6 +41,12 @@ class ProcessImages:
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
+        # parameter to account for thickness of parts and correct center accordingly
+        self.bottom_correct = [(4.5, 9.45), (0.0, 9.45), (4.125, 9.45), (4.5, 5.625), (0.0, 5.625), (4.125, 5.625)]
+        self.separator_correct = [(23.25, 48.825), (0.0, 48.825), (21.312, 48.825),
+                                  (23.25, 29.062), (0.0, 29.062), (21.312, 29.062)]
+        self.spacer_correct = [(38.25, 80.325), (0.0, 80.325), (35.062, 80.325),
+                               (38.25, 47.812), (0.0, 47.812), (35.062, 47.812)]
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -365,6 +371,28 @@ class ProcessImages:
         self.df["r_mm"] = radius
         return
 
+    def correct_for_thickness(self):
+        """ Account for thickness of parts, correcting corresponding distortion in coordinates
+        """
+        x_corrected = []
+        y_corrected = []
+        for index, row in self.df.iterrows():
+            if row["step"] == 1:
+                x_corrected.append(row["x"] - self.bottom_correct[row["press"]-1][0])
+                y_corrected.append(row["y"] + self.bottom_correct[row["press"]-1][1])
+            elif row["step"] == 4:
+                x_corrected.append(row["x"] - self.separator_correct[row["press"]-1][0])
+                y_corrected.append(row["y"] + self.separator_correct[row["press"]-1][1])
+            elif row["step"] == 7:
+                x_corrected.append(row["x"] - self.spacer_correct[row["press"]-1][0])
+                y_corrected.append(row["y"] + self.spacer_correct[row["press"]-1][1])
+            else:
+                x_corrected.append(row["x"])
+                y_corrected.append(row["y"])
+        self.df["x_corrected"] = x_corrected
+        self.df["y_corrected"] = y_corrected
+        return
+
     def get_alignment(self) -> pd.DataFrame:
         """ Get alignemnt between all specified parts into data frame.
 
@@ -384,9 +412,6 @@ class ProcessImages:
         self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(anode_cathode_z)
         self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(spring_press_z)
         self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(spacer_press_z)
-        return
-
-    def correct_for_thickness(self):
         return
 
     def save(self) -> pd.DataFrame:
@@ -411,20 +436,27 @@ if __name__ == '__main__':
     obj.store_data()
     obj.get_centers()
     obj.get_alignment()
+    obj.correct_for_thickness()
     coordinates_df, alignment_df = obj.save()
 
     print(coordinates_df)
     print(alignment_df)
 
     # store data for plotting
-    alignments = pd.DataFrame()
+    alignments_1 = pd.DataFrame()
+    alignments_2 = pd.DataFrame()
+    alignments_3 = pd.DataFrame()
 
     if graham: # Grahams cells
         base_string = "241004_kigr_gen5_"
         # Create a list with formatted strings
         sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
-        alignments["sample_ID"] = sample_ID
-        alignments["anode/cathode"] = alignment_df["anode/cathode_z"]
+        alignments_1["sample_ID"] = sample_ID
+        alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
+        alignments_2["sample_ID"] = sample_ID
+        alignments_2["spring/press"] = alignment_df["spring/press_z"]
+        alignments_3["sample_ID"] = sample_ID
+        alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
     else: # Linas cells
         base_string = "241022_lisc_gen14_"
         sample_ID = [
@@ -441,8 +473,16 @@ if __name__ == '__main__':
         '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33', '241022_lisc_gen14_14_36_34',
         '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
         ]
-        alignments["sample_ID"] = sample_ID
-        alignments["spacer/press"] = alignment_df["spacer/press_z"]
+        alignments_1["sample_ID"] = sample_ID
+        alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
+        alignments_2["sample_ID"] = sample_ID
+        alignments_2["spring/press"] = alignment_df["spring/press_z"]
+        alignments_3["sample_ID"] = sample_ID
+        alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
 
-    alignments.to_csv(f"{folderpath}/data/{base_string}alignment_spacer.csv", index=False)
-    print(alignments)
+    alignments_1.to_csv(f"{folderpath}/data/{base_string}alignment.csv", index=False)
+    print(alignments_1)
+    alignments_2.to_csv(f"{folderpath}/data/{base_string}alignment_spring.csv", index=False)
+    print(alignments_2)
+    alignments_3.to_csv(f"{folderpath}/data/{base_string}alignment_spacer.csv", index=False)
+    print(alignments_3)
