@@ -14,7 +14,7 @@ save = False
 jpg = True
 
 # File path
-path = "C:/lisc_gen14/transformed/p03c02s0_p05c03s0_p02c04s0_p04c05s0_p06c06s0.jpg"
+path = "C:/lisc_gen14/image_sections/p03c14s8_p05c15s8_p02c16s8_p04c17s8_p06c18s8_pos_3.jpg"
 
 if jpg:
     # Load the JPG image
@@ -61,14 +61,14 @@ if detected_circles is not None:
         # Print the center points of the detected circles
         print(f"Detected Circle Center: ({a}, {b}), Radius: {r}")
 
-resized_img = cv2.resize(img, (1100, 700))
+resized_img = cv2.resize(img, (700, 700))
 # Show image with detected images
 cv2.imshow("Detected Circles", resized_img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 if save:
     # Store image
-    cv2.imwrite('G:/Limit/Lina Scholz/Python Script/Test images/z-distortion(3).jpg', img)
+    cv2.imwrite('G:/Limit/Lina Scholz/Python Script/Test images/z-distortion_sections.jpg', img)
 
 #%% EXTRACTED VALUES TO OFFSET
 

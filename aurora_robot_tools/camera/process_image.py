@@ -12,6 +12,7 @@ import re
 import json
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 #%% CLASS
 
@@ -42,11 +43,15 @@ class ProcessImages:
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        self.bottom_correct = [(4.5, 9.45), (0.0, 9.45), (4.125, 9.45), (4.5, 5.625), (0.0, 5.625), (4.125, 5.625)]
-        self.separator_correct = [(23.25, 48.825), (0.0, 48.825), (21.312, 48.825),
-                                  (23.25, 29.062), (0.0, 29.062), (21.312, 29.062)]
-        self.spacer_correct = [(38.25, 80.325), (0.0, 80.325), (35.062, 80.325),
-                               (38.25, 47.812), (0.0, 47.812), (35.062, 47.812)]
+        # self.bottom_correct = [(4.5, 9.45), (0.0, 9.45), (4.125, 9.45), (4.5, 5.625), (0.0, 5.625), (4.125, 5.625)]
+        # self.separator_correct = [(23.25, 48.825), (0.0, 48.825), (21.312, 48.825),
+        #                           (23.25, 29.062), (0.0, 29.062), (21.312, 29.062)]
+        # self.spacer_correct = [(38.25, 80.325), (0.0, 80.325), (35.062, 80.325),
+        #                        (38.25, 47.812), (0.0, 47.812), (35.062, 47.812)]
+        self.bottom_correct = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)] # after step 1
+        self.separator_correct = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)] # after step 4
+        self.spacer_correct = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3),
+                               (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -84,6 +89,7 @@ class ProcessImages:
         # Draw all detected ellipses and save image to check quality of detection
         height, width = image_with_circles.shape[:2] # Get height, width
         resized_img = cv2.resize(image_with_circles, (width, height)) # Set image size
+        plt.imshow(resized_img)
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/reference"):
             os.makedirs(self.path + "/reference")
@@ -260,7 +266,7 @@ class ProcessImages:
             processed_image = image
         return processed_image
 
-    def _get_alignment(self, step_a: int, step_b: int, correct=True) -> dict[tuple]:
+    def _get_alignment(self, step_a: int, step_b: int, correct=False) -> dict[tuple]:
         """ Get missalignment of the two steps.
 
         Args:
@@ -435,8 +441,8 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/lisc_gen14"
-    graham = False
+    folderpath = "C:/kigr_gen4"
+    graham = True
 
     obj = ProcessImages(folderpath)
     obj.load_files()
@@ -455,7 +461,7 @@ if __name__ == '__main__':
     alignments_3 = pd.DataFrame()
 
     if graham: # Grahams cells
-        base_string = "241004_kigr_gen5_"
+        base_string = "241004_kigr_gen4_"
         # Create a list with formatted strings
         sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
         alignments_1["sample_ID"] = sample_ID
