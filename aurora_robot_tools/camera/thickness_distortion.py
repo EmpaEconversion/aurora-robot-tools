@@ -24,6 +24,8 @@ if jpg:
     # convert to 8 bit
     img = img/np.max(img)*255
     img = img.astype(np.uint8)
+    # Convert to grayscale
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 else:
     # Load image from .h5 file
@@ -34,7 +36,7 @@ else:
         img = content.astype(np.uint8)
 
 # image processing
-img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
+# img = cv2.convertScaleAbs(img, alpha=1.5, beta=0) # increase contrast
 img = cv2.GaussianBlur(img, (5, 5), 2) # Gaussian blur to the image before detecting circles (to improve detection)
 # Apply Hough transform
 detected_circles = cv2.HoughCircles(img,
@@ -42,7 +44,7 @@ detected_circles = cv2.HoughCircles(img,
                     dp = 1,
                     minDist = 100,
                     param1 = 30, param2 = 50,
-                    minRadius = 520, maxRadius = 580)
+                    minRadius = 210, maxRadius = 260) # 520, 580
 print(detected_circles)
 
 if detected_circles is not None:
@@ -59,7 +61,7 @@ if detected_circles is not None:
         # Print the center points of the detected circles
         print(f"Detected Circle Center: ({a}, {b}), Radius: {r}")
 
-resized_img = cv2.resize(img, (1200, 800))
+resized_img = cv2.resize(img, (1100, 700))
 # Show image with detected images
 cv2.imshow("Detected Circles", resized_img)
 cv2.waitKey(0)
@@ -71,12 +73,12 @@ if save:
 #%% EXTRACTED VALUES TO OFFSET
 
 # 1mm thickness corresponds to ... pixel:
-pos1 = (3, 6) # pixel
-pos2 = (0, 6)
-pos3 = (2.5, 6)
-pos4 = (3, 3)
-pos5 = (0, 3)
-pos6 = (2.5, 3)
+pos1 = (15, 31.5) # pixel
+pos2 = (0, 31.5)
+pos3 = (13.75, 31.5)
+pos4 = (15, 18.75)
+pos5 = (0, 18.75)
+pos6 = (13.75, 18.75)
 
 # save in list
 positions = [pos1, pos2, pos3, pos4, pos5, pos6] # pixel
