@@ -248,6 +248,26 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
+    def _intersection_area(self, X1, Y1, R1, X2, Y2, R2):
+        """ Function to return percentage of area of intersection of the cathode
+        """
+        # Calculate the euclidean distance between the two points
+        d = math.sqrt(((X2 - X1) * (X2 - X1)) + ((Y2 - Y1) * (Y2 - Y1)))
+        if (d > R1 + R2) :
+            area = 0
+        elif (d <= (R1 - R2) and R1 >= R2) :
+            area = math.floor(math.pi * R2 * R2)
+        elif (d <= (R2 - R1) and R2 >= R1) :
+            area = math.floor(math.pi * R1 * R1)
+        else :
+            alpha = math.acos(((R1 * R1) + (d * d) - (R2 * R2)) / (2 * R1 * d)) * 2
+            beta = math.acos(((R2 * R2) + (d * d) - (R1 * R1)) / (2 * R2 * d)) * 2
+            a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
+            a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
+            area = math.floor(a1 + a2)
+        percentage_area = area / (math.pi * R2**2) * 100 # area of cathode overlapping with anode
+        return percentage_area
+
     def _preprocess_image(self, image: np.array, step: int) -> np.array:
         """ Takes image and applies preprocessing steps (blur, contrast)
 
@@ -286,6 +306,7 @@ class ProcessImages:
         missalignment_dict_x = {}
         missalignment_dict_y = {}
         missalignment_dict_z = {}
+        intersection_area_dict = {}
         cells = self.df["cell"].unique()
         for cell in cells:
             cell_df = self.df[self.df["cell"] == cell]
@@ -300,7 +321,18 @@ class ProcessImages:
             missalignment_dict_x[cell] = x
             missalignment_dict_y[cell] = y
             missalignment_dict_z[cell] = z
-        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z
+
+            # cathode area overlapping with anode
+            x1 = float(cell_df.loc[cell_df['step'] == 2, x_column].values)
+            y1 = float(cell_df.loc[cell_df['step'] == 2, y_column].values)
+            r1 = float(cell_df.loc[cell_df['step'] == 2, "r_mm"].values)
+            x2 = float(cell_df.loc[cell_df['step'] == 2, x_column].values)
+            y2 = float(cell_df.loc[cell_df['step'] == 2, y_column].values)
+            r2 = float(cell_df.loc[cell_df['step'] == 2, "r_mm"].values)
+            area = self._intersection_area(x1, y1, r1, x2, y2, r2)
+            intersection_area_dict[cell] = area
+
+        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z, intersection_area_dict
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -413,9 +445,10 @@ class ProcessImages:
             self.alignment_df (data frame): alignments of all cells for different parts.
         """
         self.alignment_df = self.df.groupby('cell')['press'].first().reset_index()
-        anode_cathode_x, anode_cathode_y, anode_cathode_z = self._get_alignment(2, 6)
-        spring_press_x, spring_press_y, spring_press_z = self._get_alignment(8, 0)
-        spacer_press_x, spacer_press_y, spacer_press_z = self._get_alignment(7, 0)
+        anode_cathode_x, anode_cathode_y, anode_cathode_z, ano_cat_area = self._get_alignment(2, 6)
+        spring_press_x, spring_press_y, spring_press_z, _ = self._get_alignment(8, 0)
+        spacer_press_x, spacer_press_y, spacer_press_z, _ = self._get_alignment(7, 0)
+        self.alignment_df["cathode_intersect"] = self.alignment_df["cell"].map(ano_cat_area)
         self.alignment_df["anode/cathode_x"] = self.alignment_df['cell'].map(anode_cathode_x)
         self.alignment_df["spring/press_x"] = self.alignment_df['cell'].map(spring_press_x)
         self.alignment_df["spacer/press_x"] = self.alignment_df['cell'].map(spacer_press_x)
@@ -441,8 +474,8 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/kigr_gen4"
-    graham = True
+    folderpath = "C:/lisc_gen14"
+    graham = False
 
     obj = ProcessImages(folderpath)
     obj.load_files()
@@ -459,17 +492,13 @@ if __name__ == '__main__':
     alignments_1 = pd.DataFrame()
     alignments_2 = pd.DataFrame()
     alignments_3 = pd.DataFrame()
+    area = pd.DataFrame()
 
     if graham: # Grahams cells
         base_string = "241004_kigr_gen4_"
         # Create a list with formatted strings
         sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
-        alignments_1["sample_ID"] = sample_ID
-        alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
-        alignments_2["sample_ID"] = sample_ID
-        alignments_2["spring/press"] = alignment_df["spring/press_z"]
-        alignments_3["sample_ID"] = sample_ID
-        alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
+
     else: # Linas cells
         base_string = "241022_lisc_gen14_"
         sample_ID = [
@@ -486,12 +515,15 @@ if __name__ == '__main__':
         '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33', '241022_lisc_gen14_14_36_34',
         '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
         ]
-        alignments_1["sample_ID"] = sample_ID
-        alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
-        alignments_2["sample_ID"] = sample_ID
-        alignments_2["spring/press"] = alignment_df["spring/press_z"]
-        alignments_3["sample_ID"] = sample_ID
-        alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
+
+    alignments_1["sample_ID"] = sample_ID
+    alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
+    alignments_2["sample_ID"] = sample_ID
+    alignments_2["spring/press"] = alignment_df["spring/press_z"]
+    alignments_3["sample_ID"] = sample_ID
+    alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
+    area["sample_ID"] = sample_ID
+    area["cathode_intersect"] = alignment_df["cathode_intersect"]
 
     alignments_1.to_csv(f"{folderpath}/data/{base_string}alignment.csv", index=False)
     print(alignments_1)
@@ -499,3 +531,5 @@ if __name__ == '__main__':
     print(alignments_2)
     alignments_3.to_csv(f"{folderpath}/data/{base_string}alignment_spacer.csv", index=False)
     print(alignments_3)
+    area.to_csv(f"{folderpath}/data/{base_string}intersection_area.csv", index=False)
+    print(area)
