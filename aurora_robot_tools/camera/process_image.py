@@ -248,8 +248,15 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def _intersection_area(self, X1, Y1, R1, X2, Y2, R2):
-        """ Function to return percentage of area of intersection of the cathode
+    def _intersection_area(self, X1: float, Y1: float, R1: float, X2: float, Y2: float, R2: float) -> float:
+        """ Function to return percentage of area of intersection of the cathode.
+
+        Args:
+            X1, X2, Y1, Y2 (float): center coordinates of anode (1) and cathode (2)
+            R1, R2 (float): radius of anode (1) and cathode (2)
+
+        Returns:
+            perentage_area (float): percentage of cathode overlapping with anode
         """
         # Calculate the euclidean distance between the two points
         d = math.sqrt(((X2 - X1) * (X2 - X1)) + ((Y2 - Y1) * (Y2 - Y1)))
