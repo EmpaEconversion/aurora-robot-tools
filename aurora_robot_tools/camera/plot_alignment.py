@@ -26,10 +26,10 @@ spring = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_alignment_spring
 spring.set_index('sample_ID', inplace=True)
 spring = spring.rename(columns={'spring/press': 'alignment'})
 
-# spacer
-spacer = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_alignment_spacer.csv")
-spacer.set_index('sample_ID', inplace=True)
-spacer = spacer.rename(columns={'spacer/press': 'alignment'})
+# area
+area = pd.read_csv(f"{folderpath_alignment}/241022_lisc_gen14_intersection_area.csv")
+area.set_index('sample_ID', inplace=True)
+area = area.rename(columns={'cathode_intersect': 'alignment'})
 
 # get performance
 all_keys = set()
@@ -64,18 +64,17 @@ for string in plot_strings:
     # add cell performance data to aligment data frame
     alignment[string] = alignment.index.map(cell_data)
     spring[string] = spring.index.map(cell_data)
-    spacer[string] = spacer.index.map(cell_data)
+    area[string] = area.index.map(cell_data)
 
 # Drop all rows with any NaN values
 alignment = alignment.dropna()
 spring = spring.dropna()
-spacer = spacer.dropna()
+area = area.dropna()
 # drop all rows with no reasonable alignment offset
 alignment = alignment[alignment['alignment'] <= 5]
 spring = spring[spring['alignment'] <= 5]
-spacer = spacer[spacer['alignment'] <= 5]
 # create list with all alignment data frames
-dataframes = [alignment, spring, spacer]
+dataframes = [alignment, spring, area]
 
 # show json data
 print("\n")
@@ -87,7 +86,7 @@ print(alignment)
 
 fig, axes = plt.subplots(3, 3, figsize=(15, 10))
 fig.suptitle("Alignment vs. Cell Performance", fontsize=16)
-parts = ["anode/cathode", "spring", "spacer"]
+parts = ["anode/cathode", "spring", "intersection_area"]
 
 # Loop through each DataFrame and column
 for row, df in enumerate(dataframes):
