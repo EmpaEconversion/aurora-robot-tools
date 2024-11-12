@@ -34,7 +34,7 @@ area = area.rename(columns={'cathode_intersect': 'alignment'})
 # get performance
 all_keys = set()
 plot_strings = ["Cycles to 80% capacity",
-                "Cycles to 85% energy",
+                "Initial efficiency (%)",
                 "Last specific discharge capacity (mAh/g)"]
 
 # possible strings:
@@ -73,6 +73,7 @@ area = area.dropna()
 # drop all rows with no reasonable alignment offset
 alignment = alignment[alignment['alignment'] <= 5]
 spring = spring[spring['alignment'] <= 5]
+area = area[area['alignment'] >= 20]
 # create list with all alignment data frames
 dataframes = [alignment, spring, area]
 
