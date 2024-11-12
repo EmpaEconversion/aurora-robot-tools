@@ -248,30 +248,27 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def _intersection_area(self, X1: float, Y1: float, R1: float, X2: float, Y2: float, R2: float) -> float:
+    def _intersection_area(self, d: float) -> float:
         """ Function to return percentage of area of intersection of the cathode.
 
         Args:
-            X1, X2, Y1, Y2 (float): center coordinates of anode (1) and cathode (2)
-            R1, R2 (float): radius of anode (1) and cathode (2)
+            d (float): distance between centers in mm
 
         Returns:
             perentage_area (float): percentage of cathode overlapping with anode
         """
-        # Calculate the euclidean distance between the two points
-        d = math.sqrt(((X2 - X1) * (X2 - X1)) + ((Y2 - Y1) * (Y2 - Y1)))
-        if (d > R1 + R2) :
-            area = 0
-        elif (d <= (R1 - R2) and R1 >= R2) :
-            area = math.floor(math.pi * R2 * R2)
-        elif (d <= (R2 - R1) and R2 >= R1) :
-            area = math.floor(math.pi * R1 * R1)
+        # radius in mm
+        R1 = 15
+        R2 = 14
+        if d >= R1 + R2:
+            area = 0 # No overlap
+        elif d <= abs(R1 - R2) :
+            area = math.pi * min(R1, R2) ** 2  # The smaller circle is fully contained
         else :
-            alpha = math.acos(((R1 * R1) + (d * d) - (R2 * R2)) / (2 * R1 * d)) * 2
-            beta = math.acos(((R2 * R2) + (d * d) - (R1 * R1)) / (2 * R2 * d)) * 2
-            a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
-            a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
-            area = math.floor(a1 + a2)
+            part1 = R1**2 * math.acos((d**2 + R1**2 - R2**2) / (2 * d * R1))
+            part2 = R2**2 * math.acos((d**2 + R2**2 - R1**2) / (2 * d * R2))
+            part3 = 0.5 * math.sqrt((-d + R1 + R2) * (d + R1 - R2) * (d - R1 + R2) * (d + R1 + R2))
+            area = part1 + part2 - part3
         percentage_area = area / (math.pi * R2**2) * 100 # area of cathode overlapping with anode
         return percentage_area
 
@@ -293,12 +290,10 @@ class ProcessImages:
             processed_image = image
         return processed_image
 
-    def _get_alignment(self, step_a: int, step_b: int, correct=False) -> dict[tuple]:
+    def _get_alignment(self, correct=False) -> dict[tuple]:
         """ Get missalignment of the two steps.
 
         Args:
-            step_1 (int): first part for missalignment calculation
-            step_2 (int): second part for missalignemnt calculation
             correct (bool): whether to account for z distortion or not
 
         Return:
@@ -310,36 +305,39 @@ class ProcessImages:
         else:
             x_column = "x"
             y_column = "y"
-        missalignment_dict_x = {}
-        missalignment_dict_y = {}
-        missalignment_dict_z = {}
-        intersection_area_dict = {}
-        cells = self.df["cell"].unique()
-        for cell in cells:
-            cell_df = self.df[self.df["cell"] == cell]
-            part_a_x = cell_df.loc[cell_df['step'] == step_a, x_column].values
-            part_a_y = cell_df.loc[cell_df['step'] == step_a, y_column].values
-            part_b_x = cell_df.loc[cell_df['step'] == step_b, x_column].values
-            part_b_y = cell_df.loc[cell_df['step'] == step_b, y_column].values
 
-            x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
-            y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
-            z = round(math.sqrt(x**2 + y**2), 3)
-            missalignment_dict_x[cell] = x
-            missalignment_dict_y[cell] = y
-            missalignment_dict_z[cell] = z
+        parts = [(2, 6), (0, 7), (0, 8)] # parts to determine alignment
+        alignment = [] # store alignment of each combination of parts
+        for step_a, step_b in parts:
+            missalignment_dict_x = {}
+            missalignment_dict_y = {}
+            missalignment_dict_z = {}
+            intersection_area_dict = {}
+            cells = self.df["cell"].unique()
+            for cell in cells:
+                cell_df = self.df[self.df["cell"] == cell]
+                part_a_x = cell_df.loc[cell_df['step'] == step_a, x_column].values
+                part_a_y = cell_df.loc[cell_df['step'] == step_a, y_column].values
+                part_b_x = cell_df.loc[cell_df['step'] == step_b, x_column].values
+                part_b_y = cell_df.loc[cell_df['step'] == step_b, y_column].values
 
-            # cathode area overlapping with anode
-            x1 = float(cell_df.loc[cell_df['step'] == 2, x_column].values)
-            y1 = float(cell_df.loc[cell_df['step'] == 2, y_column].values)
-            r1 = float(cell_df.loc[cell_df['step'] == 2, "r_mm"].values)
-            x2 = float(cell_df.loc[cell_df['step'] == 2, x_column].values)
-            y2 = float(cell_df.loc[cell_df['step'] == 2, y_column].values)
-            r2 = float(cell_df.loc[cell_df['step'] == 2, "r_mm"].values)
-            area = self._intersection_area(x1, y1, r1, x2, y2, r2)
-            intersection_area_dict[cell] = area
+                x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
+                y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
+                z = round(math.sqrt(x**2 + y**2), 3)
+                missalignment_dict_x[cell] = x
+                missalignment_dict_y[cell] = y
+                missalignment_dict_z[cell] = z
 
-        return missalignment_dict_x, missalignment_dict_y, missalignment_dict_z, intersection_area_dict
+                if (step_a == 2) and (step_b == 6):
+                # cathode area overlapping with anode
+                    area = self._intersection_area(z) # pass distance between centers (mm)
+                    intersection_area_dict[cell] = area
+            if (step_a == 2) and (step_b == 6):
+                alignment.append((missalignment_dict_x, missalignment_dict_y, missalignment_dict_z,
+                                 intersection_area_dict))
+            else:
+                alignment.append((missalignment_dict_x, missalignment_dict_y, missalignment_dict_z))
+        return alignment
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -452,19 +450,17 @@ class ProcessImages:
             self.alignment_df (data frame): alignments of all cells for different parts.
         """
         self.alignment_df = self.df.groupby('cell')['press'].first().reset_index()
-        anode_cathode_x, anode_cathode_y, anode_cathode_z, ano_cat_area = self._get_alignment(2, 6)
-        spring_press_x, spring_press_y, spring_press_z, _ = self._get_alignment(8, 0)
-        spacer_press_x, spacer_press_y, spacer_press_z, _ = self._get_alignment(7, 0)
-        self.alignment_df["cathode_intersect"] = self.alignment_df["cell"].map(ano_cat_area)
-        self.alignment_df["anode/cathode_x"] = self.alignment_df['cell'].map(anode_cathode_x)
-        self.alignment_df["spring/press_x"] = self.alignment_df['cell'].map(spring_press_x)
-        self.alignment_df["spacer/press_x"] = self.alignment_df['cell'].map(spacer_press_x)
-        self.alignment_df["anode/cathode_y"] = self.alignment_df['cell'].map(anode_cathode_y)
-        self.alignment_df["spring/press_y"] = self.alignment_df['cell'].map(spring_press_y)
-        self.alignment_df["spacer/press_y"] = self.alignment_df['cell'].map(spacer_press_y)
-        self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(anode_cathode_z)
-        self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(spring_press_z)
-        self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(spacer_press_z)
+        alignment_list = self._get_alignment()
+        self.alignment_df["cathode_intersect"] = self.alignment_df["cell"].map(alignment_list[0][3])
+        self.alignment_df["anode/cathode_x"] = self.alignment_df['cell'].map(alignment_list[0][0])
+        self.alignment_df["spring/press_x"] = self.alignment_df['cell'].map(alignment_list[1][0])
+        self.alignment_df["spacer/press_x"] = self.alignment_df['cell'].map(alignment_list[2][0])
+        self.alignment_df["anode/cathode_y"] = self.alignment_df['cell'].map(alignment_list[0][1])
+        self.alignment_df["spring/press_y"] = self.alignment_df['cell'].map(alignment_list[1][1])
+        self.alignment_df["spacer/press_y"] = self.alignment_df['cell'].map(alignment_list[2][1])
+        self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(alignment_list[0][2])
+        self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(alignment_list[1][2])
+        self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(alignment_list[2][2])
         return
 
     def save(self) -> pd.DataFrame:
@@ -502,7 +498,7 @@ if __name__ == '__main__':
     area = pd.DataFrame()
 
     if graham: # Grahams cells
-        base_string = "241004_kigr_gen4_"
+        base_string = "241004_kigr_gen5_"
         # Create a list with formatted strings
         sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
 
