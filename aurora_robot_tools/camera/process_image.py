@@ -28,7 +28,7 @@ class ProcessImages:
         self.press_position = [[0, 0], [95, 0], [190, 0], [190, 100], [95, 100], [0, 100]]
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
         self.mm_to_pixel = 10
-        self.offset_mm = 32 # mm
+        self.offset_mm = 20 # mm
         self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
 
