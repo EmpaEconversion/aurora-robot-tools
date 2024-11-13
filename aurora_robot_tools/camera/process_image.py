@@ -1,7 +1,7 @@
 """ Lina Scholz
 
 Script to read in images from folder, transform warped rectangle in straight rectangle,
-detect centers of all parts, determine alignment vs. pressing tool (reference).
+detect centers of all parts.
 """
 
 import h5py
@@ -248,30 +248,6 @@ class ProcessImages:
             cropped_images[i] = cropped_image
         return cropped_images
 
-    def _intersection_area(self, d: float) -> float:
-        """ Function to return percentage of area of intersection of the cathode.
-
-        Args:
-            d (float): distance between centers in mm
-
-        Returns:
-            perentage_area (float): percentage of cathode overlapping with anode
-        """
-        # radius in mm
-        R1 = 15
-        R2 = 14
-        if d >= R1 + R2:
-            area = 0 # No overlap
-        elif d <= abs(R1 - R2) :
-            area = math.pi * min(R1, R2) ** 2  # The smaller circle is fully contained
-        else :
-            part1 = R1**2 * math.acos((d**2 + R1**2 - R2**2) / (2 * d * R1))
-            part2 = R2**2 * math.acos((d**2 + R2**2 - R1**2) / (2 * d * R2))
-            part3 = 0.5 * math.sqrt((-d + R1 + R2) * (d + R1 - R2) * (d - R1 + R2) * (d + R1 + R2))
-            area = part1 + part2 - part3
-        percentage_area = area / (math.pi * R2**2) * 100 # area of cathode overlapping with anode
-        return percentage_area
-
     def _preprocess_image(self, image: np.array, step: int) -> np.array:
         """ Takes image and applies preprocessing steps (blur, contrast)
 
@@ -289,55 +265,6 @@ class ProcessImages:
         else: # no preprossessing
             processed_image = image
         return processed_image
-
-    def _get_alignment(self, correct=False) -> dict[tuple]:
-        """ Get missalignment of the two steps.
-
-        Args:
-            correct (bool): whether to account for z distortion or not
-
-        Return:
-            missalignment_dict (dict): missalignemnt per cell in (x, y, z)
-        """
-        if correct:
-            x_column = "x_corrected"
-            y_column = "y_corrected"
-        else:
-            x_column = "x"
-            y_column = "y"
-
-        parts = [(2, 6), (0, 7), (0, 8)] # parts to determine alignment
-        alignment = [] # store alignment of each combination of parts
-        for step_a, step_b in parts:
-            missalignment_dict_x = {}
-            missalignment_dict_y = {}
-            missalignment_dict_z = {}
-            intersection_area_dict = {}
-            cells = self.df["cell"].unique()
-            for cell in cells:
-                cell_df = self.df[self.df["cell"] == cell]
-                part_a_x = cell_df.loc[cell_df['step'] == step_a, x_column].values
-                part_a_y = cell_df.loc[cell_df['step'] == step_a, y_column].values
-                part_b_x = cell_df.loc[cell_df['step'] == step_b, x_column].values
-                part_b_y = cell_df.loc[cell_df['step'] == step_b, y_column].values
-
-                x = (float(part_a_x[0]) - float(part_b_x[0])) / self.mm_to_pixel
-                y = (float(part_a_y[0]) - float(part_b_y[0])) / self.mm_to_pixel
-                z = round(math.sqrt(x**2 + y**2), 3)
-                missalignment_dict_x[cell] = x
-                missalignment_dict_y[cell] = y
-                missalignment_dict_z[cell] = z
-
-                if (step_a == 2) and (step_b == 6):
-                # cathode area overlapping with anode
-                    area = self._intersection_area(z) # pass distance between centers (mm)
-                    intersection_area_dict[cell] = area
-            if (step_a == 2) and (step_b == 6):
-                alignment.append((missalignment_dict_x, missalignment_dict_y, missalignment_dict_z,
-                                 intersection_area_dict))
-            else:
-                alignment.append((missalignment_dict_x, missalignment_dict_y, missalignment_dict_z))
-        return alignment
 
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
@@ -443,96 +370,29 @@ class ProcessImages:
         self.df["y_corrected"] = y_corrected
         return
 
-    def alignment(self) -> pd.DataFrame:
-        """ Get alignemnt between all specified parts into data frame.
-
-        Return:
-            self.alignment_df (data frame): alignments of all cells for different parts.
-        """
-        self.alignment_df = self.df.groupby('cell')['press'].first().reset_index()
-        alignment_list = self._get_alignment()
-        self.alignment_df["cathode_intersect"] = self.alignment_df["cell"].map(alignment_list[0][3])
-        self.alignment_df["anode/cathode_x"] = self.alignment_df['cell'].map(alignment_list[0][0])
-        self.alignment_df["spring/press_x"] = self.alignment_df['cell'].map(alignment_list[1][0])
-        self.alignment_df["spacer/press_x"] = self.alignment_df['cell'].map(alignment_list[2][0])
-        self.alignment_df["anode/cathode_y"] = self.alignment_df['cell'].map(alignment_list[0][1])
-        self.alignment_df["spring/press_y"] = self.alignment_df['cell'].map(alignment_list[1][1])
-        self.alignment_df["spacer/press_y"] = self.alignment_df['cell'].map(alignment_list[2][1])
-        self.alignment_df["anode/cathode_z"] = self.alignment_df['cell'].map(alignment_list[0][2])
-        self.alignment_df["spring/press_z"] = self.alignment_df['cell'].map(alignment_list[1][2])
-        self.alignment_df["spacer/press_z"] = self.alignment_df['cell'].map(alignment_list[2][2])
-        return
-
     def save(self) -> pd.DataFrame:
         """ Saves data frames with all coordinates, redius and alignment.
         """
-        if not os.path.exists(self.path + "/data"):
-            os.makedirs(self.path + "/data")
-        with pd.ExcelWriter(self.path + "/data/data.xlsx") as writer:
+        data_dir = os.path.join(self.path, "data")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
             self.df.to_excel(writer, sheet_name='coordinates', index=False)
-            self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
-        return self.df, self.alignment_df
+        self.df.to_csv(os.path.join(data_dir, "data.csv"), index=False)
+        return self.df
 
 #%% RUN CODE
 if __name__ == '__main__':
 
     # PARAMETER
     folderpath = "C:/lisc_gen14"
-    graham = False
 
     obj = ProcessImages(folderpath)
     obj.load_files()
     obj.store_data()
     obj.get_centers()
     obj.correct_for_thickness()
-    obj.alignment()
-    coordinates_df, alignment_df = obj.save()
+    coordinates_df= obj.save()
 
     print(coordinates_df)
-    print(alignment_df)
 
-    # store data for plotting
-    alignments_1 = pd.DataFrame()
-    alignments_2 = pd.DataFrame()
-    alignments_3 = pd.DataFrame()
-    area = pd.DataFrame()
-
-    if graham: # Grahams cells
-        base_string = "241004_kigr_gen5_"
-        # Create a list with formatted strings
-        sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
-
-    else: # Linas cells
-        base_string = "241022_lisc_gen14_"
-        sample_ID = [
-        '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04',
-        '241022_lisc_gen14_2-13_05', '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07',
-        '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09', '241022_lisc_gen14_2-13_10',
-        '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
-        '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16',
-        '241022_lisc_gen14_14_36_17', '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19',
-        '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21', '241022_lisc_gen14_14_36_22',
-        '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
-        '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28',
-        '241022_lisc_gen14_14_36_29', '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31',
-        '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33', '241022_lisc_gen14_14_36_34',
-        '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
-        ]
-
-    alignments_1["sample_ID"] = sample_ID
-    alignments_1["anode/cathode"] = alignment_df["anode/cathode_z"]
-    alignments_2["sample_ID"] = sample_ID
-    alignments_2["spring/press"] = alignment_df["spring/press_z"]
-    alignments_3["sample_ID"] = sample_ID
-    alignments_3["spacer/press"] = alignment_df["spacer/press_z"]
-    area["sample_ID"] = sample_ID
-    area["cathode_intersect"] = alignment_df["cathode_intersect"]
-
-    alignments_1.to_csv(f"{folderpath}/data/{base_string}alignment.csv", index=False)
-    print(alignments_1)
-    alignments_2.to_csv(f"{folderpath}/data/{base_string}alignment_spring.csv", index=False)
-    print(alignments_2)
-    alignments_3.to_csv(f"{folderpath}/data/{base_string}alignment_spacer.csv", index=False)
-    print(alignments_3)
-    area.to_csv(f"{folderpath}/data/{base_string}intersection_area.csv", index=False)
-    print(area)
