@@ -164,7 +164,7 @@ class Alignment:
         plt.close()
 
     def compute_differences(self):
-        # Filtern der Daten für die ausgewählten steps
+        # filter for seelcted steps
         df_filtered = self.df[self.df['step'].isin(self.selected_steps)]
         df_filtered = df_filtered[["cell", "step", "x", "y"]]
 
@@ -177,8 +177,8 @@ class Alignment:
         diff_y = (df_pivot_y[0] - df_pivot_y) / self.mm_to_pixel # in mm
         diff_df = pd.concat([diff_x, diff_y], axis=1) # combine
         # Rename columns
-        diff_df.columns = [f"x_diff_{step}" if i < len(self.selected_steps) - 1 else f"y_diff_{step}"
-                        for i, step in enumerate(self.selected_steps[1:]*2)]
+        diff_df.columns = [f"x_diff_{step}" for step in self.selected_steps if step != 0] + \
+                  [f"y_diff_{step}" for step in self.selected_steps if step != 0]
         return diff_df
 
     def plot_correlation_matrix(self, df):
