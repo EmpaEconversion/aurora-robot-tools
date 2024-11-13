@@ -34,7 +34,7 @@ area = area.rename(columns={'cathode_intersect': 'alignment'})
 # get performance
 all_keys = set()
 plot_strings = ["Cycles to 80% capacity",
-                "Initial efficiency (%)",
+                "Last efficiency (%)",
                 "Last specific discharge capacity (mAh/g)"]
 
 # possible strings:
@@ -87,23 +87,32 @@ print(alignment)
 
 fig, axes = plt.subplots(3, 3, figsize=(15, 10))
 fig.suptitle("Alignment vs. Cell Performance", fontsize=16)
-parts = ["anode/cathode", "spring", "intersection_area"]
+parts = ["anode/cathode [mm]", "spring [mm]", "intersection_area [%]"]
 
 # Loop through each DataFrame and column
 for row, df in enumerate(dataframes):
     for col, y_col in enumerate(plot_strings):
-        # Scatter plot
-        axes[row, col].scatter(df['alignment'], df[y_col], color='blue')
+        # Split the DataFrame into two groups by index ranges
+        group1 = df.iloc[:12]    # Data from index 0 to 11
+        group2 = df.iloc[12:]    # Data from index 12 to end
 
-        # Calculate and plot regression line
+        # Scatter plot for group 1
+        axes[row, col].scatter(group1['alignment'], group1[y_col], color='black', label='normal')
+        # Scatter plot for group 2
+        axes[row, col].scatter(group2['alignment'], group2[y_col], color='black', label='misaligned cathode')
+
+        # Calculate and plot regression line for entire data
         slope, intercept = np.polyfit(df['alignment'], df[y_col], 1)
         regression_line = slope * df['alignment'] + intercept
-        axes[row, col].plot(df['alignment'], regression_line, color='red')
+        axes[row, col].plot(df['alignment'], regression_line, color='grey', label='Regression Line')
 
         # Set titles and labels
         axes[row, col].set_title(f"{y_col} vs {parts[row]}", fontsize=10)
         axes[row, col].set_xlabel(f"{parts[row]}", fontsize=8)
         axes[row, col].set_ylabel(y_col, fontsize=8)
+
+        # Add legend for each subplot
+        # axes[row, col].legend(loc='best', fontsize=7)
 
 # Adjust layout for readability
 plt.tight_layout(rect=[0, 0, 1, 0.96])
