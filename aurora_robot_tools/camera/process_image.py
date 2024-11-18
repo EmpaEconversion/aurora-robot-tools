@@ -43,13 +43,9 @@ class ProcessImages:
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        # self.bottom_correct = [(4.5, 9.45), (0.0, 9.45), (4.125, 9.45), (4.5, 5.625), (0.0, 5.625), (4.125, 5.625)]
-        # self.separator_correct = [(23.25, 48.825), (0.0, 48.825), (21.312, 48.825),
-        #                           (23.25, 29.062), (0.0, 29.062), (21.312, 29.062)]
-        # self.spacer_correct = [(38.25, 80.325), (0.0, 80.325), (35.062, 80.325),
-        #                        (38.25, 47.812), (0.0, 47.812), (35.062, 47.812)]
         self.bottom_correct = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)] # after step 1
-        self.separator_correct = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3), (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)] # after step 4
+        self.separator_correct = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3),
+                                  (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)] # after step 4
         self.spacer_correct = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3),
                                (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
 
@@ -349,7 +345,11 @@ class ProcessImages:
         return
 
     def correct_for_thickness(self):
-        """ Account for thickness of parts, correcting corresponding distortion in coordinates
+        """ Account for thickness of parts, correcting corresponding distortion in coordinates.
+
+            From the reference image it is determined, how much the hight of the parts move the
+            center of the parts in the different pressing tool positions due to the angle of the
+            camera. The values are determined in thickness_distortion.py, but not perfect yet!
         """
         x_corrected = []
         y_corrected = []
