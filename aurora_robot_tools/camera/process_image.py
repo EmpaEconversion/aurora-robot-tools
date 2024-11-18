@@ -385,7 +385,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/241031_maal_gen1"
+    folderpath = "C:/kigr_gen5"
 
     obj = ProcessImages(folderpath)
     obj.load_files()
