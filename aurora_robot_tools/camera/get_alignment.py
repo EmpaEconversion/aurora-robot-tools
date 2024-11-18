@@ -18,9 +18,10 @@ class Alignment:
     def __init__(self, path, graham=False):
         self.path = path # path to images
         self.df = pd.read_excel(os.path.join(path, "data/data.xlsx"), sheet_name="coordinates")
-        self.alignment_df = pd.DataFrame(columns=["cell", "press", "x0", "y0", "z0", "x1", "y1", "z1",
-                                                  "x2", "y2", "z2", "x4", "y4", "z4", "x6", "y6", "z6",
-                                                  "x7", "y7", "z7", "x8", "y8", "z8", "x9", "y9", "z9"])
+        self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
+                                                  "x0", "y0", "z0", "x1", "y1", "z1", "x2", "y2", "z2",
+                                                  "x4", "y4", "z4", "x6", "y6", "z6", "x7", "y7", "z7",
+                                                  "x8", "y8", "z8", "x9", "y9", "z9"])
         self.mm_to_pixel = 10
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
@@ -93,9 +94,14 @@ class Alignment:
             cell_df.loc[:, 'x'] = (cell_df.loc[:, 'x'] - ref_x) / self.mm_to_pixel
             cell_df.loc[:, 'y'] = (cell_df.loc[:, 'y'] - ref_y) / self.mm_to_pixel
             cell_df["z"] = np.sqrt(cell_df["x"]**2 + cell_df["y"]**2).round(3)
+            x_electrodes = float(cell_df.loc[cell_df['step']==2,'x'].values -cell_df.loc[cell_df['step']==6,'x'].values)
+            y_electrodes = float(cell_df.loc[cell_df['step']==2,'x'].values -cell_df.loc[cell_df['step']==6,'x'].values)
+            z_electrodes = round(math.sqrt(x_electrodes**2 + y_electrodes**2), 3)
 
             # store all alignments with respect to pressing tool
             row = {"cell": cell, "press": int(cell_df["press"].values[0]),
+                   "z_electrodes": z_electrodes,
+                   "intersection_area": self._intersection_area(z_electrodes),
                    "x0": float(cell_df.loc[cell_df['step'] == 0, 'x']),
                    "y0": float(cell_df.loc[cell_df['step'] == 0, 'y']),
                    "z0": float(cell_df.loc[cell_df['step'] == 0, 'z']),
@@ -207,34 +213,6 @@ class Alignment:
         plt.savefig(os.path.join(data_dir, f'differences_plot_{name}.png'), format="jpg")
         plt.close()
 
-    def compute_differences(self):
-        # filter for seelcted steps
-        df_filtered = self.df[self.df['step'].isin(self.selected_steps)]
-        df_filtered = df_filtered[["cell", "step", "x", "y"]]
-
-        # pivot data frame to have all selected steps next to each other
-        df_pivot_x = df_filtered.pivot_table(index='cell', columns='step', values='x')
-        df_pivot_y = df_filtered.pivot_table(index='cell', columns='step', values='y')
-
-        # calculate differences for each step compared to step 0
-        diff_x = (df_pivot_x[0] - df_pivot_x) / self.mm_to_pixel # in mm
-        diff_y = (df_pivot_y[0] - df_pivot_y) / self.mm_to_pixel # in mm
-        diff_df = pd.concat([diff_x, diff_y], axis=1) # combine
-        # Rename columns
-        diff_df.columns = [f"x_diff_{step}" for step in self.selected_steps if step != 0] + \
-                  [f"y_diff_{step}" for step in self.selected_steps if step != 0]
-        return diff_df
-
-    def plot_correlation_matrix(self, df):
-        # Berechnen der Korrelationen zwischen den Differenzen der Koordinaten
-        correlation_matrix = df.corr()
-
-        # Plot der Korrelationsmatrix als Heatmap
-        plt.figure(figsize=(12, 8))
-        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", center=0, linewidths=0.5)
-        plt.title("Korrelationsmatrix der Differenzen zwischen den Koordinaten")
-        plt.show()
-
 #%% RUN CODE
 if __name__ == '__main__':
 
@@ -247,7 +225,6 @@ if __name__ == '__main__':
     obj.plot_differences(step=6, name="Cathode")
     obj.plot_differences(step=7, name="Spacer")
     obj.plot_differences(step=8, name="Spring")
-    # differences_matrix = obj.compute_differences()
-    # obj.plot_correlation_matrix(differences_matrix)
+
 
 
