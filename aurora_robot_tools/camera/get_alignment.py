@@ -18,9 +18,9 @@ class Alignment:
         self.path = path # path to images
         self.df = pd.read_excel(os.path.join(path, "data/data.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
-                                                  "x0", "y0", "z0", "x1", "y1", "z1", "x2", "y2", "z2",
-                                                  "x4", "y4", "z4", "x6", "y6", "z6", "x7", "y7", "z7",
-                                                  "x8", "y8", "z8", "x9", "y9", "z9"])
+                                                  "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
+                                                  "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8", 
+                                                  "x9", "y9", "z9"])
         self.mm_to_pixel = 10
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
@@ -109,9 +109,6 @@ class Alignment:
             row = {"cell": cell, "press": int(cell_df["press"].values[0]),
                    "z_electrodes": z_electrodes,
                    "intersection_area": self._intersection_area(z_electrodes),
-                   "x0": float(cell_df.loc[cell_df['step'] == 0, 'x']),
-                   "y0": float(cell_df.loc[cell_df['step'] == 0, 'y']),
-                   "z0": float(cell_df.loc[cell_df['step'] == 0, 'z']),
                    "x1": float(cell_df.loc[cell_df['step'] == 1, 'x']),
                    "y1": float(cell_df.loc[cell_df['step'] == 1, 'y']),
                    "z1": float(cell_df.loc[cell_df['step'] == 1, 'z']),
