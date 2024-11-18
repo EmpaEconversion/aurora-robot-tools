@@ -1,7 +1,6 @@
 """ Lina Scholz
 
-Script to read in images from folder, transform warped rectangle in straight rectangle,
-detect centers of all parts.
+Script to analyse center coordinates and alignment of different parts from the data of proces_images.py.
 """
 
 import math
@@ -63,14 +62,20 @@ class Alignment:
         R2 = 14
         if d >= R1 + R2:
             area = 0 # No overlap
-        elif d <= abs(R1 - R2) :
+        elif d <= abs(R1 - R2)/2:
             area = math.pi * min(R1, R2) ** 2  # The smaller circle is fully contained
-        else :
-            part1 = R1**2 * math.acos((d**2 + R1**2 - R2**2) / (2 * d * R1))
-            part2 = R2**2 * math.acos((d**2 + R2**2 - R1**2) / (2 * d * R2))
-            part3 = 0.5 * math.sqrt((-d + R1 + R2) * (d + R1 - R2) * (d - R1 + R2) * (d + R1 + R2))
-            area = part1 + part2 - part3
-        percentage_area = area / (math.pi * R2**2) * 100 # area of cathode overlapping with anode
+        else:
+            # Compute alpha and beta, clamping the values for acos to prevent domain errors
+            alpha = math.acos(max(-1, min(1, ((R1**2 + d**2 - R2**2) / (2 * d * R1))))) * 2
+            beta = math.acos(max(-1, min(1, ((R2**2 + d**2 - R1**2) / (2 * d * R2))))) * 2
+            a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
+            a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
+            area = math.floor(a1 + a2)
+            # part1 = R1**2 * math.acos((d**2 + R1**2 - R2**2) / (2 * d * R1))
+            # part2 = R2**2 * math.acos((d**2 + R2**2 - R1**2) / (2 * d * R2))
+            # part3 = 0.5 * math.sqrt((-d + R1 + R2) * (d + R1 - R2) * (d - R1 + R2) * (d + R1 + R2))
+            # area = part1 + part2 - part3
+        percentage_area = round(area / (math.pi * R2**2) * 100, 2) # area of cathode overlapping with anode
         return percentage_area
 
     def plot_coordinates_by_cell(self, draw_circle=False):
@@ -94,8 +99,10 @@ class Alignment:
             cell_df.loc[:, 'x'] = (cell_df.loc[:, 'x'] - ref_x) / self.mm_to_pixel
             cell_df.loc[:, 'y'] = (cell_df.loc[:, 'y'] - ref_y) / self.mm_to_pixel
             cell_df["z"] = np.sqrt(cell_df["x"]**2 + cell_df["y"]**2).round(3)
-            x_electrodes = float(cell_df.loc[cell_df['step']==2,'x'].values -cell_df.loc[cell_df['step']==6,'x'].values)
-            y_electrodes = float(cell_df.loc[cell_df['step']==2,'x'].values -cell_df.loc[cell_df['step']==6,'x'].values)
+            x_electrodes = (float(cell_df.loc[cell_df['step']==6,'x'].values -
+                                  cell_df.loc[cell_df['step']==2,'x'].values))
+            y_electrodes = (float(cell_df.loc[cell_df['step']==6,'x'].values -
+                                  cell_df.loc[cell_df['step']==2,'x'].values))
             z_electrodes = round(math.sqrt(x_electrodes**2 + y_electrodes**2), 3)
 
             # store all alignments with respect to pressing tool
