@@ -142,7 +142,7 @@ class Alignment:
                 x, y = row['x'].values[0], row['y'].values[0]
                 radius = radii_dict.get(step, 200)  # Default to 200 if step not in dictionary
                 # Plot the center point
-                ax.scatter(x, y, color=color, label=f'{step_name[step]}', s=50, zorder=5)
+                ax.scatter(x, -y, color=color, label=f'{step_name[step]}', s=50, zorder=5)
                 if draw_circle:
                     # Add a circle around the center point
                     circle = plt.Circle((x, y), radius, color=color, fill=False, linewidth=1.5)
@@ -151,7 +151,7 @@ class Alignment:
                 # Annotate with step label, offset from center
                 ax.annotate(
                     f"{step_name[step]}",
-                    (x, y),
+                    (x, -y),
                     textcoords="offset points",
                     xytext=(10, 10),  # Offset the label
                     ha='center',
