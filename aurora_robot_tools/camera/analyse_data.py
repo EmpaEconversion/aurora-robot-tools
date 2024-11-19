@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.graph_objects as go
 import statsmodels.api as sm
 from sklearn.decomposition import PCA
 from scipy.cluster.hierarchy import dendrogram, linkage
@@ -49,13 +50,18 @@ performance_numbers = ['First formation efficiency (%)', 'First formation specif
                        'Last specific discharge capacity (mAh/g)', 'Last efficiency (%)',
                        'Formation average voltage (V)', 'Formation average current (A)', 'Initial delta V (V)',
                        'Cycles to 90% capacity', 'Cycles to 80% capacity', 'Cycles to 70% capacity']
+# 'Specific discharge capacity (mAh/g)'
+spec_disc_capacity = 'Specific discharge capacity (mAh/g)'
+data['Specific discharge capacity (mAh/g)'] = None # initialize column
 for string in performance_numbers:
-    data[string] = None
+    data[string] = None # initialize columns
 
 for cell in cell_data:
     number = int(cell["Sample ID"].split("_")[-1])
     for i in range(len(performance_numbers)):
         data.loc[data['cell'] == number, performance_numbers[i]] = cell[performance_numbers[i]]
+    data.loc[data['cell'] == number,
+             'Specific discharge capacity (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
 data = data.dropna()
 
 # calculate distances between main components: spring, anode, cathode, spacer
@@ -137,7 +143,7 @@ fig.show()
 # capacity (electrodes)
 fig = px.scatter_matrix(
     data_analysis,
-    dimensions=['intersection_area', 'Last specific discharge capacity (mAh/g)',
+    dimensions=['intersection_area', 'Specific discharge capacity (mAh/g)',
                 'Initial specific discharge capacity (mAh/g)'],
     title="Electrode Alignment",
     hover_data=["cell", "d26", "d28", "d68", "intersection_area", 'First formation efficiency (%)',
@@ -145,9 +151,11 @@ fig = px.scatter_matrix(
                 'Initial efficiency (%)', 'Last efficiency (%)', 'Formation average voltage (V)',
                 'Formation average current (A)', 'Initial delta V (V)', 'Cycles to 70% capacity', 'Capacity loss (%)'],
     color="d68",
+    size="d28",  # Column for dot sizes
+    size_max=20,  # Adjust maximum size for better visualization
     labels={
         "intersection_area": "Intersec. Area",
-        "Last specific discharge capacity (mAh/g)": "Last spec. disc. cap. (mAh/g)",
+        'Specific discharge capacity (mAh/g)': "150th spec. disc. cap. (mAh/g)",
         "Initial specific discharge capacity (mAh/g)": "Init. Spec. Cap. (mAh/g)"},
     color_continuous_scale="Viridis"
 )
