@@ -33,7 +33,7 @@ keys = ['Sample ID', 'Cycle', 'Charge capacity (mAh)', 'Discharge capacity (mAh)
         'Cycles to 75% energy', 'Cycles to 70% energy', 'Cycles to 60% energy', 'Cycles to 50% energy', 'Run ID',
         'Electrolyte to press (s)', 'Electrolyte to electrode (s)', 'Electrode to protection (s)', 'Press to protection (s)']
 
-cycling_data = r"G:\Limit\Lina Scholz\Data\batch.lisc_gen14.json"
+cycling_data = r"G:\Limit\Lina Scholz\Cell Data\batch.lisc_gen14.json"
 alignment_data = r"C:\lisc_gen14\data\alignment.csv"
 
 # Open and load the JSON file
@@ -58,7 +58,7 @@ for cell in cell_data:
         data.loc[data['cell'] == number, performance_numbers[i]] = cell[performance_numbers[i]]
 data = data.dropna()
 
-# calculate distances between main components
+# calculate distances between main components: spring, anode, cathode, spacer
 d27_list = []
 d28_list = []
 d67_list = []
@@ -88,6 +88,14 @@ data["d28"] = d28_list
 data["d67"] = d67_list
 data["d68"] = d68_list
 data["d78"] = d78_list
+
+# Save the plot as a JPG file named by the cell number
+data_dir = os.path.join("C:/lisc_gen14/data", "plot")
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
+    data.to_excel(writer, sheet_name='performance', index=False)
+data.to_csv(os.path.join(data_dir, "performance.csv"), index=False)
 
 #%% Find any CORRELATION
 
