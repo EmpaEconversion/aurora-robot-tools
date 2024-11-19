@@ -199,7 +199,7 @@ class ProcessImages:
         M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
         return M
 
-    def _transform_split(self, img: np.array, m: np.array, filename: str) -> list[np.array]:
+    def _transform_split(self, img: np.array, m: np.array, filename: str) -> dict[np.array]:
         """ Takes image and transformation matrix and returns transformed image.
 
         Args:
@@ -228,7 +228,7 @@ class ProcessImages:
             top_left_y = max(bottom_right_y - 2*self.offset_mm*self.mm_to_pixel, 0)
             top_left_x = max(bottom_right_x - 2*self.offset_mm*self.mm_to_pixel, 0)
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
-            cropped_images[i] = cropped_image
+            cropped_images[i+1] = cropped_image
         return cropped_images
 
     def _preprocess_image(self, image: np.array, step: int) -> np.array:
@@ -285,8 +285,7 @@ class ProcessImages:
                     transformation_matrix = array
             image_sections = self._transform_split(image, transformation_matrix, name)
             for dictionary in information:
-                position = int(dictionary["p"])-1
-                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[position]]
+                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
                 self.df.loc[len(self.df)] = row
         return
 
