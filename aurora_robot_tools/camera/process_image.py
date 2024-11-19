@@ -355,8 +355,8 @@ class ProcessImages:
             else:
                 x_corrected.append(row["x"])
                 y_corrected.append(row["y"])
-        self.df["x_corr"] = x_corrected
-        self.df["y_corr"] = y_corrected
+        self.df["x_corrected"] = x_corrected
+        self.df["y_corrected"] = y_corrected
         return
 
     def save(self) -> pd.DataFrame:
