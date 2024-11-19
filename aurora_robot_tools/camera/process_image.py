@@ -236,11 +236,6 @@ class ProcessImages:
             # for cross check save image:
             height, width = cropped_image.shape[:2] # Get height, width
             resized_img = cv2.resize(cropped_image, (width, height)) # Set image size
-            # if folder doesn't exist, create it
-            if not os.path.exists(self.path + "/image_sections"):
-                os.makedirs(self.path + "/image_sections")
-            # Save the image with detected ellipses
-            cv2.imwrite(self.path + f"/image_sections/{filename.split(".")[0]}_pos_{i+1}.jpg", resized_img)
             cropped_images[i] = cropped_image
         return cropped_images
 
@@ -385,7 +380,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/kigr_gen5"
+    folderpath = "C:/241105_svfe_gen15"
 
     obj = ProcessImages(folderpath)
     obj.load_files()
