@@ -14,16 +14,19 @@ import matplotlib.pyplot as plt
 #%% CLASS
 
 class Alignment:
-    def __init__(self, path, graham=False):
+    def __init__(self, path):
         self.path = path # path to images
         self.df = pd.read_excel(os.path.join(path, "data/data.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
                                                   "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
-                                                  "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8", 
+                                                  "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8",
                                                   "x9", "y9", "z9"])
         self.mm_to_pixel = 10
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
+        # specify if corrected coordinates or not (x_corr or x)
+        self.xstr = "x_corrected"
+        self.ystr = "y_corrected"
 
     def _intersection_area(self, d: float) -> float:
         """ Function to return percentage of area of intersection of the cathode.
@@ -80,41 +83,41 @@ class Alignment:
             # Filter DataFrame for the current cell and selected steps
             cell_df = self.df[(self.df['cell'] == cell) & (self.df['step'].isin(self.selected_steps))]
             # Get the reference point (0,0) for `step 0`
-            ref_x, ref_y = cell_df[cell_df['step'] == 0][['x', 'y']].values[0]
+            ref_x, ref_y = cell_df[cell_df['step'] == 0][[self.xstr, self.ystr]].values[0]
             # Adjust coordinates relative to the step 0 reference point
-            cell_df.loc[:, 'x'] = (cell_df.loc[:, 'x'] - ref_x) / self.mm_to_pixel
-            cell_df.loc[:, 'y'] = (cell_df.loc[:, 'y'] - ref_y) / self.mm_to_pixel
-            cell_df["z"] = np.sqrt(cell_df["x"]**2 + cell_df["y"]**2).round(3)
-            x_electrodes = (float(cell_df.loc[cell_df['step']==6,'x'].values -
-                                  cell_df.loc[cell_df['step']==2,'x'].values))
-            y_electrodes = (float(cell_df.loc[cell_df['step']==6,'x'].values -
-                                  cell_df.loc[cell_df['step']==2,'x'].values))
+            cell_df.loc[:, self.xstr] = (cell_df.loc[:, self.xstr] - ref_x) / self.mm_to_pixel
+            cell_df.loc[:, self.ystr] = (cell_df.loc[:, self.ystr] - ref_y) / self.mm_to_pixel
+            cell_df["z"] = np.sqrt(cell_df[self.xstr]**2 + cell_df["y"]**2).round(3)
+            x_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
+                                  cell_df.loc[cell_df['step']==2,self.xstr].values))
+            y_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
+                                  cell_df.loc[cell_df['step']==2,self.xstr].values))
             z_electrodes = round(math.sqrt(x_electrodes**2 + y_electrodes**2), 3)
 
             # store all alignments with respect to pressing tool
             row = {"cell": cell, "press": int(cell_df["press"].values[0]),
                    "z_electrodes": z_electrodes,
                    "intersection_area": self._intersection_area(z_electrodes),
-                   "x1": float(cell_df.loc[cell_df['step'] == 1, 'x']),
-                   "y1": float(cell_df.loc[cell_df['step'] == 1, 'y']),
+                   "x1": float(cell_df.loc[cell_df['step'] == 1, self.xstr]),
+                   "y1": float(cell_df.loc[cell_df['step'] == 1, self.ystr]),
                    "z1": float(cell_df.loc[cell_df['step'] == 1, 'z']),
-                   "x2": float(cell_df.loc[cell_df['step'] == 2, 'x']),
-                   "y2": float(cell_df.loc[cell_df['step'] == 2, 'y']),
+                   "x2": float(cell_df.loc[cell_df['step'] == 2, self.xstr]),
+                   "y2": float(cell_df.loc[cell_df['step'] == 2, self.ystr]),
                    "z2": float(cell_df.loc[cell_df['step'] == 2, 'z']),
-                   "x4": float(cell_df.loc[cell_df['step'] == 4, 'x']),
-                   "y4": float(cell_df.loc[cell_df['step'] == 4, 'y']),
+                   "x4": float(cell_df.loc[cell_df['step'] == 4, self.xstr]),
+                   "y4": float(cell_df.loc[cell_df['step'] == 4, self.ystr]),
                    "z4": float(cell_df.loc[cell_df['step'] == 4, 'z']),
-                   "x6": float(cell_df.loc[cell_df['step'] == 6, 'x']),
-                   "y6": float(cell_df.loc[cell_df['step'] == 6, 'y']),
+                   "x6": float(cell_df.loc[cell_df['step'] == 6, self.xstr]),
+                   "y6": float(cell_df.loc[cell_df['step'] == 6, self.ystr]),
                    "z6": float(cell_df.loc[cell_df['step'] == 6, 'z']),
-                   "x7": float(cell_df.loc[cell_df['step'] == 7, 'x']),
-                   "y7": float(cell_df.loc[cell_df['step'] == 7, 'y']),
+                   "x7": float(cell_df.loc[cell_df['step'] == 7, self.xstr]),
+                   "y7": float(cell_df.loc[cell_df['step'] == 7, self.ystr]),
                    "z7": float(cell_df.loc[cell_df['step'] == 7, 'z']),
-                   "x8": float(cell_df.loc[cell_df['step'] == 8, 'x']),
-                   "y8": float(cell_df.loc[cell_df['step'] == 8, 'y']),
+                   "x8": float(cell_df.loc[cell_df['step'] == 8, self.xstr]),
+                   "y8": float(cell_df.loc[cell_df['step'] == 8, self.ystr]),
                    "z8": float(cell_df.loc[cell_df['step'] == 8, 'z']),
-                   "x9": float(cell_df.loc[cell_df['step'] == 9, 'x']),
-                   "y9": float(cell_df.loc[cell_df['step'] == 9, 'y']),
+                   "x9": float(cell_df.loc[cell_df['step'] == 9, self.xstr]),
+                   "y9": float(cell_df.loc[cell_df['step'] == 9, self.ystr]),
                    "z9": float(cell_df.loc[cell_df['step'] == 9, 'z'])}
             self.alignment_df.loc[len(self.alignment_df)] = row
 
@@ -125,7 +128,7 @@ class Alignment:
                 color = colors(color_range[i])
 
                 # Get coordinates and radius
-                x, y = row['x'].values[0], row['y'].values[0]
+                x, y = row[self.xstr].values[0], row[self.ystr].values[0]
                 radius = radii_dict.get(step, 200)  # Default to 200 if step not in dictionary
                 # Plot the center point
                 ax.scatter(x, -y, color=color, label=f'{step_name[step]}', s=50, zorder=5)
@@ -190,10 +193,10 @@ class Alignment:
 
         df_filtered = self.df[self.df['step'].isin([0, step])] # filter for specific steps
         # pivot data frame to have step 0 and 2 next to each other
-        df_pivot = df_filtered.pivot_table(index='cell', columns='step', values=['x', 'y'])
+        df_pivot = df_filtered.pivot_table(index='cell', columns='step', values=[self.xstr, self.ystr])
         # calculate difference
-        df_pivot['x_diff'] = (df_pivot['x', step] - df_pivot['x', 0]) / self.mm_to_pixel
-        df_pivot['y_diff'] = (df_pivot['y', step] - df_pivot['y', 0]) / self.mm_to_pixel
+        df_pivot['x_diff'] = (df_pivot[self.xstr, step] - df_pivot[self.xstr, 0]) / self.mm_to_pixel
+        df_pivot['y_diff'] = (df_pivot[self.ystr, step] - df_pivot[self.ystr, 0]) / self.mm_to_pixel
 
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.scatter(df_pivot.index, df_pivot['x_diff'], color='blue', label='x_diff', s=50)
@@ -220,7 +223,7 @@ if __name__ == '__main__':
     folderpath = "C:/lisc_gen14"
 
     obj = Alignment(folderpath)
-    obj.plot_coordinates_by_cell()
+    data = obj.plot_coordinates_by_cell()
     obj.plot_differences(step=2, name="Anode")
     obj.plot_differences(step=6, name="Cathode")
     obj.plot_differences(step=7, name="Spacer")
