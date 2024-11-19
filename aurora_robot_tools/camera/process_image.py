@@ -25,7 +25,7 @@ class ProcessImages:
         self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
 
         # Parameter which might need to be changes if camera position changes ----------------------
-        self.press_position = [[0, 0], [95, 0], [190, 0], [190, 100], [95, 100], [0, 100]]
+        self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
         self.mm_to_pixel = 10
         self.offset_mm = 20 # mm
@@ -233,9 +233,6 @@ class ProcessImages:
             top_left_y = max(bottom_right_y - 2*self.offset_mm*self.mm_to_pixel, 0)
             top_left_x = max(bottom_right_x - 2*self.offset_mm*self.mm_to_pixel, 0)
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
-            # for cross check save image:
-            height, width = cropped_image.shape[:2] # Get height, width
-            resized_img = cv2.resize(cropped_image, (width, height)) # Set image size
             cropped_images[i] = cropped_image
         return cropped_images
 
@@ -380,7 +377,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/241105_svfe_gen15"
+    folderpath = "C:/lisc_gen14"
 
     obj = ProcessImages(folderpath)
     obj.load_files()
