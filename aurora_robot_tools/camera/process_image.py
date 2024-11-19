@@ -83,14 +83,11 @@ class ProcessImages:
             coordinates, _, image_with_circles = self._detect_circles(img, self.r)
 
         # Draw all detected ellipses and save image to check quality of detection
-        height, width = image_with_circles.shape[:2] # Get height, width
-        resized_img = cv2.resize(image_with_circles, (width, height)) # Set image size
-        plt.imshow(resized_img)
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/reference"):
             os.makedirs(self.path + "/reference")
         # Save the image with detected ellipses
-        cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", resized_img)
+        cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", image_with_circles)
 
         transformation_M = self._get_transformation_matrix(coordinates)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
@@ -217,13 +214,11 @@ class ProcessImages:
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
                                                  (100+ 2* self.offset_mm)*self.mm_to_pixel))
         # for cross check save image: # TODO delete later?
-        height, width = transformed_image.shape[:2] # Get height, width
-        resized_img = cv2.resize(transformed_image, (width, height)) # Set image size
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/transformed"):
             os.makedirs(self.path + "/transformed")
         # Save the image with detected ellipses
-        cv2.imwrite(self.path + f"/transformed/{filename.split(".")[0]}.jpg", resized_img)
+        cv2.imwrite(self.path + f"/transformed/{filename.split(".")[0]}.jpg", transformed_image)
         # Crop the image
         cropped_images = {}
         for i, c in enumerate(self.press_position):
@@ -323,14 +318,12 @@ class ProcessImages:
                 y.append(np.nan)
                 radius.append(None)
             # for cross check save image:
-            height, width = image_with_circles.shape[:2] # Get height, width
-            resized_img = cv2.resize(image_with_circles, (width, height)) # Set image size
             # if folder doesn't exist, create it
             if not os.path.exists(self.path + "/detected_circles"):
                 os.makedirs(self.path + "/detected_circles")
             # Save the image with detected ellipses
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
-            cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", resized_img)
+            cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
         self.df["x"] = x
         self.df["y"] = y
         self.df["r_mm"] = radius
@@ -365,6 +358,7 @@ class ProcessImages:
     def save(self) -> pd.DataFrame:
         """ Saves data frames with all coordinates, redius and alignment.
         """
+        self.df = self.df.drop(columns=["array"]) # save without image array
         data_dir = os.path.join(self.path, "data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
