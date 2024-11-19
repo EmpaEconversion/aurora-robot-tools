@@ -12,6 +12,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import statsmodels.api as sm
 from sklearn.decomposition import PCA
 from scipy.cluster.hierarchy import dendrogram, linkage
@@ -52,7 +53,9 @@ performance_numbers = ['First formation efficiency (%)', 'First formation specif
                        'Cycles to 90% capacity', 'Cycles to 80% capacity', 'Cycles to 70% capacity']
 # 'Specific discharge capacity (mAh/g)'
 spec_disc_capacity = 'Specific discharge capacity (mAh/g)'
-data['Specific discharge capacity (mAh/g)'] = None # initialize column
+data['Specific discharge capacity 150th (mAh/g)'] = None # initialize column
+data['Specific discharge capacity 5th (mAh/g)'] = None # initialize column
+# data['Electrodes center'] = None # initialize column
 for string in performance_numbers:
     data[string] = None # initialize columns
 
@@ -61,7 +64,11 @@ for cell in cell_data:
     for i in range(len(performance_numbers)):
         data.loc[data['cell'] == number, performance_numbers[i]] = cell[performance_numbers[i]]
     data.loc[data['cell'] == number,
-             'Specific discharge capacity (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
+             'Specific discharge capacity 150th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
+    data.loc[data['cell'] == number,
+             'Specific discharge capacity 5th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][5]
+    # data.loc[data['cell'] == number,
+             # 'Electrodes center'] = cell[''] # TODO                                  
 data = data.dropna()
 
 # calculate distances between main components: spring, anode, cathode, spacer
@@ -103,6 +110,10 @@ with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
     data.to_excel(writer, sheet_name='performance', index=False)
 data.to_csv(os.path.join(data_dir, "performance.csv"), index=False)
 
+#%% Performance
+
+
+
 #%% Find any CORRELATION
 
 data_analysis = data.copy()
@@ -111,59 +122,146 @@ data_analysis = data_analysis.drop(columns=["press", "z_electrodes",
                                    'Cycles to 90% capacity', 'Cycles to 80% capacity',
                                    "x1", "y1", "z1", "x4", "y4", "z4", "x9", "y9", "z9"])
 
-
 # correlation matrix
 correlation_matrix = data_analysis.corr()
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
 plt.show()
 
-# scatter plot
-# degradration (spring)
-fig = px.scatter_matrix(
-    data_analysis,
-    dimensions=['d28', "d68", 'Cycles to 70% capacity', "Formation average current (A)", 'Formation average voltage (V)'],
-    title="Pressure Distribution: spring vs. electrodes",
-    hover_data=["cell", "d26", "intersection_area", 'First formation efficiency (%)',
-                'First formation specific discharge capacity (mAh/g)',
-                'Initial specific discharge capacity (mAh/g)', 'Initial efficiency (%)',
-                'Last specific discharge capacity (mAh/g)', 'Last efficiency (%)', 'Formation average voltage (V)',
-                'Formation average current (A)', 'Initial delta V (V)'],
-    color="d26",
-    labels={
-        "d28": "D28 [mm]",
-        "d68": "D68 [mm]",
-        'Formation average current (A)': "Form. av. curr. (A)",
-        "Cycles to 70% capacity": "Cyc. to 70%",
-        'Formation average voltage (V)': "Form. av. volt. (V)"},
-    color_continuous_scale="Viridis"
-)
-fig.update_layout(coloraxis_colorbar=dict(title="anode vs. cathode"))
-fig.update_traces(diagonal_visible=True) # Zeigt Histogramme auf der Diagonale
-fig.show()
-# capacity (electrodes)
-fig = px.scatter_matrix(
-    data_analysis,
-    dimensions=['intersection_area', 'Specific discharge capacity (mAh/g)',
-                'Initial specific discharge capacity (mAh/g)'],
-    title="Electrode Alignment",
-    hover_data=["cell", "d26", "d28", "d68", "intersection_area", 'First formation efficiency (%)',
-                'First formation specific discharge capacity (mAh/g)',
-                'Initial efficiency (%)', 'Last efficiency (%)', 'Formation average voltage (V)',
-                'Formation average current (A)', 'Initial delta V (V)', 'Cycles to 70% capacity', 'Capacity loss (%)'],
-    color="d68",
-    size="d28",  # Column for dot sizes
-    size_max=20,  # Adjust maximum size for better visualization
-    labels={
-        "intersection_area": "Intersec. Area",
-        'Specific discharge capacity (mAh/g)': "150th spec. disc. cap. (mAh/g)",
-        "Initial specific discharge capacity (mAh/g)": "Init. Spec. Cap. (mAh/g)"},
-    color_continuous_scale="Viridis"
-)
-fig.update_layout(coloraxis_colorbar=dict(title="cathode vs. spring"))
-fig.update_traces(diagonal_visible=True)  # Zeigt Histogramme auf der Diagonale
+# Scatter Plot
+# Degradation (Pressure)
+fig = make_subplots(rows=2, cols=2)
+# Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d28"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d28: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d68"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d68: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d27"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d27: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d67"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d67: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=2)
+# Update axis
+fig.update_xaxes(title_text="anode to spring [mm]", row=1, col=1)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+
+fig.update_xaxes(title_text="cathode to spring [mm]", row=1, col=2)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=2)
+
+fig.update_xaxes(title_text="anode to spacer [mm]", row=2, col=1)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=1)
+
+fig.update_xaxes(title_text="cathode to spacer [mm]", row=2, col=2)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=2)
+
+# Update layout
+fig.update_layout(
+    title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
+    height=500,  # Niedriger machen
+    margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
-# PCA
+# Capacity (Electrodes)
+fig = make_subplots(rows=1, cols=3)
+# Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Initial specific discharge capacity (mAh/g)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Ini. spec. disc. capacity: %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=3)
+# Update axis
+fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=1, col=1)
+fig.update_yaxes(title_text="Intersection area [%]", row=1, col=1)
+
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=2)
+fig.update_yaxes(title_text="Intersection area [%]", row=1, col=2)
+
+fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=3)
+fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
+# Update layout
+fig.update_layout(
+    title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
+    height=300,  # Niedriger machen
+    margin=dict(l=50, r=50, t=50, b=50))
+fig.show()
+
+
+#%% PCA
+
 df_normalized = (data_analysis - data_analysis.mean()) / data_analysis.std()
 pca = PCA(n_components=data_analysis.shape[1])
 pca.fit(df_normalized)
@@ -185,7 +283,7 @@ ax.set_xticks(ind)
 ax.set_xticklabels(ind)
 ax.set_xlabel('Component Number')
 ax.set_ylabel('Explained Variance')
-plt.show()
+# plt.show()
 # Plot a variable factor map for the first two dimensions.
 (fig, ax) = plt.subplots(figsize=(8, 8))
 for i in range(0, pca.components_.shape[1]):
@@ -206,19 +304,10 @@ ax.set_xlabel("PC 1")
 ax.set_ylabel("PC 2")
 ax.axhline(0, linestyle=":", color="grey")
 ax.axvline(0, linestyle=":", color="grey")
-plt.show()
+# plt.show()
 
 # TODO: The second 1 over C cycle (is used for normation and is the 5th cycle overall) -> correlate to anode/cathode
 
-# cluster analysis
-Z = linkage(data_analysis[['d26', 'd27', 'd28', 'd67', "d68", "d78"]], method='ward')
-dendrogram(Z)
 
-# multivariate Analysis
-X = data_analysis[['d26', 'd28', "d68", "d78"]]
-y = data_analysis['Cycles to 70% capacity'].values
-X = sm.add_constant(X)
-# model = sm.OLS(y, X).fit()
-# print(model.summary())
 
-print("End")
+
