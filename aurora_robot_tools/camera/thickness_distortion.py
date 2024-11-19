@@ -6,15 +6,17 @@ Script to determine amount of shift of center points in pixel due to thickness o
 import h5py
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+# %matplotlib qt
 
 #%% PLOT IMAGE FROM WHICH DISTORTION IS DETERMINED
 
 # save image?
 save = False
-jpg = True
+jpg = False
 
 # File path
-path = "C:/lisc_gen14/image_sections/p03c14s8_p05c15s8_p02c16s8_p04c17s8_p06c18s8_pos_3.jpg"
+path = r"C:\lisc_gen14\p01c13s0.h5"
 
 if jpg:
     # Load the JPG image
@@ -44,7 +46,7 @@ detected_circles = cv2.HoughCircles(img,
                     dp = 1,
                     minDist = 100,
                     param1 = 30, param2 = 50,
-                    minRadius = 210, maxRadius = 260) # 520, 580
+                    minRadius = 210, maxRadius = 255) # 520, 580
 print(detected_circles)
 
 if detected_circles is not None:
@@ -61,7 +63,7 @@ if detected_circles is not None:
         # Print the center points of the detected circles
         print(f"Detected Circle Center: ({a}, {b}), Radius: {r}")
 
-resized_img = cv2.resize(img, (700, 700))
+resized_img = cv2.resize(img, (900, 600))
 # Show image with detected images
 cv2.imshow("Detected Circles", resized_img)
 cv2.waitKey(0)
