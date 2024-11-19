@@ -25,29 +25,6 @@ class Alignment:
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
 
-        # ------------------------------------------------------------------------------------------
-        if graham: # Grahams cells
-            base_string = "241004_kigr_gen5_"
-            # Create a list with formatted strings
-            self.sample_ID = [f"{base_string}{str(i).zfill(2)}" for i in range(1, 37)]
-
-        else: # Linas cells
-            base_string = "241022_lisc_gen14_"
-            self.sample_ID = [
-            '241022_lisc_gen14_2-13_02', '241022_lisc_gen14_2-13_03', '241022_lisc_gen14_2-13_04',
-            '241022_lisc_gen14_2-13_05', '241022_lisc_gen14_2-13_06', '241022_lisc_gen14_2-13_07',
-            '241022_lisc_gen14_2-13_08', '241022_lisc_gen14_2-13_09', '241022_lisc_gen14_2-13_10',
-            '241022_lisc_gen14_2-13_11', '241022_lisc_gen14_2-13_12', '241022_lisc_gen14_2-13_13',
-            '241022_lisc_gen14_14_36_14', '241022_lisc_gen14_14_36_15', '241022_lisc_gen14_14_36_16',
-            '241022_lisc_gen14_14_36_17', '241022_lisc_gen14_14_36_18', '241022_lisc_gen14_14_36_19',
-            '241022_lisc_gen14_14_36_20', '241022_lisc_gen14_14_36_21', '241022_lisc_gen14_14_36_22',
-            '241022_lisc_gen14_14_36_23', '241022_lisc_gen14_14_36_24', '241022_lisc_gen14_14_36_25',
-            '241022_lisc_gen14_14_36_26', '241022_lisc_gen14_14_36_27', '241022_lisc_gen14_14_36_28',
-            '241022_lisc_gen14_14_36_29', '241022_lisc_gen14_14_36_30', '241022_lisc_gen14_14_36_31',
-            '241022_lisc_gen14_14_36_32', '241022_lisc_gen14_14_36_33', '241022_lisc_gen14_14_36_34',
-            '241022_lisc_gen14_14_36_35', '241022_lisc_gen14_14_36_36'
-            ]
-
     def _intersection_area(self, d: float) -> float:
         """ Function to return percentage of area of intersection of the cathode.
 
@@ -66,20 +43,29 @@ class Alignment:
             area = math.pi * min(R1, R2) ** 2  # The smaller circle is fully contained
         else:
             # Compute alpha and beta, clamping the values for acos to prevent domain errors
+            # https://www.geeksforgeeks.org/area-of-intersection-of-two-circles/
             alpha = math.acos(max(-1, min(1, ((R1**2 + d**2 - R2**2) / (2 * d * R1))))) * 2
             beta = math.acos(max(-1, min(1, ((R2**2 + d**2 - R1**2) / (2 * d * R2))))) * 2
             a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
             a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
             area = math.floor(a1 + a2)
-            # part1 = R1**2 * math.acos((d**2 + R1**2 - R2**2) / (2 * d * R1))
-            # part2 = R2**2 * math.acos((d**2 + R2**2 - R1**2) / (2 * d * R2))
-            # part3 = 0.5 * math.sqrt((-d + R1 + R2) * (d + R1 - R2) * (d - R1 + R2) * (d + R1 + R2))
-            # area = part1 + part2 - part3
         percentage_area = round(area / (math.pi * R2**2) * 100, 2) # area of cathode overlapping with anode
         return percentage_area
 
-    def plot_coordinates_by_cell(self, draw_circle=False):
-        """ Add description.
+    def plot_coordinates_by_cell(self, draw_circle=False) -> pd.DataFrame:
+        """ Plots the center points of all parts for each cell.
+
+        The circle of the size of the parts is only plotted if desired. The images with the center
+        points of each part are saved as well as the data frame with the distances of the differnt
+        parts to the pressing tool reference coordinate. The pressing tool coordinate is set to zero
+        as reference.
+
+        Args:
+            draw_circle (bool): whether to draw the circle for the size of the part
+
+        Returns:
+            self.alignment_df (data frame): contains all x, y, z coordinates of each part with the
+                                            pressing tool as reference coordinate
         """
         # Get unique cell numbers
         radii_dict = {0: 20, 1: 20, 2: 15, 4: 16, 5: 16, 6: 14, 7: 19, 8: 16, 9: 20}
@@ -165,8 +151,12 @@ class Alignment:
             ax.set_ylabel("y [mm]", fontsize=10)
             ax.legend(loc="upper left", title="Steps", fontsize=8, title_fontsize=9)
             ax.set_aspect('equal')
-            ax.set_xlim([-3, 3])
-            ax.set_ylim([-3, 3])
+            if draw_circle: # need larger range to see circle
+                ax.set_xlim([-25, 25])
+                ax.set_ylim([-25, 25])
+            else:
+                ax.set_xlim([-3, 3])
+                ax.set_ylim([-3, 3])
             ax.grid(True)
 
             # Save the plot as a JPG file named by the cell number
@@ -187,7 +177,13 @@ class Alignment:
 
         return self.alignment_df
 
-    def plot_differences(self, step, name):
+    def plot_differences(self, step: int, name: str):
+        """ Gives a plot of the part defined in the step and its alignment vs. cell number/rack position.
+
+        Args:
+            step (int): step of robot of part which should be investigated
+            name (str): name of part
+        """
         # create folder plot if not existent
         if not os.path.exists('plot'):
             os.makedirs('plot')
