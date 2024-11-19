@@ -43,11 +43,11 @@ class ProcessImages:
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        self.bottom_correct = [(0.9, 1.8), (0.0, 1.8), (0.75, 1.8), (0.9, 0.9), (0.0, 0.9), (0.75, 0.9)] # after step 1
-        self.separator_correct = [(4.65, 9.3), (0.0, 9.3), (3.875, 9.3),
-                                  (4.65, 4.65), (0.0, 4.65), (3.875, 4.65)] # after step 4
-        self.spacer_correct = [(7.65, 15.3), (0.0, 15.3), (6.375, 15.3),
-                               (7.65, 7.65), (0.0, 7.65), (6.375, 7.65)] # after step 7
+        self.z_thickness = [(0.175, 0.33), (0.175, 0.2), (0.0375, 0.33),
+                            (0.0375, 0.2), (0.125, 0.33), (0.125, 0.2)] # mm thickness to mm x,y shift
+        self.bottom_thickness =  0.3 # mm
+        self.separator_thickness = 1.25 # mm
+        self.spacer_thickness = 1 # mm
 
     def _parse_filename(self, filename: str) -> list[dict]:
         """Take photo filename and returns dict of lists of press cell and step.
@@ -338,20 +338,25 @@ class ProcessImages:
         x_corrected = []
         y_corrected = []
         for index, row in self.df.iterrows():
-            if row["step"] == 1:
-                x_corrected.append(row["x"] - self.bottom_correct[row["press"]-1][0])
-                y_corrected.append(row["y"] + self.bottom_correct[row["press"]-1][1])
-            elif row["step"] == 4:
-                x_corrected.append(row["x"] - self.separator_correct[row["press"]-1][0])
-                y_corrected.append(row["y"] + self.separator_correct[row["press"]-1][1])
-            elif row["step"] == 7:
-                x_corrected.append(row["x"] - self.spacer_correct[row["press"]-1][0])
-                y_corrected.append(row["y"] + self.spacer_correct[row["press"]-1][1])
+            position = row["press"] - 1 # index to 0 to find in list
+            if row["step"] == 1: # accoint for bottom part
+                x_corrected.append(row["x"] - self.bottom_thickness * self.z_thickness[position][0])
+                y_corrected.append(row["y"] + self.bottom_thickness * self.z_thickness[position][1])
+            elif row["step"] == 4: # account for separator
+                x_corrected.append(row["x"] - (self.bottom_thickness + self.separator_thickness)
+                                   * self.z_thickness[position][0])
+                y_corrected.append(row["y"] + (self.bottom_thickness + self.separator_thickness)
+                                   * self.z_thickness[position][1])
+            elif row["step"] == 7: # acount for spacer
+                x_corrected.append(row["x"] - (self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
+                                   * self.z_thickness[position][0])
+                y_corrected.append(row["y"] + (self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
+                                   * self.z_thickness[position][1])
             else:
                 x_corrected.append(row["x"])
                 y_corrected.append(row["y"])
-        self.df["x_corrected"] = x_corrected
-        self.df["y_corrected"] = y_corrected
+        self.df["x_corr"] = x_corrected
+        self.df["y_corr"] = y_corrected
         return
 
     def save(self) -> pd.DataFrame:
