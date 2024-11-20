@@ -5,14 +5,11 @@ detect centers of all parts.
 """
 
 import h5py
-import math
 import os
 import cv2
 import re
-import json
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 #%% CLASS
 
@@ -36,8 +33,8 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (6.75, 8), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.25, 7.5), 7: (7, 8.25), 8: (6.25, 7.7), 9: (9.5, 10.5),
+        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (7.1, 7.9), 3: (7, 8), 4: (7.5, 8.5),
+                       5: (7.7, 8.5), 6: (6.25, 7.5), 7: (7.55, 8.3), 8: (6.25, 7.7), 9: (9.5, 10.5),
                        10: (7, 11)}
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
@@ -46,6 +43,7 @@ class ProcessImages:
         self.z_thickness = [(0.175, 0.33), (0.175, 0.2), (0.0375, 0.33),
                             (0.0375, 0.2), (0.125, 0.33), (0.125, 0.2)] # mm thickness to mm x,y shift
         self.bottom_thickness =  0.3 # mm
+        self.bottom_rim = 2.7 # mm
         self.separator_thickness = 1.25 # mm
         self.spacer_thickness = 1 # mm
 
@@ -243,7 +241,7 @@ class ProcessImages:
         """
         if step == 2:
             # Apply a Gaussian blur to reduce noise and improve detection accuracy
-            processed_image = cv2.convertScaleAbs(image, alpha=3, beta=0) # increase contrast
+            processed_image = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # increase contrast
             processed_image = cv2.GaussianBlur(processed_image, (9, 9), 2)
         else: # no preprossessing
             processed_image = image
@@ -340,8 +338,8 @@ class ProcessImages:
         for index, row in self.df.iterrows():
             position = row["press"] - 1 # index to 0 to find in list
             if row["step"] == 1: # accoint for bottom part
-                x_corrected.append(row["x"] - self.bottom_thickness * self.z_thickness[position][0])
-                y_corrected.append(row["y"] + self.bottom_thickness * self.z_thickness[position][1])
+                x_corrected.append(row["x"] - self.bottom_rim * self.z_thickness[position][0])
+                y_corrected.append(row["y"] + self.bottom_rim * self.z_thickness[position][1])
             elif row["step"] == 4: # account for separator
                 x_corrected.append(row["x"] - (self.bottom_thickness + self.separator_thickness)
                                    * self.z_thickness[position][0])
