@@ -13,9 +13,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import statsmodels.api as sm
 from sklearn.decomposition import PCA
-from scipy.cluster.hierarchy import dendrogram, linkage
 
 #%% Append PERFORMACNE DATA
 
@@ -67,8 +65,6 @@ for cell in cell_data:
              'Specific discharge capacity 150th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
     data.loc[data['cell'] == number,
              'Specific discharge capacity 5th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][5]
-    # data.loc[data['cell'] == number,
-             # 'Electrodes center'] = cell[''] # TODO                                  
 data = data.dropna()
 
 # calculate distances between main components: spring, anode, cathode, spacer
@@ -77,6 +73,10 @@ d28_list = []
 d67_list = []
 d68_list = []
 d78_list = []
+electrodes_x = []
+electrodes_y = []
+electrodes_spring = []
+electrodes_spacer = []
 for cell in data["cell"].unique():
     cell_df = data[data['cell'] == cell]
     d27 = round(math.sqrt((cell_df["x2"].values - cell_df["x6"].values)**2
@@ -89,11 +89,21 @@ for cell in data["cell"].unique():
                         + (cell_df["y6"].values - cell_df["y8"].values)**2), 3)
     d78 = round(math.sqrt((cell_df["x7"].values - cell_df["x8"].values)**2
                         + (cell_df["y7"].values - cell_df["y8"].values)**2), 3)
+    e_x = round((cell_df["x2"].values[0] + cell_df["x6"].values[0])/2, 3)
+    e_y = round((cell_df["y2"].values[0] + cell_df["y6"].values[0])/2, 3)
+    e_spring = round(math.sqrt((e_x - cell_df["x8"].values)**2
+                               + (e_y - cell_df["y8"].values)**2), 3)
+    e_spacer = round(math.sqrt((e_x - cell_df["x7"].values)**2
+                               + (e_y - cell_df["y7"].values)**2), 3)
     d27_list.append(d27)
     d28_list.append(d28)
     d67_list.append(d67)
     d68_list.append(d68)
     d78_list.append(d78)
+    electrodes_x.append(e_x)
+    electrodes_y.append(e_y)
+    electrodes_spring.append(e_spring)
+    electrodes_spacer.append(e_spacer)
 
 data["d26"] = data["z_electrodes"]
 data["d27"] = d27_list
@@ -101,6 +111,28 @@ data["d28"] = d28_list
 data["d67"] = d67_list
 data["d68"] = d68_list
 data["d78"] = d78_list
+data["electrodes_x"] = electrodes_x
+data["electrodes_y"] = electrodes_y
+data["electrodes_spring"] = electrodes_spring
+data["electrodes_spacer"] = electrodes_spacer
+
+# TODO
+# Rate rate between cycles 5-20 and 5-50
+data["Fade rate 5-20 cycles (%/cycle)"] = np.diff(data["Normalised discharge capacity (%)"])[5:20].mean()
+data["Fade rate 5-50 cycles (%/cycle)"] = np.diff(data["Normalised discharge capacity (%)"])[5:50].mean()
+
+# general score
+def normalize(values, c, k): # c: middle point / turning point; k: slope
+    # Parameter for sigmoid function
+    return 1 / (1 + np.exp(-k * (values - c)))
+
+# c = 98 for intersection area
+# c = 1.5 for electrode alignment
+# c = 1 # for electrode to spring alignment
+data["electrodes_normalized"] = normalize(data["d26"].to_numpy(), 2, -1)
+data["electrode_to_spring_normalized"] = normalize(data["electrodes_spring"].to_numpy(), 2, -1)
+data["area_normalized"] = normalize(data["intersection_area"].to_numpy(), 98, 1)
+data["alignment_score"] = data["area_normalized"] * data["electrode_to_spring_normalized"] * 100
 
 # Save the plot as a JPG file named by the cell number
 data_dir = os.path.join("C:/lisc_gen14/data", "plot")
@@ -109,10 +141,6 @@ if not os.path.exists(data_dir):
 with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
     data.to_excel(writer, sheet_name='performance', index=False)
 data.to_csv(os.path.join(data_dir, "performance.csv"), index=False)
-
-#%% Performance
-
-
 
 #%% Find any CORRELATION
 
@@ -129,14 +157,14 @@ plt.show()
 
 # Scatter Plot
 # Degradation (Pressure)
-fig = make_subplots(rows=2, cols=2)
+fig = make_subplots(rows=2, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
         x=data_analysis["d28"],
         y=data_analysis["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=data_analysis["cell"],  # Add "cell" values for hover
         hovertemplate=("d28: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
@@ -147,7 +175,7 @@ fig.add_trace(
         x=data_analysis["d68"],
         y=data_analysis["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=data_analysis["cell"],  # Add "cell" values for hover
         hovertemplate=("d68: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
@@ -155,10 +183,21 @@ fig.add_trace(
     row=1, col=2)
 fig.add_trace(
     go.Scatter(
+        x=data_analysis["electrodes_spring"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("electrodes_spring: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=3)
+fig.add_trace(
+    go.Scatter(
         x=data_analysis["d27"],
         y=data_analysis["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=data_analysis["cell"],  # Add "cell" values for hover
         hovertemplate=("d27: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
@@ -169,24 +208,36 @@ fig.add_trace(
         x=data_analysis["d67"],
         y=data_analysis["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='Viridis', colorbar=dict(title="electrodes [mm]")),
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=data_analysis["cell"],  # Add "cell" values for hover
         hovertemplate=("d67: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=2, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["electrodes_spacer"],
+        y=data_analysis["Cycles to 70% capacity"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("electrodes_spacer: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=3)
 # Update axis
 fig.update_xaxes(title_text="anode to spring [mm]", row=1, col=1)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
-
 fig.update_xaxes(title_text="cathode to spring [mm]", row=1, col=2)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=2)
-
+fig.update_xaxes(title_text="electrodes to spring [mm]", row=1, col=3)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=3)
 fig.update_xaxes(title_text="anode to spacer [mm]", row=2, col=1)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=1)
-
 fig.update_xaxes(title_text="cathode to spacer [mm]", row=2, col=2)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=2)
+fig.update_xaxes(title_text="electrodes to spacer [mm]", row=2, col=3)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=3)
 
 # Update layout
 fig.update_layout(
@@ -196,44 +247,14 @@ fig.update_layout(
 fig.show()
 
 # Capacity (Electrodes)
-fig = make_subplots(rows=1, cols=3)
+fig = make_subplots(rows=2, cols=3)
 # Add scatter plots
-fig.add_trace(
-    go.Scatter(
-        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
-        y=data_analysis["intersection_area"],
-        mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
-                        "Intersection Area: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=1, col=1)
-fig.add_trace(
-    go.Scatter(
-        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
-        y=data_analysis["intersection_area"],
-        mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
-                        "Intersection Area: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=1, col=2)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["Initial specific discharge capacity (mAh/g)"],
         y=data_analysis["intersection_area"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='Viridis', colorbar=dict(title="d68 [mm]")),
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
         text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
               "d28: " + data_analysis["d28"].astype(str) + "<br>" +
               "d27: " + data_analysis["d27"].astype(str) + "<br>" +
@@ -242,23 +263,148 @@ fig.add_trace(
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
     row=1, col=3)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Initial specific discharge capacity (mAh/g)"],
+        y=data_analysis["d26"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Ini. spec. disc. capacity: %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
+        y=data_analysis["d26"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
+                        "d26: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
+        y=data_analysis["d26"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
+                        "d26: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=3)
 # Update axis
-fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=1, col=1)
+fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=1)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=1)
-
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=1, col=2)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=2)
-
-fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=3)
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=3)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
+fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=2, col=1)
+fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=1)
+fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=2, col=2)
+fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=3)
+fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
+
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
-    height=300,  # Niedriger machen
+    height=500,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
+# Capacity (Electrodes)
+fig = make_subplots(rows=1, cols=2)
+# Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
+        y=data_analysis["alignment_score"],
+        mode='markers',
+        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+                        "Alignment Score [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Cycles to 70% capacity"],
+        y=data_analysis["alignment_score"],
+        mode='markers',
+        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
+                        "Alignment Score [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=1)
+fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=1)
+fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
+fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=2)
+
+# Update layout
+fig.update_layout(
+    title="Scatter Plots of Alignment Score",
+    height=500,  # Niedriger machen
+    margin=dict(l=50, r=50, t=50, b=50))
+fig.show()
 
 #%% PCA
 
@@ -306,7 +452,7 @@ ax.axhline(0, linestyle=":", color="grey")
 ax.axvline(0, linestyle=":", color="grey")
 # plt.show()
 
-# TODO: The second 1 over C cycle (is used for normation and is the 5th cycle overall) -> correlate to anode/cathode
+
 
 
 
