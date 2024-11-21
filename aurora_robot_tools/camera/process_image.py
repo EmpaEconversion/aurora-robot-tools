@@ -247,6 +247,35 @@ class ProcessImages:
             processed_image = image
         return processed_image
 
+    def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
+        """ Correcting position of center with thickness of parts.
+
+        Args:
+            p (int): pressing tool position
+            s (int): step
+            center (tuple): coordinates (x, y)
+
+        Returns:
+            (x_corr, y_corr) (tuple): corrected coordinates
+        """
+        position = p - 1 # index to 0 to find in list
+        if s == 1: # accoint for bottom part
+            x_corr = center[0] - self.bottom_rim * self.z_thickness[position][0]
+            y_corr = center[1] + self.bottom_rim * self.z_thickness[position][1]
+        elif s == 4: # account for separator
+            x_corr = center[0] - (self.bottom_thickness + self.separator_thickness) * self.z_thickness[position][0]
+            y_corr = center[1] + (self.bottom_thickness + self.separator_thickness) * self.z_thickness[position][1]
+        elif s == 7: # acount for spacer
+            x_corr = center[0] - ((self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
+                                  * self.z_thickness[position][0])
+            y_corr = center[1] + ((self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
+                                * self.z_thickness[position][1])
+        else:
+            x_corr = center[0]
+            y_corr = center[1]
+
+        return (x_corr, y_corr)
+
     def load_files(self) -> list[tuple]:
         """ Loads images and stores them in list with filename and image array
 
@@ -336,23 +365,10 @@ class ProcessImages:
         x_corrected = []
         y_corrected = []
         for index, row in self.df.iterrows():
-            position = row["press"] - 1 # index to 0 to find in list
-            if row["step"] == 1: # accoint for bottom part
-                x_corrected.append(row["x"] - self.bottom_rim * self.z_thickness[position][0])
-                y_corrected.append(row["y"] + self.bottom_rim * self.z_thickness[position][1])
-            elif row["step"] == 4: # account for separator
-                x_corrected.append(row["x"] - (self.bottom_thickness + self.separator_thickness)
-                                   * self.z_thickness[position][0])
-                y_corrected.append(row["y"] + (self.bottom_thickness + self.separator_thickness)
-                                   * self.z_thickness[position][1])
-            elif row["step"] == 7: # acount for spacer
-                x_corrected.append(row["x"] - (self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
-                                   * self.z_thickness[position][0])
-                y_corrected.append(row["y"] + (self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
-                                   * self.z_thickness[position][1])
-            else:
-                x_corrected.append(row["x"])
-                y_corrected.append(row["y"])
+            position = row["press"]
+            step = row["step"]
+            x_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[0])
+            y_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[1])
         self.df["x_corrected"] = x_corrected
         self.df["y_corrected"] = y_corrected
         return
