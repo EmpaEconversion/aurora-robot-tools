@@ -11,6 +11,120 @@ import re
 import numpy as np
 import pandas as pd
 
+#%% FUNCTIONS
+
+def _parse_filename(self, filename: str) -> list[dict]:
+    """Take photo filename and returns dict of lists of press cell and step.
+
+    Args:
+        filename (str): the filename of the photo used
+
+    Returns:
+        list of dictionaries containing keys 'p', 'c', 's' for press, cell, step in the photo
+    """
+    pattern = re.compile(r"p(\d+)c(\d+)s(\d+)")
+    matches = pattern.findall(filename)
+    # [{"p": 1, "c": 1, "s": 0}, {"p": 3, "c": 2, "s": 0}]
+    return [{"p": int(p), "c": int(c), "s": int(s)} for p, c, s in matches]
+
+def _detect_ellipses(img: np.array, r: tuple) -> tuple[list[list], np.array]:
+    """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
+
+    Args:
+        img (array): image array
+
+    Return:
+        coords_ellipses (list[list]): list with all six center coordinates of pressing tools
+    """
+    coords = [] # list to store reference coordinates
+    edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
+    contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
+    # Draw ellipses for each contour, constrained by aspect ratio and radius
+    for contour in contours:
+        if len(contour) >= 5:  # Need at least 5 points to fit an ellipse
+            ellipse = cv2.fitEllipse(contour)
+            major_axis_length = ellipse[1][0]
+            minor_axis_length = ellipse[1][1]
+            # Calculate aspect ratio
+            if minor_axis_length > 0:  # Avoid division by zero
+                aspect_ratio = major_axis_length / minor_axis_length
+                # Calculate the average radius of the ellipse
+                avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
+                # Constrain to shapes that are slightly non-circular and within the radius range
+                if 0.9 < aspect_ratio < 1.1 and r[0] <= avg_radius <= r[1]:
+                    coords.append((ellipse[0], avg_radius))
+                    cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
+                    # Draw the center point
+                    center = (int(ellipse[0][0]), int(ellipse[0][1]))  # Convert coordinates to integers
+                    cv2.circle(img, center, 5, (0, 255, 0), -1)
+    # Filter out similar ellipses
+    filtered_ellipses = []
+    coords_ellipses = []
+    r_ellipses = []
+    for ellipse in coords:
+        (cx, cy), r = ellipse
+        # Check if the current ellipse is similar to any ellipses in the filtered list
+        if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 10 and abs(r - fr) < 10
+            for (fcx, fcy), fr in filtered_ellipses):
+                filtered_ellipses.append(ellipse)
+                coords_ellipses.append((cx, cy))
+                r_ellipses.append(r)
+    return coords_ellipses, r_ellipses, img
+
+def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[list], list[list], np.array]:
+    """ Takes image, detects circles of pressing tools and provides list of coordinates.
+
+    Args:
+        img (array): image array
+        radius (tuple): (minimum_radius, maximum_radius) to detect
+        params (tuple): (param1, param2) for HoughCircles
+
+    Return:
+        coords_circles (list[list]): list with all center coordinates of pressing tools
+    """
+    # Apply Hough transform
+    detected_circles = cv2.HoughCircles(img,
+                    cv2.HOUGH_GRADIENT,
+                    dp = 1,
+                    minDist = 500,
+                    param1 = params[0], param2 = params[1],
+                    minRadius = radius[0], maxRadius = radius[1])
+    # Extract center points and their pressing tool position
+    coords_circles = [] # list to store coordinates
+    r_circles = [] # list to store radius
+    if detected_circles is not None:
+        for circle in detected_circles[0, :]:
+            coords_circles.append((circle[0], circle[1]))
+            r_circles.append(circle[2])
+        # Draw all detected circles and save image to check quality of detection
+        detected_circles = np.uint16(np.around(detected_circles))
+        for pt in detected_circles[0, :]:
+            a, b, r = pt[0], pt[1], pt[2]
+            cv2.circle(img, (a, b), r, (0, 0, 255), 5) # Draw the circumference of the circle
+            cv2.circle(img, (a, b), 1, (0, 0, 255), 5) # Show center point drawing a small circle
+    else:
+        coords_circles = None
+        r_circles = None
+    return coords_circles, r_circles, img
+
+def _preprocess_image(image: np.array, step: int) -> np.array:
+    """ Takes image and applies preprocessing steps (blur, contrast)
+
+    Args:
+        image (array): image array
+        step (int): robot assembly step
+
+    Return:
+        processed_image (array): processed image
+    """
+    if step == 2:
+        # Apply a Gaussian blur to reduce noise and improve detection accuracy
+        processed_image = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # increase contrast
+        processed_image = cv2.GaussianBlur(processed_image, (9, 9), 2)
+    else: # no preprossessing
+        processed_image = image
+    return processed_image
+
 #%% CLASS
 
 class ProcessImages:
@@ -47,20 +161,6 @@ class ProcessImages:
         self.separator_thickness = 1.25 # mm
         self.spacer_thickness = 1 # mm
 
-    def _parse_filename(self, filename: str) -> list[dict]:
-        """Take photo filename and returns dict of lists of press cell and step.
-
-        Args:
-            filename (str): the filename of the photo used
-
-        Returns:
-            list of dictionaries containing keys 'p', 'c', 's' for press, cell, step in the photo
-        """
-        pattern = re.compile(r"p(\d+)c(\d+)s(\d+)")
-        matches = pattern.findall(filename)
-        # [{"p": 1, "c": 1, "s": 0}, {"p": 3, "c": 2, "s": 0}]
-        return [{"p": int(p), "c": int(c), "s": int(s)} for p, c, s in matches]
-
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
         """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
 
@@ -76,9 +176,9 @@ class ProcessImages:
         ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
 
         if ellipse_detection:
-            coordinates, _, image_with_circles = self._detect_ellipses(img, self.r_ellipse)
+            coordinates, _, image_with_circles = _detect_ellipses(img, self.r_ellipse)
         else:
-            coordinates, _, image_with_circles = self._detect_circles(img, self.r)
+            coordinates, _, image_with_circles = _detect_circles(img, self.r)
 
         # Draw all detected ellipses and save image to check quality of detection
         # if folder doesn't exist, create it
@@ -89,87 +189,6 @@ class ProcessImages:
 
         transformation_M = self._get_transformation_matrix(coordinates)
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
-
-    def _detect_ellipses(self, img: np.array, r: tuple) -> tuple[list[list], np.array]:
-        """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
-
-        Args:
-            img (array): image array
-
-        Return:
-            coords_ellipses (list[list]): list with all six center coordinates of pressing tools
-        """
-        # center, rad, image_with_circles = self._detect_ellipses(img, r)
-        coords = [] # list to store reference coordinates
-        edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
-        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) # Find contours
-        # Draw ellipses for each contour, constrained by aspect ratio and radius
-        for contour in contours:
-            if len(contour) >= 5:  # Need at least 5 points to fit an ellipse
-                ellipse = cv2.fitEllipse(contour)
-                major_axis_length = ellipse[1][0]
-                minor_axis_length = ellipse[1][1]
-                # Calculate aspect ratio
-                if minor_axis_length > 0:  # Avoid division by zero
-                    aspect_ratio = major_axis_length / minor_axis_length
-                    # Calculate the average radius of the ellipse
-                    avg_radius = (major_axis_length + minor_axis_length) / 4  # Approximate radius
-                    # Constrain to shapes that are slightly non-circular and within the radius range
-                    if 0.9 < aspect_ratio < 1.1 and r[0] <= avg_radius <= r[1]:
-                        coords.append((ellipse[0], avg_radius))
-                        cv2.ellipse(img, ellipse, (0, 255, 0), 10)  # Green color for ellipses
-                        # Draw the center point
-                        center = (int(ellipse[0][0]), int(ellipse[0][1]))  # Convert coordinates to integers
-                        cv2.circle(img, center, 5, (0, 255, 0), -1)
-        # Filter out similar ellipses
-        filtered_ellipses = []
-        coords_ellipses = []
-        r_ellipses = []
-        for ellipse in coords:
-            (cx, cy), r = ellipse
-            # Check if the current ellipse is similar to any ellipses in the filtered list
-            if not any(np.sqrt((cx - fcx)**2 + (cy - fcy)**2) < 10 and abs(r - fr) < 10
-                for (fcx, fcy), fr in filtered_ellipses):
-                    filtered_ellipses.append(ellipse)
-                    coords_ellipses.append((cx, cy))
-                    r_ellipses.append(r)
-        return coords_ellipses, r_ellipses, img
-
-    def _detect_circles(self, img: np.array, radius: tuple, params: tuple) -> tuple[list[list], list[list], np.array]:
-        """ Takes image, detects circles of pressing tools and provides list of coordinates.
-
-        Args:
-            img (array): image array
-            radius (tuple): (minimum_radius, maximum_radius) to detect
-            params (tuple): (param1, param2) for HoughCircles
-
-        Return:
-            coords_circles (list[list]): list with all center coordinates of pressing tools
-        """
-        # Apply Hough transform
-        detected_circles = cv2.HoughCircles(img,
-                        cv2.HOUGH_GRADIENT,
-                        dp = 1,
-                        minDist = 500,
-                        param1 = params[0], param2 = params[1],
-                        minRadius = radius[0], maxRadius = radius[1])
-        # Extract center points and their pressing tool position
-        coords_circles = [] # list to store coordinates
-        r_circles = [] # list to store radius
-        if detected_circles is not None:
-            for circle in detected_circles[0, :]:
-                coords_circles.append((circle[0], circle[1]))
-                r_circles.append(circle[2])
-            # Draw all detected circles and save image to check quality of detection
-            detected_circles = np.uint16(np.around(detected_circles))
-            for pt in detected_circles[0, :]:
-                a, b, r = pt[0], pt[1], pt[2]
-                cv2.circle(img, (a, b), r, (0, 0, 255), 5) # Draw the circumference of the circle
-                cv2.circle(img, (a, b), 1, (0, 0, 255), 5) # Show center point drawing a small circle
-        else:
-            coords_circles = None
-            r_circles = None
-        return coords_circles, r_circles, img
 
     def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
         """ Takes center points of reference image and gets transformation matrix.
@@ -229,24 +248,6 @@ class ProcessImages:
             cropped_images[i+1] = cropped_image
         return cropped_images
 
-    def _preprocess_image(self, image: np.array, step: int) -> np.array:
-        """ Takes image and applies preprocessing steps (blur, contrast)
-
-        Args:
-            image (array): image array
-            step (int): robot assembly step
-
-        Return:
-            processed_image (array): processed image
-        """
-        if step == 2:
-            # Apply a Gaussian blur to reduce noise and improve detection accuracy
-            processed_image = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # increase contrast
-            processed_image = cv2.GaussianBlur(processed_image, (9, 9), 2)
-        else: # no preprossessing
-            processed_image = image
-        return processed_image
-
     def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
         """ Correcting position of center with thickness of parts.
 
@@ -293,20 +294,20 @@ class ProcessImages:
                     content = f['image'][:]
                     content = content/np.max(content)*255 # convert to 8 bit
                     content = content.astype(np.uint8) # image array
-                info = self._parse_filename(filename) # extract info from filename
+                info = _parse_filename(filename) # extract info from filename
                 if all(d["s"] == 0 for d in info): # if step 0, get reference coordinates
                     matrix = self._get_references(info, content) # transformation matrix with cell numbers
                     self.ref.append(matrix)
                 self.data_list.append((filename, info, content)) # store info and image array
-        return
+        return self.data_list
 
-    def store_data(self) -> pd.DataFrame:
+    def store_data(self, data_list: list[tuple]) -> pd.DataFrame:
         """ For each image array transform image and store image sections in DataFrame.
 
         Returns:
             self.df (DataFrame): columns cell, step, press, transformed image section, center coordinates
         """
-        for name, information, image in self.data_list:
+        for name, information, image in data_list:
             for array, numbers in self.ref:
                 if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
                     transformation_matrix = array
@@ -314,9 +315,9 @@ class ProcessImages:
             for dictionary in information:
                 row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
                 self.df.loc[len(self.df)] = row
-        return
+        return self.df
 
-    def get_centers(self) -> pd.DataFrame:
+    def get_centers(self, df: pd.DataFrame) -> pd.DataFrame:
         """ Detects centers of parts for each image section in data frame
 
         Returns:
@@ -325,14 +326,14 @@ class ProcessImages:
         x = [] # list to store coordinates
         y = []
         radius = [] # list to store radius
-        for index, row in self.df.iterrows():
+        for index, row in df.iterrows():
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
-            img = self._preprocess_image(row["array"], row["step"])
+            img = _preprocess_image(row["array"], row["step"])
             parameter = self.params[row["step"]]
             if row["step"] == "type in step of part which should be detected as ellipse":
-                center, rad, image_with_circles = self._detect_ellipses(img, r, parameter)
+                center, rad, image_with_circles = _detect_ellipses(img, r, parameter)
             else: # detect circle
-                center, rad, image_with_circles = self._detect_circles(img, r, parameter)
+                center, rad, image_with_circles = _detect_circles(img, r, parameter)
             # Assuming center is expected to be a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
                 x.append(center[0][0])
@@ -350,12 +351,12 @@ class ProcessImages:
             # Save the image with detected ellipses
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
-        self.df["x"] = x
-        self.df["y"] = y
-        self.df["r_mm"] = radius
-        return
+        df["x"] = x
+        df["y"] = y
+        df["r_mm"] = radius
+        return df
 
-    def correct_for_thickness(self):
+    def correct_for_thickness(self, df: pd.DataFrame) -> pd.DataFrame:
         """ Account for thickness of parts, correcting corresponding distortion in coordinates.
 
             From the reference image it is determined, how much the hight of the parts move the
@@ -364,14 +365,14 @@ class ProcessImages:
         """
         x_corrected = []
         y_corrected = []
-        for index, row in self.df.iterrows():
+        for index, row in df.iterrows():
             position = row["press"]
             step = row["step"]
             x_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[0])
             y_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[1])
-        self.df["x_corrected"] = x_corrected
-        self.df["y_corrected"] = y_corrected
-        return
+        df["x_corrected"] = x_corrected
+        df["y_corrected"] = y_corrected
+        return df
 
     def save(self) -> pd.DataFrame:
         """ Saves data frames with all coordinates, redius and alignment.
@@ -392,10 +393,10 @@ if __name__ == '__main__':
     folderpath = "C:/lisc_gen14"
 
     obj = ProcessImages(folderpath)
-    obj.load_files()
-    obj.store_data()
-    obj.get_centers()
-    obj.correct_for_thickness()
+    data_list = obj.load_files()
+    df = obj.store_data(data_list)
+    df = obj.get_centers(df)
+    obj.correct_for_thickness(df)
     coordinates_df= obj.save()
 
     print(coordinates_df)
