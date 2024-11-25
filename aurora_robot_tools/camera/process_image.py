@@ -333,8 +333,7 @@ class ProcessImages:
             h5_file.create_dataset("image", data=composite_image)
         # Save as .jpg
         jpg_filename = os.path.join(data_dir, "composite_image.jpg")
-        composite_image_uint8 = (composite_image * 255).astype(np.uint8)  # Convert to 8-bit
-        Image.fromarray(composite_image_uint8).save(jpg_filename)
+        Image.fromarray(composite_image).save(jpg_filename)
 
         return self.df
 
