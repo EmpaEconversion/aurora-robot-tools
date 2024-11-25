@@ -403,6 +403,7 @@ class ProcessImages:
             y_corrected.append(coords_corrected[1])
         df["dx_mm_corr"] = x_corrected
         df["dy_mm_corr"] = y_corrected
+        df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(3)
         self.df = df
         return df
 
