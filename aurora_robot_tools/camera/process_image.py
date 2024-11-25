@@ -8,12 +8,14 @@ import h5py
 import os
 import cv2
 import re
+import json
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 #%% FUNCTIONS
 
-def _parse_filename(self, filename: str) -> list[dict]:
+def _parse_filename(filename: str) -> list[dict]:
     """Take photo filename and returns dict of lists of press cell and step.
 
     Args:
@@ -154,12 +156,10 @@ class ProcessImages:
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        self.z_thickness = [(0.175, 0.33), (0.175, 0.2), (0.0375, 0.33),
+        self.z_correction = [(0.175, 0.33), (0.175, 0.2), (0.0375, 0.33),
                             (0.0375, 0.2), (0.125, 0.33), (0.125, 0.2)] # mm thickness to mm x,y shift
-        self.bottom_thickness =  0.3 # mm
+        self.z_thickness = [0, 0.3, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
         self.bottom_rim = 2.7 # mm
-        self.separator_thickness = 1.25 # mm
-        self.spacer_thickness = 1 # mm
 
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
         """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
@@ -260,17 +260,15 @@ class ProcessImages:
             (x_corr, y_corr) (tuple): corrected coordinates
         """
         position = p - 1 # index to 0 to find in list
-        if s == 1: # accoint for bottom part
-            x_corr = center[0] - self.bottom_rim * self.z_thickness[position][0]
-            y_corr = center[1] + self.bottom_rim * self.z_thickness[position][1]
-        elif s == 4: # account for separator
-            x_corr = center[0] - (self.bottom_thickness + self.separator_thickness) * self.z_thickness[position][0]
-            y_corr = center[1] + (self.bottom_thickness + self.separator_thickness) * self.z_thickness[position][1]
-        elif s == 7: # acount for spacer
-            x_corr = center[0] - ((self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
-                                  * self.z_thickness[position][0])
-            y_corr = center[1] + ((self.bottom_thickness + self.separator_thickness + self.spacer_thickness)
-                                * self.z_thickness[position][1])
+        if (s >= 1) & (s < 4): # account for bottom part
+            x_corr = center[0] - self.bottom_rim * self.z_correction[position][0]
+            y_corr = center[1] + self.bottom_rim * self.z_correction[position][1]
+        elif (s >= 4) & (s < 7): # account for separator
+            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
+            y_corr = center[1] + self.z_thickness[s] * self.z_correction[position][1]
+        elif s >= 7: # account for spacer
+            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
+            y_corr = center[1] + self.z_thickness[s] * self.z_correction[position][1]
         else:
             x_corr = center[0]
             y_corr = center[1]
@@ -325,6 +323,7 @@ class ProcessImages:
         """
         x = [] # list to store coordinates
         y = []
+        img_arrays = []
         radius = [] # list to store radius
         for index, row in df.iterrows():
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
@@ -351,9 +350,40 @@ class ProcessImages:
             # Save the image with detected ellipses
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
+            img_arrays.append(image_with_circles)
+        # get raw coordinates in pixel
         df["x"] = x
         df["y"] = y
         df["r_mm"] = radius
+        # get difference to pressing tool in pixel
+        df["dx_px"] = df["x"] - self.offset_mm * self.mm_to_pixel
+        df["dy_px"] = df["y"] - self.offset_mm * self.mm_to_pixel
+        # get difference to pressing tool in mm
+        df["dx_mm"] = df["dx_px"] / self.mm_to_pixel
+        df["dy_mm"] = df["dy_px"] / self.mm_to_pixel
+
+        # save images in one big image
+        self.height, self.width = image_with_circles.shape[:2]
+        df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
+        df["img"] = img_arrays
+        # Create a 10x36 grid composite image
+        image_rows = []
+        for cell in df["cell"].unique():
+            cell_images = df[df["cell"] == cell].sort_values(by="step")["img"].to_list()
+            row_image = np.hstack(cell_images)  # Concatenate images in one row
+            image_rows.append(row_image)
+        composite_image = np.vstack(image_rows)  # Stack all rows vertically
+        # Save as .h5
+        data_dir = os.path.join(self.path, "data")
+        h5_filename = os.path.join(data_dir, "composite_image.h5")
+        with h5py.File(h5_filename, "w") as h5_file:
+            h5_file.create_dataset("image", data=composite_image)
+
+        # Save as .jpg
+        jpg_filename = os.path.join(data_dir, "composite_image.jpg")
+        composite_image_uint8 = (composite_image * 255).astype(np.uint8)  # Convert to 8-bit
+        Image.fromarray(composite_image_uint8).save(jpg_filename)
+        self.df = df
         return df
 
     def correct_for_thickness(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -368,22 +398,48 @@ class ProcessImages:
         for index, row in df.iterrows():
             position = row["press"]
             step = row["step"]
-            x_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[0])
-            y_corrected.append(self._thickness_correction(position, step, (row["x"], row["y"]))[1])
-        df["x_corrected"] = x_corrected
-        df["y_corrected"] = y_corrected
+            coords_corrected = self._thickness_correction(position, step, (row["dx_mm"], row["dy_mm"]))
+            x_corrected.append(coords_corrected[0])
+            y_corrected.append(coords_corrected[1])
+        df["dx_mm_corr"] = x_corrected
+        df["dy_mm_corr"] = y_corrected
+        self.df = df
         return df
 
     def save(self) -> pd.DataFrame:
-        """ Saves data frames with all coordinates, redius and alignment.
+        """ Saves data with all coordinates, radius and alignment.
         """
+        # save as excel
         self.df = self.df.drop(columns=["array"]) # save without image array
         data_dir = os.path.join(self.path, "data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
             self.df.to_excel(writer, sheet_name='coordinates', index=False)
-        self.df.to_csv(os.path.join(data_dir, "data.csv"), index=False)
+        # save json
+        # Building JSON structure
+        json_data = {
+            "alignment": self.df[["cell", "step", "press", "r_mm", "dx_px",
+                                  "dy_px", "dx_mm_corr", "dy_mm_corr"]].to_dict(orient="records"),
+            "img_settings": {
+                "subsize": (self.width, self.height),
+                "cells": len(self.df["cell"].unique()),
+                "steps": len(self.df["step"].unique()),
+                "mm_to_px": self.mm_to_pixel,
+                "raw_filename": "composite_image.h5",
+                "comp_filename": "composite_image.h5"
+            },
+            "calibration": {
+                "dxdz": [x[0] for x in self.z_correction],
+                "dydz": [x[1] for x in self.z_correction],
+                "step_z_mm": self.z_thickness,
+            },
+        }
+        # Write JSON to file
+        json_path = os.path.join(data_dir, "output.json")
+        with open(json_path, "w") as f:
+            json.dump(json_data, f, indent=4)
+
         return self.df
 
 #%% RUN CODE
