@@ -409,13 +409,7 @@ class ProcessImages:
     def save(self) -> pd.DataFrame:
         """ Saves data with all coordinates, radius and alignment.
         """
-        # save as excel
-        self.df = self.df.drop(columns=["array"]) # save without image array
         data_dir = os.path.join(self.path, "data")
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-        with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
-            self.df.to_excel(writer, sheet_name='coordinates', index=False)
         # save json
         # Building JSON structure
         json_data = {
@@ -439,6 +433,13 @@ class ProcessImages:
         json_path = os.path.join(data_dir, "output.json")
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=4)
+
+        # save as excel
+        self.df = self.df.drop(columns=["array", "img"]) # save without image array
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
+            self.df.to_excel(writer, sheet_name='coordinates', index=False)
 
         return self.df
 
