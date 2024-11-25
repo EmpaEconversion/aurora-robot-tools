@@ -134,7 +134,7 @@ def normalize(values, c, k): # c: middle point / turning point; k: slope
 data["electrodes_normalized"] = normalize(data["d26"].to_numpy(), 2, -1)
 data["electrode_to_spring_normalized"] = normalize(data["electrodes_spring"].to_numpy(), 2, -1)
 data["area_normalized"] = normalize(data["intersection_area"].to_numpy(), 98, 1)
-data["alignment_score"] = data["area_normalized"] * data["electrode_to_spring_normalized"] * 100
+data["alignment_score"] = data["electrodes_normalized"] * data["electrode_to_spring_normalized"] * 100
 
 # Save the plot as a JPG file named by the cell number
 data_dir = os.path.join("C:/lisc_gen14/data", "plot")
@@ -470,6 +470,52 @@ fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
 fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=2)
 fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
 fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=3)
+
+# Update layout
+fig.update_layout(
+    title="Scatter Plots of Alignment Score",
+    height=500,  # Niedriger machen
+    margin=dict(l=50, r=50, t=50, b=50))
+fig.show()
+
+# Capacity (Electrodes)
+fig = make_subplots(rows=1, cols=2)
+# Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        x=data["Cycles to 70% capacity"],
+        y=data["z8"],
+        mode='markers',
+        marker=dict(color=data["z8"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
+                        "z8: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data["Fade rate 5-50 cycles (%/cycle)"],
+        y=data["z8"],
+        mode='markers',
+        marker=dict(color=data["z8"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+                        "z8: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+
+fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+fig.update_yaxes(title_text="Spring [mm]", row=1, col=1)
+fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=2)
+fig.update_yaxes(title_text="Spring [mm]", row=1, col=2)
 
 # Update layout
 fig.update_layout(
