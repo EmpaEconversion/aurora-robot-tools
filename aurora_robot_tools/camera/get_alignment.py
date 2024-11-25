@@ -5,10 +5,8 @@ Script to analyse center coordinates and alignment of different parts from the d
 
 import math
 import os
-import json
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 
 #%% CLASS
@@ -25,8 +23,9 @@ class Alignment:
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
         # specify if corrected coordinates or not (x_corr or x)
-        self.xstr = "x_corrected"
-        self.ystr = "y_corrected"
+        self.xstr = "dx_mm_corr"
+        self.ystr = "dy_mm_corr"
+        self.zstr = "dz_mm_corr"
 
     def _intersection_area(self, d: float) -> float:
         """ Function to return percentage of area of intersection of the cathode.
@@ -83,11 +82,6 @@ class Alignment:
             # Filter DataFrame for the current cell and selected steps
             cell_df = self.df[(self.df['cell'] == cell) & (self.df['step'].isin(self.selected_steps))]
             # Get the reference point (0,0) for `step 0`
-            ref_x, ref_y = cell_df[cell_df['step'] == 0][[self.xstr, self.ystr]].values[0]
-            # Adjust coordinates relative to the step 0 reference point
-            cell_df.loc[:, self.xstr] = (cell_df.loc[:, self.xstr] - ref_x) / self.mm_to_pixel
-            cell_df.loc[:, self.ystr] = (cell_df.loc[:, self.ystr] - ref_y) / self.mm_to_pixel
-            cell_df["z"] = np.sqrt(cell_df[self.xstr]**2 + cell_df["y"]**2).round(3)
             x_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
                                   cell_df.loc[cell_df['step']==2,self.xstr].values))
             y_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
@@ -100,25 +94,25 @@ class Alignment:
                    "intersection_area": self._intersection_area(z_electrodes),
                    "x1": float(cell_df.loc[cell_df['step'] == 1, self.xstr]),
                    "y1": float(cell_df.loc[cell_df['step'] == 1, self.ystr]),
-                   "z1": float(cell_df.loc[cell_df['step'] == 1, 'z']),
+                   "z1": float(cell_df.loc[cell_df['step'] == 1, self.zstr]),
                    "x2": float(cell_df.loc[cell_df['step'] == 2, self.xstr]),
                    "y2": float(cell_df.loc[cell_df['step'] == 2, self.ystr]),
-                   "z2": float(cell_df.loc[cell_df['step'] == 2, 'z']),
+                   "z2": float(cell_df.loc[cell_df['step'] == 2, self.zstr]),
                    "x4": float(cell_df.loc[cell_df['step'] == 4, self.xstr]),
                    "y4": float(cell_df.loc[cell_df['step'] == 4, self.ystr]),
-                   "z4": float(cell_df.loc[cell_df['step'] == 4, 'z']),
+                   "z4": float(cell_df.loc[cell_df['step'] == 4, self.zstr]),
                    "x6": float(cell_df.loc[cell_df['step'] == 6, self.xstr]),
                    "y6": float(cell_df.loc[cell_df['step'] == 6, self.ystr]),
-                   "z6": float(cell_df.loc[cell_df['step'] == 6, 'z']),
+                   "z6": float(cell_df.loc[cell_df['step'] == 6, self.zstr]),
                    "x7": float(cell_df.loc[cell_df['step'] == 7, self.xstr]),
                    "y7": float(cell_df.loc[cell_df['step'] == 7, self.ystr]),
-                   "z7": float(cell_df.loc[cell_df['step'] == 7, 'z']),
+                   "z7": float(cell_df.loc[cell_df['step'] == 7, self.zstr]),
                    "x8": float(cell_df.loc[cell_df['step'] == 8, self.xstr]),
                    "y8": float(cell_df.loc[cell_df['step'] == 8, self.ystr]),
-                   "z8": float(cell_df.loc[cell_df['step'] == 8, 'z']),
+                   "z8": float(cell_df.loc[cell_df['step'] == 8, self.zstr]),
                    "x9": float(cell_df.loc[cell_df['step'] == 9, self.xstr]),
                    "y9": float(cell_df.loc[cell_df['step'] == 9, self.ystr]),
-                   "z9": float(cell_df.loc[cell_df['step'] == 9, 'z'])}
+                   "z9": float(cell_df.loc[cell_df['step'] == 9, self.zstr])}
             self.alignment_df.loc[len(self.alignment_df)] = row
 
             # Create a figure and axis for each cell plot
@@ -205,7 +199,7 @@ class Alignment:
         ax.set_xlabel('Cell Number / Rack Position')
         ax.set_ylabel('Misalignment [mm]')
         ax.set_title(f'{name} Misalignment')
-        ax.set_ylim([-2.5, 2.5])
+        ax.set_ylim([-0.4, 0.4])
         ax.legend()
         ax.grid(True)
 
