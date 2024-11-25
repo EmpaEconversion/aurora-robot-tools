@@ -157,6 +157,11 @@ correlation_matrix = data_analysis.corr()
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
 plt.show()
 
+# Define the output path
+data_dir = os.path.join("C:/lisc_gen14", "data")  # Replace "your_path" with your desired path
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+
 # Scatter Plot
 # Degradation (Pressure)
 fig = make_subplots(rows=3, cols=3)
@@ -283,10 +288,14 @@ fig.update_yaxes(title_text="Cycles to 70% capacity", row=3, col=3)
 
 # Update layout
 fig.update_layout(
-    title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
+    title="Scatter Plots of Fade Rate and Cycles to 70% capacity vs Spring Alignment",
     height=900,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
+
+# Save the figure as a .jpg
+output_file = os.path.join(data_dir, "Degradation(pressure)_correlation.jpg")
+# fig.write_image(output_file, format="jpg")
 
 # Capacity (Electrodes)
 fig = make_subplots(rows=2, cols=3)
@@ -397,10 +406,14 @@ fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
 
 # Update layout
 fig.update_layout(
-    title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
+    title="Scatter Plots of Specific Discharge Capacities and Fade rate vs Intersection Area",
     height=800,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
+
+# Save the figure as a .jpg
+output_file = os.path.join(data_dir, "Capacity(electrodes)_correlation.jpg")
+# fig.write_image(output_file, format="jpg")
 
 # Capacity (Electrodes)
 fig = make_subplots(rows=1, cols=3)
@@ -464,6 +477,10 @@ fig.update_layout(
     height=500,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
+
+# Save the figure as a .jpg
+output_file = os.path.join(data_dir, "Alignment_number_correlation.jpg")
+# fig.write_image(output_file, format="jpg")
 
 #%% PCA
 
