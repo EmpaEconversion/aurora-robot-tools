@@ -313,6 +313,29 @@ class ProcessImages:
             for dictionary in information:
                 row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
                 self.df.loc[len(self.df)] = row
+
+        # save images in one big image
+        self.height, self.width = self.df["array"][0].shape[:2]
+        self.df = self.df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
+        # Create a 10x36 grid composite image
+        image_rows = []
+        for cell in self.df["cell"].unique():
+            cell_images = self.df[self.df["cell"] == cell].sort_values(by="step")["array"].to_list()
+            cell_img = cell_images/np.max(cell_images)*255 # convert to 8 bit
+            cell_img = cell_img.astype(np.uint8) # image array
+            row_image = np.hstack(cell_img)  # Concatenate images in one row
+            image_rows.append(row_image)
+        composite_image = np.vstack(image_rows)  # Stack all rows vertically
+        # Save as .h5
+        data_dir = os.path.join(self.path, "data")
+        h5_filename = os.path.join(data_dir, "composite_image.h5")
+        with h5py.File(h5_filename, "w") as h5_file:
+            h5_file.create_dataset("image", data=composite_image)
+        # Save as .jpg
+        jpg_filename = os.path.join(data_dir, "composite_image.jpg")
+        composite_image_uint8 = (composite_image * 255).astype(np.uint8)  # Convert to 8-bit
+        Image.fromarray(composite_image_uint8).save(jpg_filename)
+
         return self.df
 
     def get_centers(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -323,7 +346,6 @@ class ProcessImages:
         """
         x = [] # list to store coordinates
         y = []
-        img_arrays = []
         radius = [] # list to store radius
         for index, row in df.iterrows():
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
@@ -350,7 +372,6 @@ class ProcessImages:
             # Save the image with detected ellipses
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
-            img_arrays.append(image_with_circles)
         # get raw coordinates in pixel
         df["x"] = x
         df["y"] = y
@@ -362,27 +383,6 @@ class ProcessImages:
         df["dx_mm"] = df["dx_px"] / self.mm_to_pixel
         df["dy_mm"] = df["dy_px"] / self.mm_to_pixel
 
-        # save images in one big image
-        self.height, self.width = image_with_circles.shape[:2]
-        df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
-        df["img"] = img_arrays
-        # Create a 10x36 grid composite image
-        image_rows = []
-        for cell in df["cell"].unique():
-            cell_images = df[df["cell"] == cell].sort_values(by="step")["img"].to_list()
-            row_image = np.hstack(cell_images)  # Concatenate images in one row
-            image_rows.append(row_image)
-        composite_image = np.vstack(image_rows)  # Stack all rows vertically
-        # Save as .h5
-        data_dir = os.path.join(self.path, "data")
-        h5_filename = os.path.join(data_dir, "composite_image.h5")
-        with h5py.File(h5_filename, "w") as h5_file:
-            h5_file.create_dataset("image", data=composite_image)
-
-        # Save as .jpg
-        jpg_filename = os.path.join(data_dir, "composite_image.jpg")
-        composite_image_uint8 = (composite_image * 255).astype(np.uint8)  # Convert to 8-bit
-        Image.fromarray(composite_image_uint8).save(jpg_filename)
         self.df = df
         return df
 
@@ -436,7 +436,7 @@ class ProcessImages:
             json.dump(json_data, f, indent=4)
 
         # save as excel
-        self.df = self.df.drop(columns=["array", "img"]) # save without image array
+        self.df = self.df.drop(columns=["array"]) # save without image array
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
