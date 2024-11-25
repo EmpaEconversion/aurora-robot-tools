@@ -53,6 +53,8 @@ performance_numbers = ['First formation efficiency (%)', 'First formation specif
 spec_disc_capacity = 'Specific discharge capacity (mAh/g)'
 data['Specific discharge capacity 150th (mAh/g)'] = None # initialize column
 data['Specific discharge capacity 5th (mAh/g)'] = None # initialize column
+data["Fade rate 5-20 cycles (%/cycle)"] = None # initialize column
+data["Fade rate 5-50 cycles (%/cycle)"] = None # initialize column
 # data['Electrodes center'] = None # initialize column
 for string in performance_numbers:
     data[string] = None # initialize columns
@@ -65,6 +67,11 @@ for cell in cell_data:
              'Specific discharge capacity 150th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
     data.loc[data['cell'] == number,
              'Specific discharge capacity 5th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][5]
+    # Rate rate between cycles 5-20 and 5-50
+    data.loc[data['cell'] == number,
+             "Fade rate 5-20 cycles (%/cycle)"] = np.diff(cell["Normalised discharge capacity (%)"])[5:20].mean()
+    data.loc[data['cell'] == number,
+             "Fade rate 5-50 cycles (%/cycle)"] = np.diff(cell["Normalised discharge capacity (%)"])[5:50].mean()
 data = data.dropna()
 
 # calculate distances between main components: spring, anode, cathode, spacer
@@ -116,11 +123,6 @@ data["electrodes_y"] = electrodes_y
 data["electrodes_spring"] = electrodes_spring
 data["electrodes_spacer"] = electrodes_spacer
 
-# TODO
-# Rate rate between cycles 5-20 and 5-50
-data["Fade rate 5-20 cycles (%/cycle)"] = np.diff(data["Normalised discharge capacity (%)"])[5:20].mean()
-data["Fade rate 5-50 cycles (%/cycle)"] = np.diff(data["Normalised discharge capacity (%)"])[5:50].mean()
-
 # general score
 def normalize(values, c, k): # c: middle point / turning point; k: slope
     # Parameter for sigmoid function
@@ -157,8 +159,41 @@ plt.show()
 
 # Scatter Plot
 # Degradation (Pressure)
-fig = make_subplots(rows=2, cols=3)
+fig = make_subplots(rows=3, cols=3)
 # Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d28"],
+        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d28: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["d68"],
+        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("d68: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["electrodes_spring"],
+        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        mode='markers',
+        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data_analysis["cell"],  # Add "cell" values for hover
+        hovertemplate=("electrodes_spring: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
+                       "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=3)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["d28"],
@@ -169,7 +204,7 @@ fig.add_trace(
         hovertemplate=("d28: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=1, col=1)
+    row=2, col=1)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["d68"],
@@ -180,7 +215,7 @@ fig.add_trace(
         hovertemplate=("d68: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=1, col=2)
+    row=2, col=2)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["electrodes_spring"],
@@ -191,7 +226,7 @@ fig.add_trace(
         hovertemplate=("electrodes_spring: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=1, col=3)
+    row=2, col=3)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["d27"],
@@ -202,7 +237,7 @@ fig.add_trace(
         hovertemplate=("d27: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=2, col=1)
+    row=3, col=1)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["d67"],
@@ -213,7 +248,7 @@ fig.add_trace(
         hovertemplate=("d67: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=2, col=2)
+    row=3, col=2)
 fig.add_trace(
     go.Scatter(
         x=data_analysis["electrodes_spacer"],
@@ -224,25 +259,32 @@ fig.add_trace(
         hovertemplate=("electrodes_spacer: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
-    row=2, col=3)
+    row=3, col=3)
+
 # Update axis
 fig.update_xaxes(title_text="anode to spring [mm]", row=1, col=1)
-fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=1)
 fig.update_xaxes(title_text="cathode to spring [mm]", row=1, col=2)
-fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=2)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=2)
 fig.update_xaxes(title_text="electrodes to spring [mm]", row=1, col=3)
-fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=3)
-fig.update_xaxes(title_text="anode to spacer [mm]", row=2, col=1)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
+fig.update_xaxes(title_text="anode to spring [mm]", row=2, col=1)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=1)
-fig.update_xaxes(title_text="cathode to spacer [mm]", row=2, col=2)
+fig.update_xaxes(title_text="cathode to spring [mm]", row=2, col=2)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=2)
-fig.update_xaxes(title_text="electrodes to spacer [mm]", row=2, col=3)
+fig.update_xaxes(title_text="electrodes to spring [mm]", row=2, col=3)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=3)
+fig.update_xaxes(title_text="anode to spacer [mm]", row=3, col=1)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=3, col=1)
+fig.update_xaxes(title_text="cathode to spacer [mm]", row=3, col=2)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=3, col=2)
+fig.update_xaxes(title_text="electrodes to spacer [mm]", row=3, col=3)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=3, col=3)
 
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
-    height=500,  # Niedriger machen
+    height=900,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
@@ -266,21 +308,6 @@ fig.add_trace(
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
-        y=data_analysis["intersection_area"],
-        mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
-                        "Intersection Area: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=1, col=2)
-fig.add_trace(
-    go.Scatter(
         x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
         y=data_analysis["intersection_area"],
         mode='markers',
@@ -289,7 +316,22 @@ fig.add_trace(
               "d28: " + data_analysis["d28"].astype(str) + "<br>" +
               "d27: " + data_analysis["d27"].astype(str) + "<br>" +
               "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
+        hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
+                        "Intersection Area: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        y=data_analysis["intersection_area"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
@@ -311,21 +353,6 @@ fig.add_trace(
     row=2, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Specific discharge capacity 5th (mAh/g)"],
-        y=data_analysis["d26"],
-        mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 5th (mAh/g): %{x}<br>" +
-                        "d26: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=2, col=2)
-fig.add_trace(
-    go.Scatter(
         x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
         y=data_analysis["d26"],
         mode='markers',
@@ -334,7 +361,22 @@ fig.add_trace(
               "d28: " + data_analysis["d28"].astype(str) + "<br>" +
               "d27: " + data_analysis["d27"].astype(str) + "<br>" +
               "d67: " + data_analysis["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 150th: %{x}<br>" +
+        hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
+                        "d26: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        y=data_analysis["d26"],
+        mode='markers',
+        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
                         "d26: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
@@ -342,26 +384,26 @@ fig.add_trace(
 # Update axis
 fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=1)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=1)
-fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=1, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=2)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=2)
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=3)
+fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
 fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=2, col=1)
 fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=1)
-fig.update_xaxes(title_text="Specific discharge capacity 5th (mAh/g)", row=2, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=2)
 fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=2)
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=3)
+fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
 fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
 
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Specific Discharge Capacities vs Intersection Area",
-    height=500,  # Niedriger machen
+    height=800,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
 # Capacity (Electrodes)
-fig = make_subplots(rows=1, cols=2)
+fig = make_subplots(rows=1, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
@@ -393,11 +435,28 @@ fig.add_trace(
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        y=data_analysis["alignment_score"],
+        mode='markers',
+        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
+              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
+              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
+              "d67: " + data_analysis["d67"].astype(str)),
+        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
+                        "Alignment Score [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=3)
 
 fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=1)
 fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=1)
 fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
 fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=2)
+fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
+fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=3)
 
 # Update layout
 fig.update_layout(
