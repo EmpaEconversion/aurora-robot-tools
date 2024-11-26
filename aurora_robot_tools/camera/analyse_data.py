@@ -123,7 +123,7 @@ data["d68"] = d68_list
 data["d78"] = d78_list
 data["electrodes_x"] = electrodes_x
 data["electrodes_y"] = electrodes_y
-data["electrodes_z"] = electrodes_z
+data["electrodes_to_press"] = electrodes_z
 data["electrodes_spring"] = electrodes_spring
 data["electrodes_spacer"] = electrodes_spacer
 
@@ -135,10 +135,13 @@ def normalize(values, c, k): # c: middle point / turning point; k: slope
 # c = 98 for intersection area
 # c = 1.5 for electrode alignment
 # c = 1 # for electrode to spring alignment
-data["electrodes_normalized"] = normalize(data["d26"].to_numpy(), 2, -1)
-data["electrode_to_spring_normalized"] = normalize(data["electrodes_spring"].to_numpy(), 2, -1)
-data["area_normalized"] = normalize(data["intersection_area"].to_numpy(), 98, 1)
-data["alignment_score"] = data["electrodes_normalized"] * data["electrode_to_spring_normalized"] * 100
+data["electrodes_normalized"] = normalize(data["d26"].to_numpy(), 1.5, -1)
+data["electrodes_to_press_normalized"] = normalize(data["electrodes_to_press"].to_numpy(), 1.5, -1)
+data["electrode_to_spring_normalized"] = normalize(data["electrodes_spring"].to_numpy(), 1.5, -1)
+data["area_normalized"] = normalize(data["intersection_area"].to_numpy(), 97, 1)
+
+data["alignment_score_1"] = data["electrodes_normalized"] * data["electrode_to_spring_normalized"] * 100
+data["alignment_score_2"] = data["electrodes_normalized"] * data["electrodes_to_press_normalized"] * 100
 
 # Save the plot as a JPG file named by the cell number
 data_dir = os.path.join("C:/lisc_gen14/data", "plot")
@@ -150,15 +153,15 @@ data.to_csv(os.path.join(data_dir, "performance.csv"), index=False)
 
 #%% Find any CORRELATION
 
-data_analysis = data.copy()
-data_analysis = data_analysis.drop(columns=["press", "z_electrodes",
-                                   "x2", "y2", "z2", "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8",
-                                   'Cycles to 90% capacity', 'Cycles to 80% capacity',
-                                   "x1", "y1", "z1", "x4", "y4", "z4", "x9", "y9", "z9"])
+data_analysis = data[["Fade rate 5-50 cycles (%/cycle)", "Cycles to 70% capacity",
+                      "Initial specific discharge capacity (mAh/g)", "Specific discharge capacity 150th (mAh/g)",
+                      "z2", "z6", "z8", "intersection_area", "d26", "electrodes_to_press",
+                      "electrodes_spring"]]
 
 # correlation matrix
 correlation_matrix = data_analysis.corr()
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+plt.tight_layout()
 plt.show()
 
 # Define the output path
@@ -309,7 +312,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -324,7 +327,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -339,7 +342,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -354,7 +357,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -369,7 +372,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -384,7 +387,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -419,13 +422,13 @@ fig.show()
 output_file = os.path.join(data_dir, "Capacity(electrodes)_correlation.jpg")
 # fig.write_image(output_file, format="jpg")
 
-# Capacity (Electrodes)
-fig = make_subplots(rows=1, cols=3)
+# Alignment Score
+fig = make_subplots(rows=2, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
         x=data["Specific discharge capacity 150th (mAh/g)"],
-        y=data["alignment_score"],
+        y=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
@@ -433,14 +436,14 @@ fig.add_trace(
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
         hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
-                        "Alignment Score [%]: %{y}<br>" +
+                        "Alignment Score 1 [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
         x=data["Cycles to 70% capacity"],
-        y=data["alignment_score"],
+        y=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
@@ -448,14 +451,14 @@ fig.add_trace(
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
         hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
-                        "Alignment Score [%]: %{y}<br>" +
+                        "Alignment Score 1 [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=2)
 fig.add_trace(
     go.Scatter(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["alignment_score"],
+        y=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
@@ -463,22 +466,73 @@ fig.add_trace(
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-                        "Alignment Score [%]: %{y}<br>" +
+                        "Alignment Score 1 [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=3)
+fig.add_trace(
+    go.Scatter(
+        x=data["Specific discharge capacity 150th (mAh/g)"],
+        y=data["alignment_score_2"],
+        mode='markers',
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+                        "Alignment Score 2 [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=1)
+fig.add_trace(
+    go.Scatter(
+        x=data["Cycles to 70% capacity"],
+        y=data["alignment_score_2"],
+        mode='markers',
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
+                        "Alignment Score 2 [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=2)
+fig.add_trace(
+    go.Scatter(
+        x=data["Fade rate 5-50 cycles (%/cycle)"],
+        y=data["alignment_score_2"],
+        mode='markers',
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
+                        "Alignment Score 2 [%]: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=3)
 
 fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=1)
-fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=1)
+fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=1)
 fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
-fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=2)
+fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=2)
 fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
-fig.update_yaxes(title_text="Alignment Score [%]", row=1, col=3)
+fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=3)
+fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=1)
+fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=1)
+fig.update_xaxes(title_text="Cycles to 70% capacity", row=2, col=2)
+fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=2)
+fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
+fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=3)
 
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Alignment Score",
-    height=500,  # Niedriger machen
+    height=800,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
