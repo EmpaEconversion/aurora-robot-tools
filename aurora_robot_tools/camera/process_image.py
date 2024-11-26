@@ -335,11 +335,11 @@ class ProcessImages:
         self.df["img_col"] = cols
         # Save as .h5
         data_dir = os.path.join(self.path, "data")
-        h5_filename = os.path.join(data_dir, f"alignment_{self.run_ID}.h5")
+        h5_filename = os.path.join(data_dir, f"alignment.{self.run_ID}.h5")
         with h5py.File(h5_filename, "w") as h5_file:
             h5_file.create_dataset("image", data=composite_image)
         # Save as .jpg
-        jpg_filename = os.path.join(data_dir, f"alignment_{self.run_ID}.jpg")
+        jpg_filename = os.path.join(data_dir, f"alignment.{self.run_ID}.jpg")
         Image.fromarray(composite_image).save(jpg_filename)
 
         return self.df
@@ -417,8 +417,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        # sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
-        sample_IDs = [f"{self.run_ID}_2-13_{num}" if num < 14 else f"{self.run_ID}_14-36_{num}" for num in self.df["cell"]]
+        sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
+        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         data_dir = os.path.join(self.path, "data")
         # save json
@@ -432,8 +432,8 @@ class ProcessImages:
                 "cells": len(self.df["cell"].unique()),
                 "steps": len(self.df["step"].unique()),
                 "mm_to_px": self.mm_to_pixel,
-                "raw_filename": "composite_image.h5",
-                "comp_filename": "composite_image.h5"
+                "raw_filename": f"alignment.{self.run_ID}.h5",
+                "comp_filename": f"alignment.{self.run_ID}.jpg"
             },
             "calibration": {
                 "dxdz": [x[0] for x in self.z_correction],
@@ -442,7 +442,7 @@ class ProcessImages:
             },
         }
         # Write JSON to file
-        json_path = os.path.join(data_dir, f"output_{self.run_ID}.json")
+        json_path = os.path.join(data_dir, f"alignment.{self.run_ID}.json")
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=4)
 
