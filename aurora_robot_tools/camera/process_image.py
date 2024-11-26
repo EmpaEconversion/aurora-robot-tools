@@ -133,6 +133,7 @@ class ProcessImages:
     def __init__(self, path):
         # TRANSFORMATION ---------------------------------------------------------------------------
         self.path = path # path to images
+        self.run_ID = self.path.split("/")[1]
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
         self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
@@ -319,20 +320,26 @@ class ProcessImages:
         self.df = self.df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
         # Create a 10x36 grid composite image
         image_rows = []
-        for cell in self.df["cell"].unique():
+        cols = []
+        rows = []
+        for i, cell in enumerate(self.df["cell"].unique()):
             cell_images = self.df[self.df["cell"] == cell].sort_values(by="step")["array"].to_list()
             cell_img = cell_images/np.max(cell_images)*255 # convert to 8 bit
             cell_img = cell_img.astype(np.uint8) # image array
             row_image = np.hstack(cell_img)  # Concatenate images in one row
             image_rows.append(row_image)
+            rows.extend([i] * len(cell_images))
+            cols.extend(range(len(cell_images)))
         composite_image = np.vstack(image_rows)  # Stack all rows vertically
+        self.df["img_row"] = rows
+        self.df["img_col"] = cols
         # Save as .h5
         data_dir = os.path.join(self.path, "data")
-        h5_filename = os.path.join(data_dir, "composite_image.h5")
+        h5_filename = os.path.join(data_dir, f"alignment_{self.run_ID}.h5")
         with h5py.File(h5_filename, "w") as h5_file:
             h5_file.create_dataset("image", data=composite_image)
         # Save as .jpg
-        jpg_filename = os.path.join(data_dir, "composite_image.jpg")
+        jpg_filename = os.path.join(data_dir, f"alignment_{self.run_ID}.jpg")
         Image.fromarray(composite_image).save(jpg_filename)
 
         return self.df
@@ -409,12 +416,16 @@ class ProcessImages:
     def save(self) -> pd.DataFrame:
         """ Saves data with all coordinates, radius and alignment.
         """
+        # add sample ID
+        sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
+        self.df["sample_ID"] = sample_IDs
         data_dir = os.path.join(self.path, "data")
         # save json
         # Building JSON structure
         json_data = {
-            "alignment": self.df[["cell", "step", "press", "r_mm", "dx_px",
-                                  "dy_px", "dx_mm_corr", "dy_mm_corr"]].to_dict(orient="records"),
+            "alignment": self.df[["cell", "step", "press", "r_mm",
+                                  "dx_px", "dy_px", "dx_mm_corr", "dy_mm_corr",
+                                  "img_row", "img_col", "sample_ID"]].to_dict(orient="records"),
             "img_settings": {
                 "subsize": (self.width, self.height),
                 "cells": len(self.df["cell"].unique()),
@@ -430,7 +441,7 @@ class ProcessImages:
             },
         }
         # Write JSON to file
-        json_path = os.path.join(data_dir, "output.json")
+        json_path = os.path.join(data_dir, f"output_{self.run_ID}.json")
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=4)
 
@@ -454,7 +465,9 @@ if __name__ == '__main__':
     df = obj.store_data(data_list)
     df = obj.get_centers(df)
     obj.correct_for_thickness(df)
-    coordinates_df= obj.save()
+    coordinates_df = obj.save()
 
     print(coordinates_df)
+
+    # alignment.run_id.json: row & column where the image is and sample_ID (run_in_01, two digits)
 
