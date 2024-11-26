@@ -82,6 +82,7 @@ d68_list = []
 d78_list = []
 electrodes_x = []
 electrodes_y = []
+electrodes_z = []
 electrodes_spring = []
 electrodes_spacer = []
 for cell in data["cell"].unique():
@@ -98,6 +99,7 @@ for cell in data["cell"].unique():
                         + (cell_df["y7"].values - cell_df["y8"].values)**2), 3)
     e_x = round((cell_df["x2"].values[0] + cell_df["x6"].values[0])/2, 3)
     e_y = round((cell_df["y2"].values[0] + cell_df["y6"].values[0])/2, 3)
+    e_z = round(math.sqrt(e_x**2 + e_y**2), 3)
     e_spring = round(math.sqrt((e_x - cell_df["x8"].values)**2
                                + (e_y - cell_df["y8"].values)**2), 3)
     e_spacer = round(math.sqrt((e_x - cell_df["x7"].values)**2
@@ -109,6 +111,7 @@ for cell in data["cell"].unique():
     d78_list.append(d78)
     electrodes_x.append(e_x)
     electrodes_y.append(e_y)
+    electrodes_z.append(e_z)
     electrodes_spring.append(e_spring)
     electrodes_spacer.append(e_spacer)
 
@@ -120,6 +123,7 @@ data["d68"] = d68_list
 data["d78"] = d78_list
 data["electrodes_x"] = electrodes_x
 data["electrodes_y"] = electrodes_y
+data["electrodes_z"] = electrodes_z
 data["electrodes_spring"] = electrodes_spring
 data["electrodes_spacer"] = electrodes_spacer
 
@@ -168,99 +172,99 @@ fig = make_subplots(rows=3, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d28"],
-        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["d28"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d28: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d68"],
-        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["d68"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d68: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=1, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["electrodes_spring"],
-        y=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["electrodes_spring"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("electrodes_spring: %{x}<br>" + "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=1, col=3)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d28"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["d28"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d28: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=2, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d68"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["d68"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d68: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=2, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["electrodes_spring"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["electrodes_spring"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("electrodes_spring: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=2, col=3)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d27"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["d27"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d27: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=3, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["d67"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["d67"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("d67: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
     row=3, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["electrodes_spacer"],
-        y=data_analysis["Cycles to 70% capacity"],
+        x=data["electrodes_spacer"],
+        y=data["Cycles to 70% capacity"],
         mode='markers',
-        marker=dict(color=data_analysis["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
-        text=data_analysis["cell"],  # Add "cell" values for hover
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
+        text=data["cell"],  # Add "cell" values for hover
         hovertemplate=("electrodes_spacer: %{x}<br>" + "Cycles to 70%: %{y}<br>" +
                        "d26: %{marker.color}<br>" + "Cell: %{text}<extra></extra>"),
         showlegend=False),
@@ -302,14 +306,14 @@ fig = make_subplots(rows=2, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Initial specific discharge capacity (mAh/g)"],
-        y=data_analysis["intersection_area"],
+        x=data["Initial specific discharge capacity (mAh/g)"],
+        y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Ini. spec. disc. capacity: %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -317,14 +321,14 @@ fig.add_trace(
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
-        y=data_analysis["intersection_area"],
+        x=data["Specific discharge capacity 150th (mAh/g)"],
+        y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -332,14 +336,14 @@ fig.add_trace(
     row=1, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
-        y=data_analysis["intersection_area"],
+        x=data["Fade rate 5-50 cycles (%/cycle)"],
+        y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -347,14 +351,14 @@ fig.add_trace(
     row=1, col=3)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Initial specific discharge capacity (mAh/g)"],
-        y=data_analysis["d26"],
+        x=data["Initial specific discharge capacity (mAh/g)"],
+        y=data["d26"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Ini. spec. disc. capacity: %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -362,14 +366,14 @@ fig.add_trace(
     row=2, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
-        y=data_analysis["d26"],
+        x=data["Specific discharge capacity 150th (mAh/g)"],
+        y=data["d26"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
                         "d26: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -377,14 +381,14 @@ fig.add_trace(
     row=2, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
-        y=data_analysis["d26"],
+        x=data["Fade rate 5-50 cycles (%/cycle)"],
+        y=data["d26"],
         mode='markers',
-        marker=dict(color=data_analysis["d68"], colorscale='viridis_r', colorbar=dict(title="d68 [mm]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["electrodes_z"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
                         "d26: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -420,14 +424,14 @@ fig = make_subplots(rows=1, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Specific discharge capacity 150th (mAh/g)"],
-        y=data_analysis["alignment_score"],
+        x=data["Specific discharge capacity 150th (mAh/g)"],
+        y=data["alignment_score"],
         mode='markers',
-        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
                         "Alignment Score [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -435,14 +439,14 @@ fig.add_trace(
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Cycles to 70% capacity"],
-        y=data_analysis["alignment_score"],
+        x=data["Cycles to 70% capacity"],
+        y=data["alignment_score"],
         mode='markers',
-        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
                         "Alignment Score [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -450,14 +454,14 @@ fig.add_trace(
     row=1, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data_analysis["Fade rate 5-50 cycles (%/cycle)"],
-        y=data_analysis["alignment_score"],
+        x=data["Fade rate 5-50 cycles (%/cycle)"],
+        y=data["alignment_score"],
         mode='markers',
-        marker=dict(color=data_analysis["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
-        text=("Cell: " + data_analysis["cell"].astype(str) + "<br>" +
-              "d28: " + data_analysis["d28"].astype(str) + "<br>" +
-              "d27: " + data_analysis["d27"].astype(str) + "<br>" +
-              "d67: " + data_analysis["d67"].astype(str)),
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
                         "Alignment Score [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
@@ -530,52 +534,57 @@ output_file = os.path.join(data_dir, "Alignment_number_correlation.jpg")
 
 #%% PCA
 
-df_normalized = (data_analysis - data_analysis.mean()) / data_analysis.std()
-pca = PCA(n_components=data_analysis.shape[1])
-pca.fit(df_normalized)
-pca_reduced = pca.fit_transform(df_normalized)
-# Reformat and view results
-loadings = pd.DataFrame(pca.components_.T,
-                        columns=['PC%s' % _ for _ in range(len(df_normalized.columns))], index=data_analysis.columns)
-# Append the principle components for each entry to the dataframe
-pca_data = data_analysis.copy()
-for i in range(0, data_analysis.shape[1]):
-    pca_data['PC' + str(i + 1)] = pca_reduced[:, i]
+pca = False
 
-# Do a scree plot
-ind = np.arange(0, data_analysis.shape[1])
-(fig, ax) = plt.subplots(figsize=(8, 6))
-sns.pointplot(x=ind, y=pca.explained_variance_ratio_)
-ax.set_title('Scree plot')
-ax.set_xticks(ind)
-ax.set_xticklabels(ind)
-ax.set_xlabel('Component Number')
-ax.set_ylabel('Explained Variance')
-# plt.show()
-# Plot a variable factor map for the first two dimensions.
-(fig, ax) = plt.subplots(figsize=(8, 8))
-for i in range(0, pca.components_.shape[1]):
-    ax.arrow(0,
-             0,  # Start the arrow at the origin
-             pca.components_[0, i],  # 0 for PC1
-             pca.components_[1, i],  # 1 for PC2
-             head_width=0.1,
-             head_length=0.1)
-    plt.text(pca.components_[0, i] + 0.05,
-             pca.components_[1, i] + 0.05,
-             data_analysis.columns.values[i])
-an = np.linspace(0, 2 * np.pi, 100)
-plt.plot(np.cos(an), np.sin(an))  # Add a unit circle for scale
-plt.axis('equal')
-ax.set_title('Correlation Circle')
-ax.set_xlabel("PC 1")
-ax.set_ylabel("PC 2")
-ax.axhline(0, linestyle=":", color="grey")
-ax.axvline(0, linestyle=":", color="grey")
-# plt.show()
+if pca:
+    df_normalized = (data_analysis - data_analysis.mean()) / data_analysis.std()
+    pca = PCA(n_components=data_analysis.shape[1])
+    pca.fit(df_normalized)
+    pca_reduced = pca.fit_transform(df_normalized)
+    # Reformat and view results
+    loadings = pd.DataFrame(pca.components_.T,
+                            columns=['PC%s' % _ for _ in range(len(df_normalized.columns))], index=data_analysis.columns)
+    # Append the principle components for each entry to the dataframe
+    pca_data = data_analysis.copy()
+    for i in range(0, data_analysis.shape[1]):
+        pca_data['PC' + str(i + 1)] = pca_reduced[:, i]
+
+    # Do a scree plot
+    ind = np.arange(0, data_analysis.shape[1])
+    (fig, ax) = plt.subplots(figsize=(8, 6))
+    sns.pointplot(x=ind, y=pca.explained_variance_ratio_)
+    ax.set_title('Scree plot')
+    ax.set_xticks(ind)
+    ax.set_xticklabels(ind)
+    ax.set_xlabel('Component Number')
+    ax.set_ylabel('Explained Variance')
+    # plt.show()
+    # Plot a variable factor map for the first two dimensions.
+    (fig, ax) = plt.subplots(figsize=(8, 8))
+    for i in range(0, pca.components_.shape[1]):
+        ax.arrow(0,
+                0,  # Start the arrow at the origin
+                pca.components_[0, i],  # 0 for PC1
+                pca.components_[1, i],  # 1 for PC2
+                head_width=0.1,
+                head_length=0.1)
+        plt.text(pca.components_[0, i] + 0.05,
+                pca.components_[1, i] + 0.05,
+                data_analysis.columns.values[i])
+    an = np.linspace(0, 2 * np.pi, 100)
+    plt.plot(np.cos(an), np.sin(an))  # Add a unit circle for scale
+    plt.axis('equal')
+    ax.set_title('Correlation Circle')
+    ax.set_xlabel("PC 1")
+    ax.set_ylabel("PC 2")
+    ax.axhline(0, linestyle=":", color="grey")
+    ax.axvline(0, linestyle=":", color="grey")
+    # plt.show()
 
 
 
 
 
 
+
+# %%
