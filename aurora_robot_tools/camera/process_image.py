@@ -12,6 +12,7 @@ import json
 import numpy as np
 import pandas as pd
 from PIL import Image
+from scipy import signal
 
 #%% FUNCTIONS
 
@@ -109,6 +110,18 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
         r_circles = None
     return coords_circles, r_circles, img
 
+def _convolution(image: np.array, filter: np.array, i: bool) -> np.array:
+    """ Takes image an convolutes with the given filter
+    """
+    image_convolved = signal.convolve2d(image, filter, boundary='symm', mode='same')
+    if i == True:
+        # Compute the magnitude of the complex result
+        image_convolved = np.abs(image_convolved)
+    # Normalize the magnitude to the range [0, 255] and convert to uint8
+    image_normalized = cv2.normalize(image_convolved, None, 0, 255, cv2.NORM_MINMAX)
+    image_normalized = image_normalized.astype(np.uint8)
+    return image_normalized
+
 def _preprocess_image(image: np.array, step: int) -> np.array:
     """ Takes image and applies preprocessing steps (blur, contrast)
 
@@ -120,9 +133,19 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
         processed_image (array): processed image
     """
     if step == 2:
-        # Apply a Gaussian blur to reduce noise and improve detection accuracy
-        processed_image = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # increase contrast
-        processed_image = cv2.GaussianBlur(processed_image, (9, 9), 2)
+        # contrast
+        image_contrast = cv2.convertScaleAbs(image, alpha=2, beta=0)
+        # convolution
+        filter_2 = np.array([[  0,  -2,   0],
+                   [ -2,   8,  -2],
+                   [  0,  -2,   0]])
+        processed_image = _convolution(image_contrast, filter_2, i = True)
+    elif step == 8:
+        # convolution
+        filter_8 = np.array([[-2,  -4,  -2],
+                   [ -4,  16,  -4],
+                   [ -2,  -4,  -2]])
+        processed_image = _convolution(image, filter_8, i = True)
     else: # no preprossessing
         processed_image = image
     return processed_image
@@ -150,8 +173,8 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.5, 10.5), 2: (7.1, 7.9), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.25, 7.5), 7: (7.55, 8.3), 8: (6.25, 7.7), 9: (9.5, 10.5),
+        self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.1, 7.8), 3: (7, 8), 4: (7.5, 8.5),
+                       5: (7.7, 8.5), 6: (6.25, 7.45), 7: (7.55, 8.3), 8: (6.25, 7.7), 9: (9.5, 10.5),
                        10: (7, 11)}
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
@@ -160,7 +183,7 @@ class ProcessImages:
         self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
                              (0.0375, -0.33), (0.0375, -0.2),
                              (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
-        self.z_thickness = [0, 0.3, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
+        self.z_thickness = [2.7, 0.3, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
         self.bottom_rim = 2.7 # mm
 
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
@@ -263,8 +286,8 @@ class ProcessImages:
         """
         position = p - 1 # index to 0 to find in list
         if (s >= 1) & (s < 4): # account for bottom part
-            x_corr = center[0] - self.bottom_rim * self.z_correction[position][0]
-            y_corr = center[1] - self.bottom_rim * self.z_correction[position][1]
+            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
+            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
         elif (s >= 4) & (s < 7): # account for separator
             x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
             y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
@@ -430,8 +453,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
-        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
+        # sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
+        sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         data_dir = os.path.join(self.path, "data")
         # save json
@@ -482,6 +505,4 @@ if __name__ == '__main__':
     coordinates_df = obj.save()
 
     print(coordinates_df)
-
-    # alignment.run_id.json: row & column where the image is and sample_ID (run_in_01, two digits)
 
