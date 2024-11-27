@@ -139,7 +139,7 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
     elif step == 6:
         filter_6 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
         #filter_6 = np.array([[-2, -4, -2], [-4, 16, -4], [-2, -4, -2]])
-        processed_image = _convolution(image, filter_6, i = False)
+        processed_image = _convolution(image, filter_6, i = True)
         processed_image = image
     else:
         processed_image = image # no preprossessing
