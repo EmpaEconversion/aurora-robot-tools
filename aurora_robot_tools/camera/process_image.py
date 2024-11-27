@@ -103,8 +103,8 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
         detected_circles = np.uint16(np.around(detected_circles))
         for pt in detected_circles[0, :]:
             a, b, r = pt[0], pt[1], pt[2]
-            cv2.circle(img, (a, b), r, (0, 0, 255), 5) # Draw the circumference of the circle
-            cv2.circle(img, (a, b), 1, (0, 0, 255), 5) # Show center point drawing a small circle
+            cv2.circle(img, (a, b), r, (255, 255, 255), 2) # Draw the circumference of the circle
+            cv2.circle(img, (a, b), 1, (255, 255, 255), 5) # Show center point drawing a small circle
     else:
         coords_circles = None
         r_circles = None
@@ -133,21 +133,16 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
         processed_image (array): processed image
     """
     if step == 2:
-        # contrast
-        image_contrast = cv2.convertScaleAbs(image, alpha=2, beta=0)
-        # convolution
-        filter_2 = np.array([[  0,  -2,   0],
-                   [ -2,   8,  -2],
-                   [  0,  -2,   0]])
+        image_contrast = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # contrast
+        filter_2 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
         processed_image = _convolution(image_contrast, filter_2, i = True)
-    elif step == 8:
-        # convolution
-        filter_8 = np.array([[-2,  -4,  -2],
-                   [ -4,  16,  -4],
-                   [ -2,  -4,  -2]])
-        processed_image = _convolution(image, filter_8, i = True)
-    else: # no preprossessing
+    elif step == 6:
+        filter_6 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
+        #filter_6 = np.array([[-2, -4, -2], [-4, 16, -4], [-2, -4, -2]])
+        processed_image = _convolution(image, filter_6, i = False)
         processed_image = image
+    else:
+        processed_image = image # no preprossessing
     return processed_image
 
 #%% CLASS
@@ -173,9 +168,9 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.1, 7.8), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.25, 7.45), 7: (7.55, 8.3), 8: (6.25, 7.7), 9: (9.5, 10.5),
-                       10: (7, 11)}
+        self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.5, 8.5),
+                       5: (7.7, 8.5), 6: (6.75, 7.25), 7: (7.55, 8.3), 8: (6.5, 7.55), 9: (9.5, 10.5),
+                       10: (7, 11)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5)
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
@@ -184,7 +179,6 @@ class ProcessImages:
                              (0.0375, -0.33), (0.0375, -0.2),
                              (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
         self.z_thickness = [2.7, 0.3, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
-        self.bottom_rim = 2.7 # mm
 
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
         """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
