@@ -178,7 +178,7 @@ class ProcessImages:
         self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
                              (0.0375, -0.33), (0.0375, -0.2),
                              (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
-        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
+        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
 
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
         """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
