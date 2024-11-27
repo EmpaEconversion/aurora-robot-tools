@@ -312,7 +312,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -327,7 +327,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -342,7 +342,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -357,7 +357,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -372,7 +372,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -387,7 +387,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press_normalized"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center norm. [%]")),
+        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
