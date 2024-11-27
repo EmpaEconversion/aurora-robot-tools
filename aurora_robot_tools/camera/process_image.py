@@ -475,7 +475,7 @@ class ProcessImages:
             },
         }
         # Write JSON to file
-        data_dir_json = os.path.join(self.path, "data")
+        data_dir_json = os.path.join(self.path, "json")
         json_path = os.path.join(data_dir_json, f"alignment.{self.run_ID}.json")
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=4)
