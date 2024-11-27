@@ -80,7 +80,7 @@ class Alignment:
         # Loop over each cell and create a plot
         for cell in self.unique_cells:
             # Filter DataFrame for the current cell and selected steps
-            cell_df = self.df[(self.df['cell'] == cell) & (self.df['step'].isin(self.selected_steps))]`
+            cell_df = self.df[(self.df['cell'] == cell) & (self.df['step'].isin(self.selected_steps))]
             x_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
                                   cell_df.loc[cell_df['step']==2,self.xstr].values))
             y_electrodes = (float(cell_df.loc[cell_df['step']==6,self.xstr].values -
