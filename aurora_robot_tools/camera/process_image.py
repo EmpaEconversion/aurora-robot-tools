@@ -133,7 +133,7 @@ class ProcessImages:
     def __init__(self, path):
         # TRANSFORMATION ---------------------------------------------------------------------------
         self.path = path # path to images
-        self.run_ID = self.path.split("/")[1]
+        self.run_ID = self.path.split("/")[-1]
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
         self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
