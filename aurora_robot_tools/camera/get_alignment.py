@@ -169,7 +169,6 @@ class Alignment:
             os.makedirs(data_dir)
         with pd.ExcelWriter(os.path.join(data_dir, "alignment.xlsx")) as writer:
             self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
-        self.alignment_df.to_csv(os.path.join(data_dir, "alignment.csv"), index=False)
 
         return self.alignment_df
 
