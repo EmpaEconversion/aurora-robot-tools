@@ -138,7 +138,7 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
         processed_image = _convolution(image_contrast, filter_2, i = True)
     elif step == 6:
         filter_6 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
-        #filter_6 = np.array([[-2, -4, -2], [-4, 16, -4], [-2, -4, -2]])
+        # filter_6 = np.array([[-2, -4, -2], [-4, 16, -4], [-2, -4, -2]])
         processed_image = _convolution(image, filter_6, i = True)
         processed_image = image
     else:
@@ -169,8 +169,8 @@ class ProcessImages:
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
         self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.75, 7.25), 7: (7.55, 8.3), 8: (6.5, 7.55), 9: (9.5, 10.5),
-                       10: (7, 11)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5)
+                       5: (7.7, 8.5), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
+                       10: (7.5, 8.5)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5), (6.25, 7.7)
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
@@ -352,7 +352,9 @@ class ProcessImages:
         self.df["img_row"] = rows
         self.df["img_col"] = cols
         # Save as .h5
-        data_dir = os.path.join(self.path, "data")
+        data_dir = os.path.join(self.path, "json")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
         h5_filename = os.path.join(data_dir, f"alignment.{self.run_ID}.h5")
         with h5py.File(h5_filename, "w") as h5_file:
             h5_file.create_dataset("image", data=composite_image)
@@ -401,6 +403,7 @@ class ProcessImages:
         df["y"] = y
         df["r_mm"] = radius
         # get difference to pressing tool in pixel
+        # Option 1: refer to acutally detected pressing tool position
         df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
         dx_px_list = []
         dy_dx_list = []
@@ -412,6 +415,7 @@ class ProcessImages:
             dy_dx_list.extend(dy_px)
         df["dx_px"] = dx_px_list
         df["dy_px"] = dy_dx_list
+        # Option 2: refer to image center
         # df["dx_px"] = df["x"] - self.offset_mm * self.mm_to_pixel
         # df["dy_px"] = df["y"] - self.offset_mm * self.mm_to_pixel
 
@@ -450,7 +454,6 @@ class ProcessImages:
         # sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
         sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
-        data_dir = os.path.join(self.path, "data")
         # save json
         # Building JSON structure
         json_data = {
@@ -472,15 +475,17 @@ class ProcessImages:
             },
         }
         # Write JSON to file
-        json_path = os.path.join(data_dir, f"alignment.{self.run_ID}.json")
+        data_dir_json = os.path.join(self.path, "data")
+        json_path = os.path.join(data_dir_json, f"alignment.{self.run_ID}.json")
         with open(json_path, "w") as f:
             json.dump(json_data, f, indent=4)
 
         # save as excel
+        data_dir_data = os.path.join(self.path, "data")
         self.df = self.df.drop(columns=["array"]) # save without image array
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-        with pd.ExcelWriter(os.path.join(data_dir, "data.xlsx")) as writer:
+        if not os.path.exists(data_dir_data):
+            os.makedirs(data_dir_data)
+        with pd.ExcelWriter(os.path.join(data_dir_data, "data.xlsx")) as writer:
             self.df.to_excel(writer, sheet_name='coordinates', index=False)
 
         return self.df
