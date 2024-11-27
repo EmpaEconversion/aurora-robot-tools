@@ -1,6 +1,8 @@
 """ Lina Scholz
 
 Script to analyse center coordinates and alignment of different parts from the data of proces_images.py.
+
+Super messy, sorry for that. Probably also very lengthy and many unnesessary steps... ooops. TODO for later!
 """
 
 import math
