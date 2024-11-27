@@ -157,8 +157,9 @@ class ProcessImages:
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        self.z_correction = [(0.175, 0.33), (0.175, 0.2), (0.0375, 0.33),
-                            (0.0375, 0.2), (0.125, 0.33), (0.125, 0.2)] # mm thickness to mm x,y shift
+        self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
+                             (0.0375, -0.33), (0.0375, -0.2),
+                             (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
         self.z_thickness = [0, 0.3, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 2.55, 2.55, 2.55]
         self.bottom_rim = 2.7 # mm
 
@@ -263,13 +264,13 @@ class ProcessImages:
         position = p - 1 # index to 0 to find in list
         if (s >= 1) & (s < 4): # account for bottom part
             x_corr = center[0] - self.bottom_rim * self.z_correction[position][0]
-            y_corr = center[1] + self.bottom_rim * self.z_correction[position][1]
+            y_corr = center[1] - self.bottom_rim * self.z_correction[position][1]
         elif (s >= 4) & (s < 7): # account for separator
             x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] + self.z_thickness[s] * self.z_correction[position][1]
+            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
         elif s >= 7: # account for spacer
             x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] + self.z_thickness[s] * self.z_correction[position][1]
+            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
         else:
             x_corr = center[0]
             y_corr = center[1]
@@ -417,8 +418,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
-        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
+        # sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
+        sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         data_dir = os.path.join(self.path, "data")
         # save json
