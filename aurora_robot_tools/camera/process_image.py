@@ -384,8 +384,20 @@ class ProcessImages:
         df["y"] = y
         df["r_mm"] = radius
         # get difference to pressing tool in pixel
-        df["dx_px"] = df["x"] - self.offset_mm * self.mm_to_pixel
-        df["dy_px"] = df["y"] - self.offset_mm * self.mm_to_pixel
+        df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
+        dx_px_list = []
+        dy_dx_list = []
+        for cell in df["cell"].unique():
+            cell_df = df[df["cell"] == cell]
+            dx_px = (cell_df["x"] - cell_df.loc[cell_df['step'] == 0, 'x'].iloc[0]).tolist()
+            dy_px = (cell_df["y"] - cell_df.loc[cell_df['step'] == 0, 'y'].iloc[0]).tolist()
+            dx_px_list.extend(dx_px)
+            dy_dx_list.extend(dy_px)
+        df["dx_px"] = dx_px_list
+        df["dy_px"] = dy_dx_list
+        # df["dx_px"] = df["x"] - self.offset_mm * self.mm_to_pixel
+        # df["dy_px"] = df["y"] - self.offset_mm * self.mm_to_pixel
+
         # get difference to pressing tool in mm
         df["dx_mm"] = df["dx_px"] / self.mm_to_pixel
         df["dy_mm"] = df["dy_px"] / self.mm_to_pixel
