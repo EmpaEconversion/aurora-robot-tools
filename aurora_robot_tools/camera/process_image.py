@@ -418,8 +418,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        # sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
-        sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
+        sample_IDs = [self.run_ID + "_" + str(num) for num in self.df["cell"]]
+        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num}" if num < 14 else f"241023_{self.run_ID}_14_36_{num}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         data_dir = os.path.join(self.path, "data")
         # save json
