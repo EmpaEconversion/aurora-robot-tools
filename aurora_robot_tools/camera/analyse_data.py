@@ -34,7 +34,7 @@ keys = ['Sample ID', 'Cycle', 'Charge capacity (mAh)', 'Discharge capacity (mAh)
         'Electrolyte to press (s)', 'Electrolyte to electrode (s)', 'Electrode to protection (s)', 'Press to protection (s)']
 
 cycling_data = r"G:\Limit\Lina Scholz\Cell Data\batch.lisc_gen14.json"
-alignment_data = r"C:\lisc_gen14\data\alignment.csv"
+alignment_data = r"C:\lisc_gen14\data\alignment_manual.xlsx"
 
 # Open and load the JSON file
 with open(cycling_data, 'r') as file:
@@ -43,7 +43,7 @@ with open(cycling_data, 'r') as file:
     if "data" in json_data:
         cell_data = json_data["data"]
 
-data = pd.read_csv(alignment_data)
+data = pd.read_excel(alignment_data)
 performance_numbers = ['First formation efficiency (%)', 'First formation specific discharge capacity (mAh/g)',
                        'Initial specific discharge capacity (mAh/g)', 'Initial efficiency (%)', 'Capacity loss (%)',
                        'Last specific discharge capacity (mAh/g)', 'Last efficiency (%)',
@@ -312,7 +312,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -327,7 +327,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -342,7 +342,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["intersection_area"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -357,7 +357,7 @@ fig.add_trace(
         x=data["Initial specific discharge capacity (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -372,7 +372,7 @@ fig.add_trace(
         x=data["Specific discharge capacity 150th (mAh/g)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
@@ -387,7 +387,7 @@ fig.add_trace(
         x=data["Fade rate 5-50 cycles (%/cycle)"],
         y=data["d26"],
         mode='markers',
-        marker=dict(color=data["electrodes_to_press"]*100, colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +

@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 class Alignment:
     def __init__(self, path):
         self.path = path # path to images
-        self.df = pd.read_excel(os.path.join(path, "data/data.xlsx"), sheet_name="coordinates")
+        self.df = pd.read_excel(os.path.join(path, "data/data_manual.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
                                                   "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
                                                   "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8",
@@ -169,7 +169,7 @@ class Alignment:
         data_dir = os.path.join(self.path, "data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        with pd.ExcelWriter(os.path.join(data_dir, "alignment.xlsx")) as writer:
+        with pd.ExcelWriter(os.path.join(data_dir, "alignment_manual.xlsx")) as writer:
             self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
 
         return self.alignment_df
@@ -218,10 +218,10 @@ if __name__ == '__main__':
 
     obj = Alignment(folderpath)
     data = obj.plot_coordinates_by_cell()
-    obj.plot_differences(step=2, name="Anode")
-    obj.plot_differences(step=6, name="Cathode")
-    obj.plot_differences(step=7, name="Spacer")
-    obj.plot_differences(step=8, name="Spring")
+    obj.plot_differences(step=2, name="Anode manual")
+    obj.plot_differences(step=6, name="Cathode manual")
+    obj.plot_differences(step=7, name="Spacer manual")
+    obj.plot_differences(step=8, name="Spring manual")
 
 
 
