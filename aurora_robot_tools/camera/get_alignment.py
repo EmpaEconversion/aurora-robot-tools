@@ -53,7 +53,8 @@ class Alignment:
             a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
             a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
             area = math.floor(a1 + a2)
-        percentage_area = round(area / (math.pi * R2**2) * 100, 2) # area of cathode overlapping with anode
+
+        percentage_area = round(area / (math.pi * R2**2) * 100, 4) # area of cathode overlapping with anode
         return percentage_area
 
     def plot_coordinates_by_cell(self, draw_circle=False) -> pd.DataFrame:
