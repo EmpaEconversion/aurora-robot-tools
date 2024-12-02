@@ -51,7 +51,7 @@ performance_numbers = ['First formation efficiency (%)', 'First formation specif
                        'Cycles to 90% capacity', 'Cycles to 80% capacity', 'Cycles to 70% capacity']
 # 'Specific discharge capacity (mAh/g)'
 spec_disc_capacity = 'Specific discharge capacity (mAh/g)'
-data['Specific discharge capacity 150th (mAh/g)'] = None # initialize column
+data['Specific discharge capacity 180th (mAh/g)'] = None # initialize column
 data['Specific discharge capacity 5th (mAh/g)'] = None # initialize column
 data["Fade rate 5-20 cycles (%/cycle)"] = None # initialize column
 data["Fade rate 5-50 cycles (%/cycle)"] = None # initialize column
@@ -64,7 +64,7 @@ for cell in cell_data:
     for i in range(len(performance_numbers)):
         data.loc[data['cell'] == number, performance_numbers[i]] = cell[performance_numbers[i]]
     data.loc[data['cell'] == number,
-             'Specific discharge capacity 150th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][150]
+             'Specific discharge capacity 180th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][180]
     data.loc[data['cell'] == number,
              'Specific discharge capacity 5th (mAh/g)'] = cell['Specific discharge capacity (mAh/g)'][5]
     # Rate rate between cycles 5-20 and 5-50
@@ -153,7 +153,7 @@ with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
 #%% Find any CORRELATION
 
 data_analysis = data[["Fade rate 5-50 cycles (%/cycle)", "Cycles to 70% capacity",
-                      "Initial specific discharge capacity (mAh/g)", "Specific discharge capacity 150th (mAh/g)",
+                      "Initial specific discharge capacity (mAh/g)", "Specific discharge capacity 180th (mAh/g)",
                       "z2", "z6", "z8", "intersection_area", "d26", "electrodes_to_press",
                       "electrodes_spring"]]
 
@@ -304,7 +304,7 @@ output_file = os.path.join(data_dir, "Degradation(pressure)_correlation.jpg")
 # fig.write_image(output_file, format="jpg")
 
 # Capacity (Electrodes)
-fig = make_subplots(rows=2, cols=3)
+fig = make_subplots(rows=2, cols=2)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
@@ -323,7 +323,7 @@ fig.add_trace(
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 150th (mAh/g)"],
+        x=data["Specific discharge capacity 180th (mAh/g)"],
         y=data["intersection_area"],
         mode='markers',
         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
@@ -331,26 +331,26 @@ fig.add_trace(
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
+        hovertemplate=("Spec. disc. capacity 180th (mAh/g): %{x}<br>" +
                         "Intersection Area: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=2)
-fig.add_trace(
-    go.Scatter(
-        x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["intersection_area"],
-        mode='markers',
-        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
-        text=("Cell: " + data["cell"].astype(str) + "<br>" +
-              "d28: " + data["d28"].astype(str) + "<br>" +
-              "d27: " + data["d27"].astype(str) + "<br>" +
-              "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-                        "Intersection Area: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=1, col=3)
+# fig.add_trace(
+#     go.Scatter(
+#         x=data["Fade rate 5-50 cycles (%/cycle)"],
+#         y=data["intersection_area"],
+#         mode='markers',
+#         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+#         text=("Cell: " + data["cell"].astype(str) + "<br>" +
+#               "d28: " + data["d28"].astype(str) + "<br>" +
+#               "d27: " + data["d27"].astype(str) + "<br>" +
+#               "d67: " + data["d67"].astype(str)),
+#         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
+#                         "Intersection Area: %{y}<br>" +
+#                         "%{text}<extra></extra>"),
+#         showlegend=False),
+#     row=1, col=3)
 fig.add_trace(
     go.Scatter(
         x=data["Initial specific discharge capacity (mAh/g)"],
@@ -368,7 +368,7 @@ fig.add_trace(
     row=2, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 150th (mAh/g)"],
+        x=data["Specific discharge capacity 180th (mAh/g)"],
         y=data["d26"],
         mode='markers',
         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
@@ -376,39 +376,39 @@ fig.add_trace(
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. disc. capacity 150th (mAh/g): %{x}<br>" +
+        hovertemplate=("Spec. disc. capacity 180th (mAh/g): %{x}<br>" +
                         "d26: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=2, col=2)
-fig.add_trace(
-    go.Scatter(
-        x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["d26"],
-        mode='markers',
-        marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
-        text=("Cell: " + data["cell"].astype(str) + "<br>" +
-              "d28: " + data["d28"].astype(str) + "<br>" +
-              "d27: " + data["d27"].astype(str) + "<br>" +
-              "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-                        "d26: %{y}<br>" +
-                        "%{text}<extra></extra>"),
-        showlegend=False),
-    row=2, col=3)
+# fig.add_trace(
+#     go.Scatter(
+#         x=data["Fade rate 5-50 cycles (%/cycle)"],
+#         y=data["d26"],
+#         mode='markers',
+#         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
+#         text=("Cell: " + data["cell"].astype(str) + "<br>" +
+#               "d28: " + data["d28"].astype(str) + "<br>" +
+#               "d27: " + data["d27"].astype(str) + "<br>" +
+#               "d67: " + data["d67"].astype(str)),
+#         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
+#                         "d26: %{y}<br>" +
+#                         "%{text}<extra></extra>"),
+#         showlegend=False),
+#     row=2, col=3)
 # Update axis
 fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=1)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=1)
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=1, col=2)
 fig.update_yaxes(title_text="Intersection area [%]", row=1, col=2)
-fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
-fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
+# fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
+# fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
 fig.update_xaxes( title_text="Initial specific discharge capacity (mAh/g)", row=2, col=1)
 fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=1)
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=2)
+fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=2)
 fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=2)
-fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
-fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
+# fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
+# fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
 
 # Update layout
 fig.update_layout(
@@ -426,7 +426,7 @@ fig = make_subplots(rows=2, cols=3)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 150th (mAh/g)"],
+        x=data["Specific discharge capacity 180th (mAh/g)"],
         y=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
@@ -434,7 +434,7 @@ fig.add_trace(
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
                         "Alignment Score 1 [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
@@ -471,7 +471,7 @@ fig.add_trace(
     row=1, col=3)
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 150th (mAh/g)"],
+        x=data["Specific discharge capacity 180th (mAh/g)"],
         y=data["alignment_score_2"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
@@ -479,7 +479,7 @@ fig.add_trace(
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
                         "Alignment Score 2 [%]: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
@@ -515,13 +515,13 @@ fig.add_trace(
         showlegend=False),
     row=2, col=3)
 
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=1, col=1)
+fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=1, col=1)
 fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=1)
 fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
 fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=2)
 fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
 fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=3)
-fig.update_xaxes(title_text="Specific discharge capacity 150th (mAh/g)", row=2, col=1)
+fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=1)
 fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=1)
 fig.update_xaxes(title_text="Cycles to 70% capacity", row=2, col=2)
 fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=2)
@@ -563,7 +563,7 @@ fig.add_trace(
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 150th (mAh/g): %{x}<br>" +
+        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
                         "z8: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
