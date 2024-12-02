@@ -5,9 +5,12 @@ Script to compare manually improved detection with only automated detection.
 """
 
 import os
+import cv2
 import json
+import h5py
 import pandas as pd
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 #%%
@@ -77,4 +80,134 @@ for step in steps_to_plot:
     plt.tight_layout()
     #plt.show()
 
+#%%
 
+# Generate modified images to check robustness
+modification = "original"  # Change this to "warping", "extremewarping", "smallwarping", "blur", or "crop"
+# Input and output directories
+input_folder = r"C:\241127_modified_images\raw"
+output_folder = "C:/241127_modified_images/original"
+
+# Ensure the output folder exists
+os.makedirs(output_folder, exist_ok=True)
+
+# Iterate through all .h5 files in the input folder
+for filename in os.listdir(input_folder):
+    if filename.endswith(".h5"):
+        input_path = os.path.join(input_folder, filename)
+        output_path = os.path.join(output_folder, filename)
+
+        # Process the file
+        with h5py.File(input_path, 'r') as f:
+            content = f['image'][:]
+
+        if modification == "warping":
+            # Apply a warp transformation
+            rows, cols = content.shape[:2]
+            src_points = np.float32([[0, 0], [cols-1, 0], [0, rows-1]])
+            dst_points = np.float32([
+                [cols * 0.03, rows * 0.01],    # Slightly move the top-left corner
+                [cols-1 - cols * 0.01, rows * 0.03],  # Slightly move the top-right corner
+                [cols * 0.01, rows-1 - rows * 0.04]   # Slightly move the bottom-left corner
+            ])
+            matrix = cv2.getAffineTransform(src_points, dst_points)
+            modified_image = cv2.warpAffine(content, matrix, (cols, rows))
+        elif modification == "extremewarping":
+            # Apply a warp transformation
+            rows, cols = content.shape[:2]
+            src_points = np.float32([[0, 0], [cols-1, 0], [0, rows-1]])
+            dst_points = np.float32([
+                [cols * 0.05, rows * 0.02],    # Slightly move the top-left corner
+                [cols-1 - cols * 0.01, rows * 0.06],  # Slightly move the top-right corner
+                [cols * 0.01, rows-1 - rows * 0.07]   # Slightly move the bottom-left corner
+            ])
+            matrix = cv2.getAffineTransform(src_points, dst_points)
+            modified_image = cv2.warpAffine(content, matrix, (cols, rows))
+        elif modification == "smallwarping":
+            # Apply a warp transformation
+            rows, cols = content.shape[:2]
+            src_points = np.float32([[0, 0], [cols-1, 0], [0, rows-1]])
+            dst_points = np.float32([
+                [cols * 0.02, rows * 0.01],    # Slightly move the top-left corner
+                [cols-1 - cols * 0.02, rows * 0.01],  # Slightly move the top-right corner
+                [cols * 0.01, rows-1 - rows * 0.02]   # Slightly move the bottom-left corner
+            ])
+            matrix = cv2.getAffineTransform(src_points, dst_points)
+            modified_image = cv2.warpAffine(content, matrix, (cols, rows))
+        elif modification == "blur":
+            # Apply Gaussian blur to the image
+            modified_image = cv2.GaussianBlur(content, (5, 5), 0)
+        elif modification == "crop":
+            # Crop 1/3 of the image from the right
+            rows, cols = content.shape[:2]
+            crop_cols = cols * 2 // 3  # Retain only 2/3 of the width
+            modified_image = content[:, :crop_cols]
+        else:
+            modified_image = content
+            print("not modified")
+
+        # Save the warped image to a new .h5 file
+        with h5py.File(output_path, 'w') as f:
+            f.create_dataset('image', data=modified_image)
+
+        # Optional: Display the modified image
+        plt.imshow(modified_image, cmap='gray')
+        plt.title(f"Modified Image ({modification}): {filename}")
+        # plt.show()
+
+#%%
+
+import os
+import cv2
+import json
+import h5py
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Evaluate the robustness of the circle detection with the modified images
+df_ref = pd.read_excel("C:/241127_modified_images/original/data/data.xlsx")
+df1 = pd.read_excel("C:/241127_modified_images/smallwarping/data/data.xlsx")
+df2 = pd.read_excel("C:/241127_modified_images/crop/data/data.xlsx")
+df3 = pd.read_excel("C:/241127_modified_images/blur/data/data.xlsx")
+
+# List of DataFrames and variable names to compare
+data_frames = [df1, df2, df3]
+variables = ['r_mm', 'x', 'y']
+
+# Dictionary to store deviations for each DataFrame
+deviation_summary = {}
+
+# Calculate deviations
+for i, df in enumerate(data_frames, start=1):
+    deviations = {}
+    for var in variables:
+        # Compute absolute deviations
+        deviations[var] = np.abs(df[var] - df_ref[var])
+    deviation_summary[f"data{i}"] = deviations
+
+# Summarize deviations numerically
+summary_table = {}
+for name, devs in deviation_summary.items():
+    summary_table[name] = {var: dev.mean() for var, dev in devs.items()}
+
+# Convert summary to a DataFrame for visualization
+summary_df = pd.DataFrame(summary_table).T
+print("Deviation Summary (Mean Absolute Deviations):")
+print(summary_df)
+
+# Plot deviations for each variable
+plt.figure(figsize=(14, 10))
+for i, var in enumerate(variables, start=1):
+    plt.subplot(2, 2, i)
+    sns.boxplot(data=[deviation_summary[f"data{j}"][var] for j in range(1, 4)])  # Adjusted to range(1, 4)
+    plt.xticks(ticks=range(3), labels=[f"data{j}" for j in range(1, 4)])  # Adjusted to 3 labels
+    plt.title(f"Deviations of {var}")
+    plt.ylabel("Deviation")
+plt.tight_layout()
+plt.show()
+
+print(deviation_summary)
+
+# %%
