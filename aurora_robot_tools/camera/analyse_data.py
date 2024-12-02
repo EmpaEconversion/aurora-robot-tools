@@ -144,12 +144,11 @@ data["alignment_score_1"] = data["electrodes_normalized"] * data["electrode_to_s
 data["alignment_score_2"] = data["electrodes_normalized"] * data["electrodes_to_press_normalized"] * 100
 
 # Save the plot as a JPG file named by the cell number
-data_dir = os.path.join("C:/lisc_gen14/data", "plot")
+data_dir = os.path.join("C:/lisc_gen14", "data")
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
     data.to_excel(writer, sheet_name='performance', index=False)
-data.to_csv(os.path.join(data_dir, "performance.csv"), index=False)
 
 #%% Find any CORRELATION
 
