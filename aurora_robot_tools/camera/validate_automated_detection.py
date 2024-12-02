@@ -16,9 +16,9 @@ import matplotlib.cm as cm
 
 #%%
 
-compare_manual = False
+compare_manual = True
 modify = False
-compare_modify = True
+compare_modify = False
 
 #%%
 
@@ -72,6 +72,9 @@ if compare_manual:
     # Adjust spacing between subplots
     plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
+    # Y-Axis labels
+    y_labels = ["dx automatic\n- dx manual\n", "dy automatic\n- dy manual\n", "r automatic\n- r manual\n"]
+
     # Loop through rows and steps to create the plots
     for row_idx, row in enumerate(rows_to_plot):
         for step_idx, step in enumerate(steps_to_plot):
@@ -91,7 +94,7 @@ if compare_manual:
 
             # Set the title and labels
             ax.set_title(f"Step {step}" if row_idx == 0 else "", fontsize=18)
-            ax.set_ylabel(f"{row.split("_")[0]} [mm]" if step_idx == 0 else "", fontsize=16)
+            ax.set_ylabel(f"{y_labels[row_idx]} [mm]" if step_idx == 0 else "", fontsize=16)
             ax.tick_params(axis='both', which='major', labelsize=14)
             ax.set_xticks([])
             ax.set_xlabel('')

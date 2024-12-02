@@ -58,19 +58,25 @@ cells = collections.OrderedDict(sorted(cells.items()))
 fig, ax = plt.subplots()
 x = "Cycle"
 y = "Specific discharge capacity (mAh/g)"
-# Get the viridis colormap
-cmap = cm.viridis
-num_cells = len(cells)
-colors = [cmap(i / num_cells) for i in range(num_cells)]  # Generate a list of colors
-# Plot discharge capacity vs. cycle number
-for (key, value), color in zip(cells.items(), colors):
-    ax.scatter(value[x], value[y], label=f"Cell {key}", color=color, s=16)
-# Label the axes
+# Farben für die Gruppen
+color_group1 = "blue"
+color_group2 = "purple"
+# Plotten der Punkte mit farblicher Gruppierung
+for key, value in cells.items():
+    if 2 <= key <= 17:  # Gruppe 1
+        ax.scatter(value[x], value[y], color=color_group1, s=8)
+    elif key >= 18:  # Gruppe 2
+        ax.scatter(value[x], value[y], color=color_group2, s=8)
+# Achsenbeschriftungen
 ax.set_xlabel(f"{x}", fontsize=14)
 ax.set_ylabel(f"{y}", fontsize=14)
 ax.set_xlim(4, 230)
-# Position the legend outside the plot on top
-ax.legend(loc='upper center', bbox_to_anchor=(0.75, 0.975), ncol=4, fontsize=10)  # Adjust ncol for more columns
+# Manuelle Legende für die Gruppen
+group_legend_handles = [
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned on purpose")
+]
+ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=10)
 plt.tight_layout()
 plt.show()
 
@@ -78,21 +84,27 @@ plt.show()
 fig, ax = plt.subplots()
 x = "Cell Number"
 y = "Cycles to 70% capacity"
-# Get the viridis colormap
-cmap = cm.viridis
-num_cells = len(cells)
-colors = [cmap(i / num_cells) for i in range(num_cells)]  # Generate a list of colors
-# Plot discharge capacity vs. cycle number
-for (key, value), color in zip(cells.items(), colors):
-    ax.scatter(key, value[y][0], label=f"Cell {key}", color="black", s=16)
-# Label the axes
+# Farben für die Gruppen
+color_group1 = "blue"
+color_group2 = "purple"
+# Plotten der Punkte mit farblicher Gruppierung
+for key, value in cells.items():
+    if 2 <= key <= 17:  # Gruppe 1
+        ax.scatter(key, value[y][0], color=color_group1, s=16)
+    elif key >= 18:  # Gruppe 2
+        ax.scatter(key, value[y][0], color=color_group2, s=16)
+# Achsenbeschriftungen
 ax.set_xlabel(f"{x}", fontsize=14)
 ax.set_ylabel(f"{y}", fontsize=14)
-#  ax.set_xlim(4, 230)
-# Position the legend outside the plot on top
-# ax.legend(loc='upper center', bbox_to_anchor=(0.75, 0.95), ncol=4, fontsize=10)  # Adjust ncol for more columns
+# Manuelle Legende für die Gruppen
+group_legend_handles = [
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=8, label="normally aligned"),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=8, label="misaligned on purpose")
+]
+ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=10)
 plt.tight_layout()
 plt.show()
+
 
 #%%
 
