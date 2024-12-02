@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 #%%
 
@@ -51,34 +52,48 @@ else:
 print(df_diff.head())
 
 # Show differences in plot
-columns_to_plot = ["dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
+rows_to_plot = ["dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
 steps_to_plot = [0, 2, 6, 8]
 
-# Loop through each step to create a figure
-for step in steps_to_plot:
-    # Filter the DataFrame for the current step
-    step_data = df_diff[df_diff["step"] == step]
+# Define colors for steps
+colors = cm.Set2.colors[:len(steps_to_plot)]
+colors = ["lightgrey", "lightgrey", "lightgrey", "lightgrey"]
 
-    # Print statistics
-    print(f"Standard Deviation of Step {step} in mm:\n")
-    std_dev = step_data[["r_mm", "dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]].std()
-    print(std_dev)
+# Create a figure with a 3x4 grid
+fig, axes = plt.subplots(3, 4, figsize=(12, 12), sharey=True)
 
-    # Create a new figure for this step
-    fig, axes = plt.subplots(1, len(columns_to_plot), figsize=(12, 5), sharey=False)  # 1 row, 3 columns
+# Adjust spacing between subplots
+plt.subplots_adjust(wspace=0.2, hspace=0.4)
 
-    # Plot each column as a subplot
-    for i, column in enumerate(columns_to_plot):
-        axes[i].hist(step_data[column], bins=36, alpha=0.7, color='blue')
-        axes[i].set_title(f"{column} (Step {step})")
-        axes[i].set_xlabel(column)
-        axes[i].set_ylabel("Frequency")
-        axes[i].grid(True)
+# Loop through rows and steps to create the plots
+for row_idx, row in enumerate(rows_to_plot):
+    for step_idx, step in enumerate(steps_to_plot):
+        # Filter data for the current step
+        step_data = df_diff[df_diff["step"] == step]
 
-    # Add a title for the entire figure
-    fig.suptitle(f"Distributions for Step {step}", fontsize=16)
-    plt.tight_layout()
-    #plt.show()
+        # Select the current axis
+        ax = axes[row_idx, step_idx]
+
+        # Create a boxplot
+        ax.boxplot(step_data[row], patch_artist=True, boxprops=dict(facecolor=colors[step_idx], color='black'),
+                   medianprops=dict(color='red'), whiskerprops=dict(color='black'))
+
+        # Remove extra space around the boxplot
+        ax.set_xlim(0.9, 1.1)  # Shrinks x-axis to tightly fit the boxplot
+        ax.margins(x=0)
+
+        # Set the title and labels
+        ax.set_title(f"Step {step}" if row_idx == 0 else "", fontsize=18)
+        ax.set_ylabel(f"{row.split("_")[0]} [mm]" if step_idx == 0 else "", fontsize=16)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.set_xticks([])
+        ax.set_xlabel('')
+        ax.grid(True, linestyle="--", alpha=0.6)
+
+# Adjust layout
+# fig.suptitle("Deviations: Automated vs. Manual Circle Detection (by Step)", fontsize=16)
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.show()
 
 #%%
 
@@ -206,7 +221,7 @@ for i, var in enumerate(variables, start=1):
     plt.title(f"Deviations of {var}")
     plt.ylabel("Deviation")
 plt.tight_layout()
-plt.show()
+# plt.show()
 
 print(deviation_summary)
 
