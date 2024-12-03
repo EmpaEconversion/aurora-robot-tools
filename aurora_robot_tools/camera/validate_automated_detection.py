@@ -48,6 +48,11 @@ if compare_manual:
     df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(3)
     print(df.head())
 
+    # only look at one pressing tool:
+    p = 6
+    df_adj = df_adj[df_adj["press"] == p]
+    df = df[df["press"] == p]
+
     # Compute difference
     numerical_columns = ["r_mm", "dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
     if df.shape == df_adj.shape:
@@ -74,6 +79,8 @@ if compare_manual:
 
     # Y-Axis labels
     y_labels = ["dx automatic\n- dx manual\n", "dy automatic\n- dy manual\n", "r automatic\n- r manual\n"]
+    # Titles
+    titles = {0: "Pressing Tool", 2: "Anode", 6: "Cathode", 8: "Spring"}
 
     # Loop through rows and steps to create the plots
     for row_idx, row in enumerate(rows_to_plot):
@@ -93,7 +100,7 @@ if compare_manual:
             ax.margins(x=0)
 
             # Set the title and labels
-            ax.set_title(f"Step {step}" if row_idx == 0 else "", fontsize=18)
+            ax.set_title(f"{titles[step]}" if row_idx == 0 else "", fontsize=18)
             ax.set_ylabel(f"{y_labels[row_idx]} [mm]" if step_idx == 0 else "", fontsize=16)
             ax.tick_params(axis='both', which='major', labelsize=14)
             ax.set_xticks([])
