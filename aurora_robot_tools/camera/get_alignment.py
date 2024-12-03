@@ -24,7 +24,7 @@ class Alignment:
         self.mm_to_pixel = 10
         self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
-        # specify if corrected coordinates or not (x_corr or x)
+        # specify if corrected coordinates or not (dx_mm_corr or x)
         self.xstr = "dx_mm_corr"
         self.ystr = "dy_mm_corr"
         self.zstr = "dz_mm_corr"
@@ -217,12 +217,10 @@ if __name__ == '__main__':
     # PARAMETER
     folderpath = "C:/lisc_gen14"
 
+    # CALL CLASS AND FUNCTIONS
     obj = Alignment(folderpath)
     data = obj.plot_coordinates_by_cell()
     obj.plot_differences(step=2, name="Anode manual")
-    obj.plot_differences(step=6, name="Cathode manual")
-    obj.plot_differences(step=7, name="Spacer manual")
-    obj.plot_differences(step=8, name="Spring manual")
 
 
 
