@@ -168,7 +168,7 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.5, 8.5),
+        self.r_part = {0: (9.75, 10.75), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.5, 8.5),
                        5: (7.7, 8.5), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
                        10: (7.5, 8.5)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5), (6.25, 7.7)
         # parameter for HoughCircles (param1, param2)
@@ -494,7 +494,7 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # PARAMETER
-    folderpath = "C:/241127_modified_images/original"
+    folderpath = "C:/lisc_gen14"
 
     obj = ProcessImages(folderpath)
     data_list = obj.load_files()
