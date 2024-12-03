@@ -500,7 +500,7 @@ if __name__ == '__main__':
     data_list = obj.load_files()
     df = obj.store_data(data_list)
     df = obj.get_centers(df)
-    obj.correct_for_thickness(df)
+    df = obj.correct_for_thickness(df)
     coordinates_df = obj.save()
 
     print(coordinates_df)
