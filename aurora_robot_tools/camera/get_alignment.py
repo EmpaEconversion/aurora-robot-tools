@@ -19,10 +19,10 @@ class Alignment:
         self.df = pd.read_excel(os.path.join(path, "data/data_manual.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
                                                   "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
-                                                  "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8",
-                                                  "x9", "y9", "z9"])
+                                                  "x5", "y5", "z5", "x6", "y6", "z6", "x7", "y7", "z7",
+                                                  "x8", "y8", "z8", "x9", "y9", "z9"])
         self.mm_to_pixel = 10
-        self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
+        self.selected_steps = [0, 1, 2, 4, 5, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
         # specify if corrected coordinates or not (dx_mm_corr or x)
         self.xstr = "dx_mm_corr"
@@ -78,7 +78,7 @@ class Alignment:
         color_range = np.linspace(0.4, 1, len(self.selected_steps))
         color_range = color_range[::-1]
         step_name = {0: "press", 1: "bottom", 2: "anode", 4: "separator",
-                     6: "cathode", 7: "spacer", 8: "spring", 9: "top"}
+                     5: "electrolyte", 6: "cathode", 7: "spacer", 8: "spring", 9: "top"}
 
         # Loop over each cell and create a plot
         for cell in self.unique_cells:
@@ -103,6 +103,9 @@ class Alignment:
                    "x4": float(cell_df.loc[cell_df['step'] == 4, self.xstr]),
                    "y4": float(cell_df.loc[cell_df['step'] == 4, self.ystr]),
                    "z4": float(cell_df.loc[cell_df['step'] == 4, self.zstr]),
+                   "x5": float(cell_df.loc[cell_df['step'] == 5, self.xstr]),
+                   "y5": float(cell_df.loc[cell_df['step'] == 5, self.ystr]),
+                   "z5": float(cell_df.loc[cell_df['step'] == 5, self.zstr]),
                    "x6": float(cell_df.loc[cell_df['step'] == 6, self.xstr]),
                    "y6": float(cell_df.loc[cell_df['step'] == 6, self.ystr]),
                    "z6": float(cell_df.loc[cell_df['step'] == 6, self.zstr]),
