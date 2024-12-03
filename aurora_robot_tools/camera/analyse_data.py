@@ -297,21 +297,6 @@ fig.add_trace(
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=2, col=1)
-# fig.add_trace(
-#     go.Scatter(
-#         x=data["Fade rate 5-50 cycles (%/cycle)"],
-#         y=data["intersection_area"],
-#         mode='markers',
-#         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
-#         text=("Cell: " + data["cell"].astype(str) + "<br>" +
-#               "d28: " + data["d28"].astype(str) + "<br>" +
-#               "d27: " + data["d27"].astype(str) + "<br>" +
-#               "d67: " + data["d67"].astype(str)),
-#         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-#                         "Intersection Area: %{y}<br>" +
-#                         "%{text}<extra></extra>"),
-#         showlegend=False),
-#     row=1, col=3)
 fig.add_trace(
     go.Scatter(
         y=data["Initial specific discharge capacity (mAh/g)"],
@@ -342,34 +327,15 @@ fig.add_trace(
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=2, col=2)
-# fig.add_trace(
-#     go.Scatter(
-#         x=data["Fade rate 5-50 cycles (%/cycle)"],
-#         y=data["d26"],
-#         mode='markers',
-#         marker=dict(color=data["electrodes_to_press"], colorscale='viridis_r', colorbar=dict(title="electrodes to center [mm]")),
-#         text=("Cell: " + data["cell"].astype(str) + "<br>" +
-#               "d28: " + data["d28"].astype(str) + "<br>" +
-#               "d27: " + data["d27"].astype(str) + "<br>" +
-#               "d67: " + data["d67"].astype(str)),
-#         hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-#                         "d26: %{y}<br>" +
-#                         "%{text}<extra></extra>"),
-#         showlegend=False),
-#     row=2, col=3)
 # Update axis
 fig.update_yaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=1)
 fig.update_xaxes(title_text="Intersection area [%]", row=1, col=1)
 fig.update_yaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=1)
 fig.update_xaxes(title_text="Intersection area [%]", row=2, col=1)
-# fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
-# fig.update_yaxes(title_text="Intersection area [%]", row=1, col=3)
 fig.update_yaxes( title_text="Initial specific discharge capacity (mAh/g)", row=1, col=2)
 fig.update_xaxes(title_text="Electrode alignment [mm]", row=1, col=2)
 fig.update_yaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=2)
 fig.update_xaxes(title_text="Electrode alignment [mm]", row=2, col=2)
-# fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
-# fig.update_yaxes(title_text="Electrode alignment [mm]", row=2, col=3)
 
 # Update layout
 fig.update_layout(
@@ -383,116 +349,116 @@ output_file = os.path.join(data_dir, "Capacity(electrodes)_correlation.jpg")
 # fig.write_image(output_file, format="jpg")
 
 # Alignment Score
-fig = make_subplots(rows=2, cols=3)
+fig = make_subplots(rows=3, cols=2)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 180th (mAh/g)"],
-        y=data["alignment_score_1"],
+        y=data["Specific discharge capacity 180th (mAh/g)"],
+        x=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
-                        "Alignment Score 1 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 1 [%]: %{x}<br>" +
+                        "Spec. dis. capacity 180th (mAh/g): %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Cycles to 70% capacity"],
-        y=data["alignment_score_1"],
+        y=data["Cycles to 70% capacity"],
+        x=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
-                        "Alignment Score 1 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 1 [%]: %{x}<br>" +
+                        "Cycles to 70% capacity: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
-    row=1, col=2)
+    row=2, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["alignment_score_1"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["alignment_score_1"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-                        "Alignment Score 1 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 1 [%]: %{x}<br>" +
+                        "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
-    row=1, col=3)
+    row=3, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Specific discharge capacity 180th (mAh/g)"],
-        y=data["alignment_score_2"],
+        y=data["Specific discharge capacity 180th (mAh/g)"],
+        x=data["alignment_score_2"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
-                        "Alignment Score 2 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 2 [%]: %{x}<br>" +
+                        "Spec. dis. capacity 180th (mAh/g): %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
-    row=2, col=1)
+    row=1, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data["Cycles to 70% capacity"],
-        y=data["alignment_score_2"],
+        y=data["Cycles to 70% capacity"],
+        x=data["alignment_score_2"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
-                        "Alignment Score 2 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 2 [%]: %{x}<br>" +
+                        "Cycles to 70% capacity: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=2, col=2)
 fig.add_trace(
     go.Scatter(
-        x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["alignment_score_2"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["alignment_score_2"],
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [R]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Fade rate 5-50 cycles (%/cycle): %{x}<br>" +
-                        "Alignment Score 2 [%]: %{y}<br>" +
+        hovertemplate=("Alignment Score 2 [%]: %{x}<br>" +
+                        "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
-    row=2, col=3)
+    row=3, col=2)
 
-fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=1, col=1)
-fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=1)
-fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=2)
-fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=2)
-fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=3)
-fig.update_yaxes(title_text="Alignment Score 1 [%]", row=1, col=3)
-fig.update_xaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=1)
-fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=1)
-fig.update_xaxes(title_text="Cycles to 70% capacity", row=2, col=2)
-fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=2)
-fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=2, col=3)
-fig.update_yaxes(title_text="Alignment Score 2 [%]", row=2, col=3)
+fig.update_yaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=1, col=1)
+fig.update_xaxes(title_text="Alignment Score 1 [%]", row=1, col=1)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=1)
+fig.update_xaxes(title_text="Alignment Score 1 [%]", row=2, col=1)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=3, col=1)
+fig.update_xaxes(title_text="Alignment Score 1 [%]", row=3, col=1)
+fig.update_yaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=1, col=2)
+fig.update_xaxes(title_text="Alignment Score 2 [%]", row=1, col=2)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=2, col=2)
+fig.update_xaxes(title_text="Alignment Score 2 [%]", row=2, col=2)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=3, col=2)
+fig.update_xaxes(title_text="Alignment Score 2 [%]", row=3, col=2)
 
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Alignment Score",
-    height=800,  # Niedriger machen
+    height=900,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
@@ -546,6 +512,41 @@ fig.show()
 output_file = os.path.join(data_dir, "Alignment_number_correlation.jpg")
 # fig.write_image(output_file, format="jpg")
 
+# Electrodes to center
+fig = make_subplots(rows=1, cols=1)
+# Add scatter plots
+fig.add_trace(
+    go.Scatter(
+        y=data["Cycles to 70% capacity"],
+        x=data["electrodes_to_press"],
+        mode='markers',
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("electrodes to center: %{x}<br>" +
+                        "Cycles to 70% capacity: %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=1, col=1)
+
+fig.update_xaxes(title_text="Electrodes to center [mm]", row=1, col=1)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+
+# Update layout
+fig.update_layout(
+    title="Scatter Plots of Electrode Alignment to Center",
+    height=500,  # Niedriger machen
+    margin=dict(l=50, r=50, t=50, b=50))
+fig.show()
+
+#%% Plot anode/cathode
+
+
+
+
+
 #%% PCA
 
 pca = False
@@ -594,11 +595,6 @@ if pca:
     ax.axhline(0, linestyle=":", color="grey")
     ax.axvline(0, linestyle=":", color="grey")
     # plt.show()
-
-
-
-
-
 
 
 # %%
