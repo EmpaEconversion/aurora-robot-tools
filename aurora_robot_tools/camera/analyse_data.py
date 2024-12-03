@@ -85,6 +85,7 @@ electrodes_y = []
 electrodes_z = []
 electrodes_spring = []
 electrodes_spacer = []
+electrolyte_spacer_separator = []
 for cell in data["cell"].unique():
     cell_df = data[data['cell'] == cell]
     d27 = round(math.sqrt((cell_df["x2"].values - cell_df["x6"].values)**2
@@ -104,6 +105,13 @@ for cell in data["cell"].unique():
                                + (e_y - cell_df["y8"].values)**2), 3)
     e_spacer = round(math.sqrt((e_x - cell_df["x7"].values)**2
                                + (e_y - cell_df["y7"].values)**2), 3)
+    dist1 = round(math.sqrt((cell_df["x4"].values - cell_df["x5"].values)**2
+                          + (cell_df["y4"].values - cell_df["y5"].values)**2), 3)
+    dist2 = round(math.sqrt((cell_df["x5"].values - cell_df["x6"].values)**2
+                          + (cell_df["y5"].values - cell_df["y6"].values)**2), 3)
+    dist3 = round(math.sqrt((cell_df["x6"].values - cell_df["x4"].values)**2
+                          + (cell_df["y6"].values - cell_df["y4"].values)**2), 3)
+    electrol_spac_sep = (dist1 + dist2 + dist3)/3
     d27_list.append(d27)
     d28_list.append(d28)
     d67_list.append(d67)
@@ -114,6 +122,7 @@ for cell in data["cell"].unique():
     electrodes_z.append(e_z)
     electrodes_spring.append(e_spring)
     electrodes_spacer.append(e_spacer)
+    electrolyte_spacer_separator.append(electrol_spac_sep)
 
 data["d26"] = data["z_electrodes"]
 data["d27"] = d27_list
@@ -126,6 +135,7 @@ data["electrodes_y"] = electrodes_y
 data["electrodes_to_press"] = electrodes_z
 data["electrodes_spring"] = electrodes_spring
 data["electrodes_spacer"] = electrodes_spacer
+data["electrolyte_spacer_separator"] = electrolyte_spacer_separator
 
 # general score
 def normalize(values, c, k): # c: middle point / turning point; k: slope
@@ -532,8 +542,8 @@ fig.add_trace(
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        y=data["Specific discharge capacity 180th (mAh/g)"],
-        x=data["z5"],
+        y=data["Specific discharge capacity 180th (mAh/g)"], # Specific discharge capacity 180th (mAh/g)
+        x=data["z5"], # electrolyte_spacer_separator
         mode='markers',
         marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
