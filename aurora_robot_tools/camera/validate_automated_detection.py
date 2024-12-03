@@ -23,10 +23,10 @@ compare_modify = False
 #%%
 
 if compare_manual:
-    folder = "C:/lisc_gen14/json"
+    folder = "C:/241105_svfe_gen15/json"
 
     # Load the adjusted JSON file
-    name_adj = "alignment_adjusted.lisc_gen14.json"
+    name_adj = "alignment_adjusted.241105_svfe_gen15.json"
     data_dir_adj = os.path.join(folder, name_adj)
     with open(data_dir_adj, 'r') as file:
         data_adj = json.load(file)
@@ -37,11 +37,11 @@ if compare_manual:
     name_list = name_adj.split(".")
     name_list.pop()
     name_save = ".".join(map(str, name_list))
-    with pd.ExcelWriter(os.path.join("C:/lisc_gen14/data", "data_manual.xlsx")) as writer:
+    with pd.ExcelWriter(os.path.join("C:/241105_svfe_gen15/data", "data_manual.xlsx")) as writer:
         df_adj.to_excel(writer, sheet_name='coordinates', index=False)
 
     # Load the automated JSON file
-    data_dir = os.path.join(folder, "alignment.lisc_gen14.json")
+    data_dir = os.path.join(folder, "alignment.241105_svfe_gen15.json")
     with open(data_dir, 'r') as file:
         data = json.load(file)
     df = pd.DataFrame(data["alignment"]) # Convert the "alignment" key into a DataFrame
@@ -49,11 +49,13 @@ if compare_manual:
     print(df.head())
 
     # only look at one pressing tool:
-    p = 6
-    df_adj = df_adj[df_adj["press"] == p]
-    df = df[df["press"] == p]
+    # p = 6
+    # df_adj = df_adj[df_adj["press"] == p]
+    # df = df[df["press"] == p]
 
     # Compute difference
+    df_adj = df_adj.dropna()
+    df = df.dropna()
     numerical_columns = ["r_mm", "dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
     if df.shape == df_adj.shape:
         # Compute the difference
@@ -62,6 +64,7 @@ if compare_manual:
     else:
         raise ValueError("DataFrames df and df_adj must have the same shape")
     print(df_diff.head())
+    df_diff = df_diff.dropna()
 
     # Show differences in plot
     rows_to_plot = ["dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
