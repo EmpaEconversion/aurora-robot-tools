@@ -155,7 +155,7 @@ with pd.ExcelWriter(os.path.join(data_dir, "performance.xlsx")) as writer:
 data_analysis = data[["Fade rate 5-50 cycles (%/cycle)", "Cycles to 70% capacity",
                       "Initial specific discharge capacity (mAh/g)", "Specific discharge capacity 180th (mAh/g)",
                       "z2", "z6", "z8", "intersection_area", "d26", "electrodes_to_press",
-                      "electrodes_spring"]]
+                      "electrodes_spring", "z5"]]
 
 # correlation matrix
 correlation_matrix = data_analysis.corr()
@@ -462,44 +462,44 @@ fig.update_layout(
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
-# Capacity (Electrodes)
+# Spring
 fig = make_subplots(rows=1, cols=2)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
-        x=data["Cycles to 70% capacity"],
-        y=data["z8"],
+        y=data["Cycles to 70% capacity"],
+        x=data["z8"],
         mode='markers',
-        marker=dict(color=data["z8"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Cycles to 70% capacity: %{x}<br>" +
-                        "z8: %{y}<br>" +
+        hovertemplate=("z8: %{x}<br>" +
+                        "Cycles to 70% capacity: %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=1)
 fig.add_trace(
     go.Scatter(
-        x=data["Fade rate 5-50 cycles (%/cycle)"],
-        y=data["z8"],
+        y=data["Fade rate 5-50 cycles (%/cycle)"],
+        x=data["z8"],
         mode='markers',
-        marker=dict(color=data["z8"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        marker=dict(color=data["d26"], colorscale='viridis_r', colorbar=dict(title="electrodes [mm]")),
         text=("Cell: " + data["cell"].astype(str) + "<br>" +
               "d28: " + data["d28"].astype(str) + "<br>" +
               "d27: " + data["d27"].astype(str) + "<br>" +
               "d67: " + data["d67"].astype(str)),
-        hovertemplate=("Spec. dis. capacity 180th (mAh/g): %{x}<br>" +
-                        "z8: %{y}<br>" +
+        hovertemplate=("z8: %{x}<br>" +
+                        "Fade rate 5-50 cycles (%/cycle): %{y}<br>" +
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=2)
 
-fig.update_xaxes(title_text="Cycles to 70% capacity", row=1, col=1)
-fig.update_yaxes(title_text="Spring [mm]", row=1, col=1)
-fig.update_xaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=2)
-fig.update_yaxes(title_text="Spring [mm]", row=1, col=2)
+fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+fig.update_xaxes(title_text="Spring [mm]", row=1, col=1)
+fig.update_yaxes(title_text="Fade rate 5-50 cycles (%/cycle)", row=1, col=2)
+fig.update_xaxes(title_text="Spring [mm]", row=1, col=2)
 
 # Update layout
 fig.update_layout(
@@ -513,7 +513,7 @@ output_file = os.path.join(data_dir, "Alignment_number_correlation.jpg")
 # fig.write_image(output_file, format="jpg")
 
 # Electrodes to center
-fig = make_subplots(rows=1, cols=1)
+fig = make_subplots(rows=2, cols=1)
 # Add scatter plots
 fig.add_trace(
     go.Scatter(
@@ -530,20 +530,37 @@ fig.add_trace(
                         "%{text}<extra></extra>"),
         showlegend=False),
     row=1, col=1)
+fig.add_trace(
+    go.Scatter(
+        y=data["Specific discharge capacity 180th (mAh/g)"],
+        x=data["z5"],
+        mode='markers',
+        marker=dict(color=data["intersection_area"], colorscale='viridis_r', colorbar=dict(title="intersection_area [%]")),
+        text=("Cell: " + data["cell"].astype(str) + "<br>" +
+              "d28: " + data["d28"].astype(str) + "<br>" +
+              "d27: " + data["d27"].astype(str) + "<br>" +
+              "d67: " + data["d67"].astype(str)),
+        hovertemplate=("electrolyte: %{x}<br>" +
+                        "Specific discharge capacity 180th (mAh/g): %{y}<br>" +
+                        "%{text}<extra></extra>"),
+        showlegend=False),
+    row=2, col=1)
 
 fig.update_xaxes(title_text="Electrodes to center [mm]", row=1, col=1)
 fig.update_yaxes(title_text="Cycles to 70% capacity", row=1, col=1)
+fig.update_xaxes(title_text="electrolyte [mm]", row=2, col=1)
+fig.update_yaxes(title_text="Specific discharge capacity 180th (mAh/g)", row=2, col=1)
 
 # Update layout
 fig.update_layout(
     title="Scatter Plots of Electrode Alignment to Center",
-    height=500,  # Niedriger machen
+    height=900,  # Niedriger machen
     margin=dict(l=50, r=50, t=50, b=50))
 fig.show()
 
 #%% Plot anode/cathode
 
-
+# TODO !!!
 
 
 
