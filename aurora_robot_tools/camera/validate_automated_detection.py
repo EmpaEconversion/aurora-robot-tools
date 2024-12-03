@@ -16,18 +16,18 @@ import matplotlib.cm as cm
 
 #%%
 
-compare_manual = False
+compare_manual = True
 modify = False
 compare_modify = False
-significant_digits = True
+significant_digits = False
 
 #%%
 
 if compare_manual:
-    folder = "C:/241105_svfe_gen15/json"
+    folder = "C:/lisc_gen14/json"
 
     # Load the adjusted JSON file
-    name_adj = "alignment_adjusted.241105_svfe_gen15.json"
+    name_adj = "alignment_adjusted.lisc_gen14(2).json"
     data_dir_adj = os.path.join(folder, name_adj)
     with open(data_dir_adj, 'r') as file:
         data_adj = json.load(file)
@@ -38,11 +38,11 @@ if compare_manual:
     name_list = name_adj.split(".")
     name_list.pop()
     name_save = ".".join(map(str, name_list))
-    with pd.ExcelWriter(os.path.join("C:/241105_svfe_gen15/data", "data_manual.xlsx")) as writer:
+    with pd.ExcelWriter(os.path.join("C:/lisc_gen14/data", "data_manual.xlsx")) as writer:
         df_adj.to_excel(writer, sheet_name='coordinates', index=False)
 
     # Load the automated JSON file
-    data_dir = os.path.join(folder, "alignment.241105_svfe_gen15.json")
+    data_dir = os.path.join(folder, "alignment.lisc_gen14.json")
     with open(data_dir, 'r') as file:
         data = json.load(file)
     df = pd.DataFrame(data["alignment"]) # Convert the "alignment" key into a DataFrame
@@ -264,6 +264,7 @@ if significant_digits:
 
     # get one pressing tool position
     pressing_tools = [1, 2, 3, 4, 5, 6]
+    for tool in pressing_tools:
         # store values in dict & data frame:
         name_list = []
         x_mm_list = []
@@ -273,7 +274,7 @@ if significant_digits:
         # loop over dict to find pressing tool
         for key, value in image_dict.items():
             p = int(key.split(".")[0].split("_")[-1])
-            if p == pressing_tools:
+            if p == tool:
                 # convert to 8-Bit
                 value = value / np.max(value) * 255
                 img = value.astype(np.uint8)
