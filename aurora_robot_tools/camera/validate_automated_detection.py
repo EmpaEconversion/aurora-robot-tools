@@ -16,9 +16,10 @@ import matplotlib.cm as cm
 
 #%%
 
-compare_manual = True
+compare_manual = False
 modify = False
 compare_modify = False
+significant_digits = True
 
 #%%
 
@@ -239,3 +240,67 @@ if compare_modify:
     print(deviation_summary)
 
 # %%
+
+if significant_digits:
+
+    # import circle detection function:
+    from process_image import _detect_circles
+
+    # conversion factor
+    mm_to_pixel = 10
+    # path
+    path = "C:/lisc_gen14/significant_digits/images"
+    # no thickness correction needed since it is step 0
+
+    # Get images
+    image_dict = {}
+    # Iterate through all files in the folder
+    for filename in os.listdir(path):
+        if filename.lower().endswith('.jpg'):  # Check if file is a .jpg
+            file_path = os.path.join(path, filename)
+            image = cv2.imread(file_path)  # Read image as an array
+            if image is not None:
+                image_dict[filename] = image  # Add to dictionary
+
+    # get one pressing tool position
+    pressing_tools = [1, 2, 3, 4, 5, 6]
+        # store values in dict & data frame:
+        name_list = []
+        x_mm_list = []
+        y_mm_list = []
+        circles_dict = {}
+        circles_df = pd.DataFrame(columns = ["name", "x [mm]", "y [mm]"])
+        # loop over dict to find pressing tool
+        for key, value in image_dict.items():
+            p = int(key.split(".")[0].split("_")[-1])
+            if p == pressing_tools:
+                # convert to 8-Bit
+                value = value / np.max(value) * 255
+                img = value.astype(np.uint8)
+                # process image before detection
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                img = cv2.GaussianBlur(img, (5, 5), 2)
+                # detect circle
+                center, rad, image_with_circles = _detect_circles(img,
+                                                                (int(9.75*mm_to_pixel), int(10.25*mm_to_pixel)),
+                                                                (30, 50))
+                # convert to mm
+                center_mm = [tuple(ti/mm_to_pixel for ti in c) for c in center][0]
+                # x & y
+                x_mm = center_mm[0]
+                y_mm = center_mm[1]
+                # save center in dictionary
+                circles_dict[key.split(".")[0]] = center_mm
+                # row for data frame
+                name_list.append(key.split(".")[0])
+                x_mm_list.append(x_mm)
+                y_mm_list.append(y_mm)
+                # save image
+                cv2.imwrite(f'C:/lisc_gen14/significant_digits/detected_images/{key}', image_with_circles)
+
+        # save center in data frame
+        circles_df["name"] = name_list
+        circles_df["x [mm]"] = x_mm_list
+        circles_df["y [mm]"] = y_mm_list
+
+
