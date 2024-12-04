@@ -159,7 +159,7 @@ class ProcessImages:
         # Parameter which might need to be changes if camera position changes ----------------------
         self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
-        self.mm_to_pixel = 20
+        self.mm_to_pixel = 10
         self.offset_mm = 20 # mm
         self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
@@ -168,8 +168,8 @@ class ProcessImages:
         self.alignment_df = pd.DataFrame()
         # Parameter which might need to be changes if camera position changes ----------------------
         # radius of all parts from cell in mm (key corresponds to step)
-        self.r_part = {0: (9.5, 10.5), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.5, 8.5),
-                       5: (7.7, 8.5), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
+        self.r_part = {0: (9.75, 10.25), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.75, 8.25),
+                       5: (7.75, 8.25), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
                        10: (7.5, 8.5)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5), (6.25, 7.7)
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
@@ -451,8 +451,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
-        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
+        # sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
+        sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         # save json
         # Building JSON structure
