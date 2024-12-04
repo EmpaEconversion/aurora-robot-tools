@@ -115,22 +115,35 @@ batches_filename = r"G:\Limit\Lina Scholz\Cell Data\lisc_gen14\batch.lisc_gen14.
 batches_file = json.load(open(batches_filename))
 batches_data = batches_file['data']
 
+# read data from NMC622 graphite Eneas Cells
+enea = pd.read_excel(r"C:\Users\lisc\Downloads\hist_enea_img.xlsx")
+enea["Initial specific discharge capacity (mAh/g)"] = enea["Specific discharge capacity (mAh/g)"]
+enea["Sample ID"] = [(i + 1) for i in range(40, 40 + len(enea))]
+# Add a 'Group' column to the new data based on the `Sample ID`
+enea['Group'] = enea['Sample ID'].apply(
+    lambda x: 'normally aligned' if 2 <= x <= 17 else
+              ('misaligned cathode' if 18 <= x <= 36 else
+               ('reference' if x > 36 else 'Other'))
+)
+
 # It is useful to split the lists and non-lists into separate dataframes
 # This df is huge and contains all the cycles for every sample
 batches_list_df = pd.concat([pd.DataFrame(d) for d in batches_data]).reset_index(drop=True)
 
 # Create a new column for the group based on the Sample ID
 batches_list_df['Group'] = batches_list_df['Sample ID'].str[-2:].astype(int)  # Extract the last two digits
-batches_list_df['Group'] = batches_list_df['Group'].apply(lambda x: 'normally aligned' if 2 <= x <= 17 else ('misaligned cathode' if 18 <= x <= 26 else 'Other'))
+batches_list_df['Group'] = batches_list_df['Group'].apply(lambda x: 'normally aligned' if 2 <= x <= 17 else ('misaligned cathode' if 18 <= x <= 36 else 'Other'))
 
 # Filter out 'Other' groups if needed
 batches_list_df = batches_list_df[batches_list_df['Group'] != 'Other']
 
 # Drop duplicates in the 'Initial specific discharge capacity (mAh/g)' column
 batches_list_df_unique = batches_list_df.drop_duplicates(subset="Initial specific discharge capacity (mAh/g)")
+# Combine the new data with the existing DataFrame
+combined_df = pd.concat([batches_list_df_unique, enea])
 
 # Create a custom color palette for the groups
-palette = {'normally aligned': 'blue', 'misaligned cathode': 'red'}
+palette = {'normally aligned': 'blue', 'misaligned cathode': 'red', 'reference': 'green'}
 
 # Create the sns lineplot
 sns.lineplot(
@@ -147,6 +160,21 @@ plt.title("Seaborn lineplot")
 plt.show()
 
 # Create the histogram
+sns.histplot(
+    data=combined_df,
+    x="Initial specific discharge capacity (mAh/g)",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.title("Histogram of Initial Specific Discharge Capacity")
+plt.xlabel("Initial Specific Discharge Capacity (mAh/g)")
+plt.ylabel("Count")
+plt.show()
+
+# Create the histogram with eneas data
 sns.histplot(
     data=batches_list_df_unique,
     x="Initial specific discharge capacity (mAh/g)",
