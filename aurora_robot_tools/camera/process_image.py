@@ -159,7 +159,7 @@ class ProcessImages:
         # Parameter which might need to be changes if camera position changes ----------------------
         self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
         self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
-        self.mm_to_pixel = 10
+        self.mm_to_pixel = 20
         self.offset_mm = 20 # mm
         self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
