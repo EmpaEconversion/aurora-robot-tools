@@ -114,7 +114,7 @@ def _convolution(image: np.array, filter: np.array, i: bool) -> np.array:
     """ Takes image an convolutes with the given filter
     """
     image_convolved = signal.convolve2d(image, filter, boundary='symm', mode='same')
-    if i == True:
+    if i:
         # Compute the magnitude of the complex result
         image_convolved = np.abs(image_convolved)
     # Normalize the magnitude to the range [0, 255] and convert to uint8
@@ -443,7 +443,7 @@ class ProcessImages:
             y_corrected.append(coords_corrected[1])
         df["dx_mm_corr"] = x_corrected
         df["dy_mm_corr"] = y_corrected
-        df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(3)
+        df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(5)
         self.df = df
         return df
 
@@ -451,8 +451,8 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        # sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
-        sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
+        sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
+        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         # save json
         # Building JSON structure
