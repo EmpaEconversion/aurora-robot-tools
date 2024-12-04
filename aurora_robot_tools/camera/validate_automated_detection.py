@@ -17,9 +17,9 @@ from process_image import ProcessImages
 
 #%%
 
-compare_manual = False
+compare_manual = True
 modify = False
-compare_modify = True
+compare_modify = False
 significant_digits = False
 
 #%%
@@ -218,7 +218,7 @@ if compare_modify:
         # Prepare data for boxplots
         data = [deviation_df1[col], deviation_df2[col]]
         # Create the boxplot
-        ax.boxplot(data, labels=["smallwarping", "blur"])
+        ax.boxplot(data, tick_labels=["smallwarping", "blur"])
         ax.set_title(f"Deviation in {col}")
         ax.set_ylabel("Deviation [mm]")
         ax.set_xlabel("Method")
