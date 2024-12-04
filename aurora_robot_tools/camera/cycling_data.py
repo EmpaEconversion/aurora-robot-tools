@@ -12,6 +12,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
 
 #%%
 
@@ -108,6 +110,59 @@ plt.show()
 
 #%%
 
+# Batches files are also JSON, and contain a list of cycles files
+batches_filename = r"G:\Limit\Lina Scholz\Cell Data\lisc_gen14\batch.lisc_gen14.json"
+batches_file = json.load(open(batches_filename))
+batches_data = batches_file['data']
+
+# It is useful to split the lists and non-lists into separate dataframes
+# This df is huge and contains all the cycles for every sample
+batches_list_df = pd.concat([pd.DataFrame(d) for d in batches_data]).reset_index(drop=True)
+
+# Create a new column for the group based on the Sample ID
+batches_list_df['Group'] = batches_list_df['Sample ID'].str[-2:].astype(int)  # Extract the last two digits
+batches_list_df['Group'] = batches_list_df['Group'].apply(lambda x: 'normally aligned' if 2 <= x <= 17 else ('misaligned cathode' if 18 <= x <= 26 else 'Other'))
+
+# Filter out 'Other' groups if needed
+batches_list_df = batches_list_df[batches_list_df['Group'] != 'Other']
+
+# Drop duplicates in the 'Initial specific discharge capacity (mAh/g)' column
+batches_list_df_unique = batches_list_df.drop_duplicates(subset="Initial specific discharge capacity (mAh/g)")
+
+# Create a custom color palette for the groups
+palette = {'normally aligned': 'blue', 'misaligned cathode': 'red'}
+
+# Create the sns lineplot
+sns.lineplot(
+    data=batches_list_df,
+    x="Cycle",
+    y="Specific discharge capacity (mAh/g)",
+    hue='Group',           # Use Group for coloring the lines
+    palette=palette,       # Specify the colors for each group
+    style='Group',         # This will differentiate the groups by line style
+    markers=True           # Optional, to add markers to the lines
+)
+plt.xlim(0, 500)
+plt.title("Seaborn lineplot")
+plt.show()
+
+# Create the histogram
+sns.histplot(
+    data=batches_list_df_unique,
+    x="Initial specific discharge capacity (mAh/g)",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.title("Histogram of Initial Specific Discharge Capacity")
+plt.xlabel("Initial Specific Discharge Capacity (mAh/g)")
+plt.ylabel("Count")
+plt.show()
+
+#%%
+
 # Create a combined DataFrame with Cycle, Specific discharge capacity, and Cell info for hover
 all_data = []
 for key, value in cells.items():
@@ -117,19 +172,25 @@ for key, value in cells.items():
 # Combine the data from all cells into one DataFrame
 df_combined = pd.concat(all_data)
 
+# Define groups based on the Cell column
+df_combined["Group"] = pd.cut(
+    df_combined["Cell"], bins=[1, 17, 36], labels=["2-17", "18-36"], right=True
+)
+
 # Create a Plotly scatter plot
-fig = px.scatter(df_combined, 
-                 x="Cycle", 
-                 y="Specific discharge capacity (mAh/g)", 
-                 color="Cell",  # Use 'Cell' to assign colors based on the key
-                 labels={"Cycle": "Cycle", "Specific discharge capacity (mAh/g)": "Specific discharge capacity (mAh/g)"},
+fig = px.scatter(df_combined,
+                 x="Cycle",
+                 y="Specific discharge capacity (mAh/g)",
+                 color="Group",  # Use 'Group' to assign colors based on the groups
+                 labels={"Cycle": "Cycle", 
+                         "Specific discharge capacity (mAh/g)": "Specific discharge capacity (mAh/g)"},
                  hover_data=["Cell"],  # Show the 'Cell' key on hover
-                 color_continuous_scale="viridis",  # Use the viridis colormap
+                 color_discrete_map={"2-17": "blue", "18-36": "orange"},  # Define custom colors for groups
                  title="Discharge Capacity vs. Cycle Number")
 
 # Update layout to move the legend outside the plot
 fig.update_layout(
-    legend_title="Cell",
+    legend_title="Group",
     legend=dict(
         x=1.05,  # Place legend outside
         y=1,     # Position it at the top
