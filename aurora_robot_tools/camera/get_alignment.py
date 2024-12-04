@@ -2,7 +2,7 @@
 
 Script to analyse center coordinates and alignment of different parts from the data of proces_images.py.
 
-Super messy, sorry for that. Probably also very lengthy and many unnesessary steps... ooops. TODO for later!
+Super messy, sorry for that. Probably also very lengthy and many unnesessary steps.... TODO for later
 """
 
 import math
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 class Alignment:
     def __init__(self, path):
         self.path = path # path to images
-        self.df = pd.read_excel(os.path.join(path, "data/data_manual.xlsx"), sheet_name="coordinates")
+        self.df = pd.read_excel(os.path.join(path, "data/data_manual_final.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
                                                   "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
                                                   "x5", "y5", "z5", "x6", "y6", "z6", "x7", "y7", "z7",
@@ -157,8 +157,8 @@ class Alignment:
                 ax.set_xlim([-25, 25])
                 ax.set_ylim([-25, 25])
             else:
-                ax.set_xlim([-3, 3])
-                ax.set_ylim([-3, 3])
+                ax.set_xlim([-2.1, 2.1])
+                ax.set_ylim([-2.1, 2.1])
             ax.grid(True)
 
             # Save the plot as a JPG file named by the cell number
@@ -173,7 +173,7 @@ class Alignment:
         data_dir = os.path.join(self.path, "data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        with pd.ExcelWriter(os.path.join(data_dir, "alignment_manual.xlsx")) as writer:
+        with pd.ExcelWriter(os.path.join(data_dir, "alignment_manual_final.xlsx")) as writer:
             self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
 
         return self.alignment_df

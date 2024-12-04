@@ -28,7 +28,7 @@ if compare_manual:
     folder = "C:/lisc_gen14/json"
 
     # Load the adjusted JSON file
-    name_adj = "alignment_adjusted.lisc_gen14(2).json"
+    name_adj = "alignment_final_adjusted.lisc_gen14.json"
     data_dir_adj = os.path.join(folder, name_adj)
     with open(data_dir_adj, 'r') as file:
         data_adj = json.load(file)
@@ -39,11 +39,11 @@ if compare_manual:
     name_list = name_adj.split(".")
     name_list.pop()
     name_save = ".".join(map(str, name_list))
-    with pd.ExcelWriter(os.path.join("C:/lisc_gen14/data", "data_manual.xlsx")) as writer:
+    with pd.ExcelWriter(os.path.join("C:/lisc_gen14/data", "data_manual_final.xlsx")) as writer:
         df_adj.to_excel(writer, sheet_name='coordinates', index=False)
 
     # Load the automated JSON file
-    data_dir = os.path.join(folder, "alignment.lisc_gen14.json")
+    data_dir = os.path.join(folder, "alignment_final.lisc_gen14.json")
     with open(data_dir, 'r') as file:
         data = json.load(file)
     df = pd.DataFrame(data["alignment"]) # Convert the "alignment" key into a DataFrame
