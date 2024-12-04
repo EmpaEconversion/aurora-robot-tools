@@ -10,15 +10,16 @@ import json
 import h5py
 import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+from process_image import ProcessImages
+
 #%%
 
-compare_manual = True
+compare_manual = False
 modify = False
-compare_modify = False
+compare_modify = True
 significant_digits = False
 
 #%%
@@ -55,8 +56,6 @@ if compare_manual:
     # df = df[df["press"] == p]
 
     # Compute difference
-    df_adj = df_adj.dropna()
-    df = df.dropna()
     numerical_columns = ["r_mm", "dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
     if df.shape == df_adj.shape:
         # Compute the difference
@@ -198,46 +197,42 @@ if compare_modify:
     # Evaluate the robustness of the circle detection with the modified images
     df_ref = pd.read_excel("C:/241127_modified_images/original/data/data.xlsx")
     df1 = pd.read_excel("C:/241127_modified_images/smallwarping/data/data.xlsx")
-    df2 = pd.read_excel("C:/241127_modified_images/crop/data/data.xlsx")
-    df3 = pd.read_excel("C:/241127_modified_images/blur/data/data.xlsx")
-
-    # List of DataFrames and variable names to compare
-    data_frames = [df1, df2, df3]
-    variables = ['r_mm', 'x', 'y']
-
-    # Dictionary to store deviations for each DataFrame
-    deviation_summary = {}
+    df2 = pd.read_excel("C:/241127_modified_images/blur/data/data.xlsx")
 
     # Calculate deviations
-    for i, df in enumerate(data_frames, start=1):
-        deviations = {}
-        for var in variables:
-            # Compute absolute deviations
-            deviations[var] = np.abs(df[var] - df_ref[var])
-        deviation_summary[f"data{i}"] = deviations
+    deviation_df1 = df1[["r_mm", "dx_mm", "dy_mm"]] - df_ref[["r_mm", "dx_mm", "dy_mm"]]
+    deviation_df2 = df2[["r_mm", "dx_mm", "dy_mm"]] - df_ref[["r_mm", "dx_mm", "dy_mm"]]
 
-    # Summarize deviations numerically
-    summary_table = {}
-    for name, devs in deviation_summary.items():
-        summary_table[name] = {var: dev.mean() for var, dev in devs.items()}
+    # drop nan
+    deviation_df1 = deviation_df1.dropna()
+    deviation_df2 = deviation_df2.dropna()
 
-    # Convert summary to a DataFrame for visualization
-    summary_df = pd.DataFrame(summary_table).T
-    print("Deviation Summary (Mean Absolute Deviations):")
-    print(summary_df)
+    # Define the columns to consider
+    columns = ["r_mm", "dx_mm", "dy_mm"]
 
-    # Plot deviations for each variable
-    plt.figure(figsize=(14, 10))
-    for i, var in enumerate(variables, start=1):
-        plt.subplot(2, 2, i)
-        sns.boxplot(data=[deviation_summary[f"data{j}"][var] for j in range(1, 4)])  # Adjusted to range(1, 4)
-        plt.xticks(ticks=range(3), labels=[f"data{j}" for j in range(1, 4)])  # Adjusted to 3 labels
-        plt.title(f"Deviations of {var}")
-        plt.ylabel("Deviation")
+    # Create the subplots
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+
+    for i, col in enumerate(columns):
+        ax = axes[i]
+        # Prepare data for boxplots
+        data = [deviation_df1[col], deviation_df2[col]]
+        # Create the boxplot
+        ax.boxplot(data, labels=["smallwarping", "blur"])
+        ax.set_title(f"Deviation in {col}")
+        ax.set_ylabel("Deviation [mm]")
+        ax.set_xlabel("Method")
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+
+        # Calculate and annotate standard deviation
+        std_devs = [np.std(deviation_df1[col]), np.std(deviation_df2[col])]
+        for j, std in enumerate(std_devs):
+            ax.text(j + 1, max(data[j]) + 0.1, f"σ={std:.2f}",
+                    ha='center', va='bottom', fontsize=10, color='blue')
+
+    # Adjust layout and show the plot
     plt.tight_layout()
     plt.show()
-
-    print(deviation_summary)
 
 # %%
 
@@ -262,15 +257,16 @@ if significant_digits:
             if image is not None:
                 image_dict[filename] = image  # Add to dictionary
 
-    # get one pressing tool position
+    # loop over pressing tool positions
     pressing_tools = [1, 2, 3, 4, 5, 6]
+    # create data frame with values
+    circles_df = pd.DataFrame()
     for tool in pressing_tools:
         # store values in dict & data frame:
         name_list = []
         x_mm_list = []
         y_mm_list = []
         circles_dict = {}
-        circles_df = pd.DataFrame(columns = ["name", "x [mm]", "y [mm]"])
         # loop over dict to find pressing tool
         for key, value in image_dict.items():
             p = int(key.split(".")[0].split("_")[-1])
@@ -300,8 +296,20 @@ if significant_digits:
                 cv2.imwrite(f'C:/lisc_gen14/significant_digits/detected_images/{key}', image_with_circles)
 
         # save center in data frame
-        circles_df["name"] = name_list
-        circles_df["x [mm]"] = x_mm_list
-        circles_df["y [mm]"] = y_mm_list
+        # circles_df[f"name {tool}"] = name_list
+        circles_df[f"x{tool} [mm]"] = x_mm_list
+        circles_df[f"y{tool} [mm]"] = y_mm_list
 
+    print(circles_df)
 
+    # Run full image (not only image sections)
+
+    # PARAMETER
+    folderpath = "G:/Limit/Lina Scholz/Images Camera Adjustment/11 Same Image Different Light"
+    # CLASS & FUNCTIONS
+    obj = ProcessImages(folderpath)
+    list = obj.load_files()
+    df = obj.store_data(list)
+    df = obj.get_centers(df)
+    df = obj.correct_for_thickness(df)
+    coordinates_df = obj.save()
