@@ -18,7 +18,7 @@ df = df.sort_values(by=["cell"]).reset_index(drop=True)
 
 # Calculate grid positions
 df["grid_x"] = df["press"]
-df["grid_y"] = (df["cell"] - 2) // 6 + 1  # Batch positions
+df["grid_y"] = (df["cell"] - 1) // 6 + 1  # Batch positions
 
 # Create the plot
 fig, ax = plt.subplots(figsize=(8, 8), layout="tight")
@@ -49,7 +49,7 @@ handles = [
     plt.Line2D([0], [0], color="blue", marker="o", linestyle="None", label="Anode"),
     plt.Line2D([0], [0], color="red", marker="o", linestyle="None", label="Cathode"),
 ]
-ax.legend(handles=handles, loc="upper left", fontsize = 14)
+ax.legend(handles=handles, loc="lower left", fontsize = 14)
 
 # Set axis limits and labels
 ax.set_xlim(0, (df["grid_x"].max() + 1) * offset)
