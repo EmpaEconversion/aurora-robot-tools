@@ -17,9 +17,9 @@ from process_image import ProcessImages
 
 #%%
 
-compare_manual = True
+compare_manual = False
 modify = False
-compare_modify = False
+compare_modify = True
 significant_digits = False
 
 #%%
@@ -51,9 +51,9 @@ if compare_manual:
     print(df.head())
 
     # only look at one pressing tool:
-    # p = 6
-    # df_adj = df_adj[df_adj["press"] == p]
-    # df = df[df["press"] == p]
+    p = 1
+    df_adj = df_adj[df_adj["press"] == p]
+    df = df[df["press"] == p]
 
     # Compute difference
     numerical_columns = ["r_mm", "dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
@@ -82,6 +82,7 @@ if compare_manual:
 
     # Y-Axis labels
     y_labels = ["dx automatic\n- dx manual\n", "dy automatic\n- dy manual\n", "r automatic\n- r manual\n"]
+    y_labels = ["$\Delta$x", "$\Delta$y", "$\Delta$r"]
     # Titles
     titles = {0: "Pressing Tool", 2: "Anode", 6: "Cathode", 8: "Spring"}
 
@@ -119,10 +120,10 @@ if compare_manual:
 
 if modify:
     # Generate modified images to check robustness
-    modification = "original"  # Change this to "warping", "extremewarping", "smallwarping", "blur", or "crop"
+    modification = "crop"  # Change this to "warping", "extremewarping", "smallwarping", "blur", or "crop"
     # Input and output directories
     input_folder = r"C:\241127_modified_images\raw"
-    output_folder = "C:/241127_modified_images/original"
+    output_folder = "C:/241127_modified_images/crop"
 
     # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
@@ -176,7 +177,7 @@ if modify:
             elif modification == "crop":
                 # Crop 1/3 of the image from the right
                 rows, cols = content.shape[:2]
-                crop_cols = cols * 2 // 3  # Retain only 2/3 of the width
+                crop_cols = cols * 11 // 12  # Retain only 2/3 of the width
                 modified_image = content[:, :crop_cols]
             else:
                 modified_image = content
@@ -187,9 +188,9 @@ if modify:
                 f.create_dataset('image', data=modified_image)
 
             # Optional: Display the modified image
-            # plt.imshow(modified_image, cmap='gray')
-            # plt.title(f"Modified Image ({modification}): {filename}")
-            # plt.show()
+            plt.imshow(modified_image, cmap='gray')
+            plt.title(f"Modified Image ({modification}): {filename}")
+            plt.show()
 
 #%%
 
@@ -198,34 +199,44 @@ if compare_modify:
     df_ref = pd.read_excel("C:/241127_modified_images/original/data/data.xlsx")
     df1 = pd.read_excel("C:/241127_modified_images/smallwarping/data/data.xlsx")
     df2 = pd.read_excel("C:/241127_modified_images/blur/data/data.xlsx")
+    df3 = pd.read_excel("C:/241127_modified_images/crop/data/data.xlsx")
 
     # Calculate deviations
-    deviation_df1 = df1[["r_mm", "dx_mm", "dy_mm"]] - df_ref[["r_mm", "dx_mm", "dy_mm"]]
-    deviation_df2 = df2[["r_mm", "dx_mm", "dy_mm"]] - df_ref[["r_mm", "dx_mm", "dy_mm"]]
+    deviation_df1 = df1[["dx_mm", "dy_mm"]] - df_ref[["dx_mm", "dy_mm"]]
+    deviation_df2 = df2[["dx_mm", "dy_mm"]] - df_ref[["dx_mm", "dy_mm"]]
+    deviation_df3 = df3[["dx_mm", "dy_mm"]] - df_ref[["dx_mm", "dy_mm"]]
 
     # drop nan
     deviation_df1 = deviation_df1.dropna()
     deviation_df2 = deviation_df2.dropna()
+    deviation_df3 = deviation_df3.dropna()
 
     # Define the columns to consider
-    columns = ["r_mm", "dx_mm", "dy_mm"]
+    columns = ["dx_mm", "dy_mm"]
 
     # Create the subplots
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5), sharey=True, layout="tight")
 
     for i, col in enumerate(columns):
         ax = axes[i]
         # Prepare data for boxplots
-        data = [deviation_df1[col], deviation_df2[col]]
+        data = [deviation_df1[col], deviation_df2[col], deviation_df3[col]]
         # Create the boxplot
-        ax.boxplot(data, tick_labels=["smallwarping", "blur"])
+        ax.boxplot(
+            data,
+            patch_artist=True,
+            medianprops={"color": "red"},  # Red median line
+            boxprops={"facecolor": "lightgrey", "edgecolor": "black"},  # Grey box with black border
+            labels=["warping", "blur", "crop"]
+            )
         ax.set_title(f"Deviation in {col}")
-        ax.set_ylabel("Deviation [mm]")
+        if i == 0:
+            ax.set_ylabel("Deviation [mm]")
         ax.set_xlabel("Method")
         ax.grid(axis='y', linestyle='--', alpha=0.7)
 
         # Calculate and annotate standard deviation
-        std_devs = [np.std(deviation_df1[col]), np.std(deviation_df2[col])]
+        std_devs = [np.std(deviation_df1[col]), np.std(deviation_df2[col]), np.std(deviation_df3[col])]
         for j, std in enumerate(std_devs):
             ax.text(j + 1, max(data[j]) + 0.1, f"σ={std:.2f}",
                     ha='center', va='bottom', fontsize=10, color='blue')
