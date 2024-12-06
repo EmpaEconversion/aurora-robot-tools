@@ -69,9 +69,8 @@ ax.set_xticklabels(np.arange(1, len(xtick_positions) + 1))
 
 # Relabel the y-axis
 ytick_positions = np.arange(offset, (df["grid_y"].max() + 1) * offset, offset)
-ytick_labels = np.arange(len(ytick_positions), 0, -1)  # Reverse the labels (6, 5, 4, ...)
 ax.set_yticks(ytick_positions)
-ax.set_yticklabels(ytick_labels, fontsize=14)
+ax.set_yticklabels(np.arange(1, len(ytick_positions) + 1))
 
 # Sizes
 ax.tick_params(axis="both", labelsize=14)
