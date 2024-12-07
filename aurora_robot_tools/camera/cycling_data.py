@@ -17,7 +17,9 @@ import seaborn as sns
 
 #%%
 
-cycling_data = r"G:\Limit\Lina Scholz\Cell Data\batch.lisc_gen14.json"
+lineplot = False
+
+cycling_data = r"G:\Limit\Lina Scholz\Cell Data\lisc_gen14\batch.lisc_gen14.json"
 
 keys = ['Sample ID', 'Cycle', 'Charge capacity (mAh)', 'Discharge capacity (mAh)', 'Efficiency (%)',
         'Specific charge capacity (mAh/g)', 'Specific discharge capacity (mAh/g)', 'Normalised discharge capacity (%)',
@@ -57,26 +59,31 @@ cells = collections.OrderedDict(sorted(cells.items()))
 
 #%%
 
+# Get Seaborn's default blue and red
+sns_palette = sns.color_palette("deep")
+seaborn_blue = sns_palette[0]  # First color in the palette (blue)
+seaborn_red = sns_palette[3]   # Fourth color in the palette (red)
+
 fig, ax = plt.subplots()
 x = "Cycle"
 y = "Specific discharge capacity (mAh/g)"
 # Farben für die Gruppen
-color_group1 = "blue"
-color_group2 = "purple"
+color_group1 = seaborn_blue
+color_group2 = seaborn_red
 # Plotten der Punkte mit farblicher Gruppierung
 for key, value in cells.items():
     if 2 <= key <= 17:  # Gruppe 1
-        ax.scatter(value[x], value[y], color=color_group1, s=8)
+        ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.4)
     elif key >= 18:  # Gruppe 2
-        ax.scatter(value[x], value[y], color=color_group2, s=8)
+        ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.4)
 # Achsenbeschriftungen
-ax.set_xlabel(f"{x}", fontsize=14)
-ax.set_ylabel(f"{y}", fontsize=14)
-ax.set_xlim(4, 230)
+ax.set_xlabel(f"{x}", fontsize=12)
+ax.set_ylabel(f"{y}", fontsize=12)
+ax.set_xlim(4, 350)
 # Manuelle Legende für die Gruppen
 group_legend_handles = [
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
-    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned on purpose")
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
 ]
 ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=10)
 plt.tight_layout()
@@ -87,8 +94,8 @@ fig, ax = plt.subplots()
 x = "Cell Number"
 y = "Cycles to 70% capacity"
 # Farben für die Gruppen
-color_group1 = "blue"
-color_group2 = "purple"
+color_group1 = seaborn_blue
+color_group2 = seaborn_red
 # Plotten der Punkte mit farblicher Gruppierung
 for key, value in cells.items():
     if 2 <= key <= 17:  # Gruppe 1
@@ -128,7 +135,7 @@ enea['Group'] = enea['Sample ID'].apply(
 
 # It is useful to split the lists and non-lists into separate dataframes
 # This df is huge and contains all the cycles for every sample
-batches_list_df = pd.concat([pd.DataFrame(d) for d in batches_data]).reset_index(drop=True)
+batches_list_df = pd.concat([pd.DataFrame(d).iloc[:300] for d in batches_data]).reset_index(drop=True)
 
 # Create a new column for the group based on the Sample ID
 batches_list_df['Group'] = batches_list_df['Sample ID'].str[-2:].astype(int)  # Extract the last two digits
@@ -142,24 +149,46 @@ batches_list_df_unique = batches_list_df.drop_duplicates(subset="Initial specifi
 # Combine the new data with the existing DataFrame
 combined_df = pd.concat([batches_list_df_unique, enea])
 
+# x over y
+single_cell_values = batches_list_df.drop_duplicates(subset="Sample ID")
+x_value = "Sample ID"
+y_value = "Initial efficiency (%)"
+fig, ax = plt.subplots(layout="tight")
+ax.scatter(single_cell_values[x_value], single_cell_values[y_value])
+ax.set_xlabel(x_value)
+ax.set_xticklabels(ax.get_xticks(), rotation = 90)
+ax.set_ylabel(y_value)
+plt.show()
+
+# x over y
+single_cell_values = batches_list_df.drop_duplicates(subset="Sample ID")
+x_value = "Sample ID"
+y_value = "Initial specific discharge capacity (mAh/g)"
+fig, ax = plt.subplots(layout="tight")
+ax.scatter(single_cell_values[x_value], single_cell_values[y_value])
+ax.set_xlabel(x_value)
+ax.set_xticklabels(ax.get_xticks(), rotation = 90)
+ax.set_ylabel(y_value)
+plt.show()
+
 # Create a custom color palette for the groups
 palette = {'normally aligned': 'blue', 'misaligned cathode': 'red', 'reference': 'green'}
 
 # Create the sns lineplot
-sns.lineplot(
-    data=batches_list_df,
-    x="Cycle",
-    y="Specific discharge capacity (mAh/g)",
-    hue='Group',           # Use Group for coloring the lines
-    palette=palette,       # Specify the colors for each group
-    style='Group',         # This will differentiate the groups by line style
-    markers=True           # Optional, to add markers to the lines
-)
-plt.xlim(0, 500)
-plt.title("Seaborn lineplot")
-plt.show()
+if lineplot:
+    sns.lineplot(
+        data=batches_list_df,
+        x="Cycle",
+        y="Specific discharge capacity (mAh/g)",
+        hue='Group',           # Use Group for coloring the lines
+        palette=palette,       # Specify the colors for each group
+        style='Group',         # This will differentiate the groups by line style
+        markers=True           # Optional, to add markers to the lines
+    )
+    plt.xlim(0, 350)
+    plt.show()
 
-# Create the histogram
+# Create the histogram with eneas data
 sns.histplot(
     data=combined_df,
     x="Initial specific discharge capacity (mAh/g)",
@@ -169,12 +198,11 @@ sns.histplot(
     kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
     bins=30,               # Number of bins (you can adjust this depending on your data)
 )
-plt.title("Histogram of Initial Specific Discharge Capacity")
-plt.xlabel("Initial Specific Discharge Capacity (mAh/g)")
-plt.ylabel("Count")
+plt.xlabel("Initial Specific Discharge Capacity (mAh/g)", fontsize=12)
+plt.ylabel("Count", fontsize=12)
 plt.show()
 
-# Create the histogram with eneas data
+# Create the histogram with Initial specific discharge capacity (mAh/g) // First formation specific discharge capacity (mAh/g)
 sns.histplot(
     data=batches_list_df_unique,
     x="Initial specific discharge capacity (mAh/g)",
@@ -184,10 +212,64 @@ sns.histplot(
     kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
     bins=30,               # Number of bins (you can adjust this depending on your data)
 )
-plt.title("Histogram of Initial Specific Discharge Capacity")
-plt.xlabel("Initial Specific Discharge Capacity (mAh/g)")
-plt.ylabel("Count")
+plt.xlabel("Initial Specific Discharge Capacity (mAh/g)", fontsize=12)
+plt.ylabel("Count", fontsize=12)
 plt.show()
+#
+sns.histplot(
+    data=batches_list_df_unique,
+    x="First formation specific discharge capacity (mAh/g)",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.xlabel("First formation specific discharge capacity (mAh/g)", fontsize=12)
+plt.ylabel("Count", fontsize=12)
+plt.show()
+
+# Create the histogram with Initial efficiency (%) // First formation efficiency (%)
+sns.histplot(
+    data=batches_list_df_unique,
+    x="Initial efficiency (%)",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.xlabel("Initial efficiency (%)", fontsize=12)
+plt.ylabel("Count", fontsize=12)
+plt.show()
+#
+sns.histplot(
+    data=batches_list_df_unique,
+    x="First formation efficiency (%)",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.xlabel("First formation efficiency (%)", fontsize=12)
+plt.ylabel("Count", fontsize=12)
+plt.show()
+
+# Create the histogram with Cycles to 70% capacity
+sns.histplot(
+    data=batches_list_df_unique,
+    x="Cycles to 70% capacity",
+    hue="Group",           # Grouping by 'Group' for different colors
+    palette=palette,       # Specify colors for each group
+    multiple="stack",      # Stack the histograms for visual comparison
+    kde=True,             # Optional: Add a kernel density estimate (set to True for smooth curves)
+    bins=30,               # Number of bins (you can adjust this depending on your data)
+)
+plt.xlabel("Cycles to 70% capacity", fontsize=12)
+plt.ylabel("Count", fontsize=12)
+plt.show()
+
 
 #%%
 
@@ -210,11 +292,10 @@ fig = px.scatter(df_combined,
                  x="Cycle",
                  y="Specific discharge capacity (mAh/g)",
                  color="Group",  # Use 'Group' to assign colors based on the groups
-                 labels={"Cycle": "Cycle", 
+                 labels={"Cycle": "Cycle",
                          "Specific discharge capacity (mAh/g)": "Specific discharge capacity (mAh/g)"},
                  hover_data=["Cell"],  # Show the 'Cell' key on hover
-                 color_discrete_map={"2-17": "blue", "18-36": "orange"},  # Define custom colors for groups
-                 title="Discharge Capacity vs. Cycle Number")
+                 color_discrete_map={"2-17": "blue", "18-36": "orange"})  # Define custom colors for groups
 
 # Update layout to move the legend outside the plot
 fig.update_layout(
@@ -226,7 +307,7 @@ fig.update_layout(
         orientation="h",  # Horizontal legend
         font=dict(size=10)
     ),
-    xaxis=dict(range=[4, 230])  # Set x-axis limits
+    xaxis=dict(range=[4, 350])  # Set x-axis limits
 )
 
 # Show the plot
