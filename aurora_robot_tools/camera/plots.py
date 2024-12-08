@@ -92,7 +92,9 @@ performance = pd.read_excel("C:/lisc_gen14/data/performance_final.xlsx")
 # Cycles to 70% capacity, Initial efficiency (%)
 
 plots2 = False
-plots3 = True
+plots3 = False
+plots4 = False
+plots5 = True
 
 if plots2:
     y_list = ["Fade rate 5-150 cycles (%/cycle)",  "Initial specific discharge capacity (mAh/g)",
@@ -105,7 +107,7 @@ if plots2:
         ax.scatter(performance[x], performance[y])
         ax.set_xlabel("electrode alignment")
         ax.set_ylabel(y)
-        #plt.show()
+        plt.show()
 
     x = "electrodes_to_press"
     for y in y_list:
@@ -113,7 +115,7 @@ if plots2:
         ax.scatter(performance[x], performance[y])
         ax.set_xlabel(x)
         ax.set_ylabel(y)
-        # plt.show()
+        plt.show()
 
 if plots3:
     x = "press"
@@ -125,8 +127,6 @@ if plots3:
         plt.show()
 
 #%%
-
-plots4 = False
 
 if plots4:
     x = "d26"
@@ -143,6 +143,33 @@ if plots4:
 
     fig, axes = plt.subplots(1, len(ys), figsize=(8, 4), constrained_layout=True)
     for i, y in enumerate(ys):
+        # Scatter plot with regression line
+        sns.regplot(x=performance[x], y=performance[y], ax=axes[i], scatter_kws={"s": 20}, line_kws={"color": "blue"})
+
+        # Calculate r and p values
+        r, p = stats.pearsonr(performance[x], performance[y])
+
+        # Annotate r and p values
+        axes[i].text(
+            0.05, 0.95, f"r={r:.2f}, p={p:.1e}", 
+            transform=axes[i].transAxes, 
+            ha="left", va="top", fontsize=10
+        )
+        # Labels and ticks
+        axes[i].set_xlabel("Electrode alignment [mm]", fontsize=12)
+        axes[i].set_ylabel(y, fontsize=12)
+        axes[i].tick_params(labelsize=10)
+
+    plt.show()
+
+if plots5:
+    x = "electrodes_to_press"
+    ys2 = ["Fade rate 5-150 cycles (%/cycle)",  "Initial specific discharge capacity (mAh/g)",
+        "Specific discharge capacity 180th (mAh/g)", "Cycles to 70% capacity", "Initial efficiency (%)",
+        'First formation efficiency (%)', 'First formation specific discharge capacity (mAh/g)']
+
+    fig, axes = plt.subplots(1, len(ys2), figsize=(8, 4), constrained_layout=True)
+    for i, y in enumerate(ys2):
         # Scatter plot with regression line
         sns.regplot(x=performance[x], y=performance[y], ax=axes[i], scatter_kws={"s": 20}, line_kws={"color": "blue"})
 
