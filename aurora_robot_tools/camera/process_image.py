@@ -265,6 +265,15 @@ class ProcessImages:
             top_left_x = max(bottom_right_x - 2*self.offset_mm*self.mm_to_pixel, 0)
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             cropped_images[i+1] = cropped_image
+
+            #
+            # Save the image section
+            img_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(img_rgb)
+            filename = f"c{filename.split(".")[0]}_{i}"
+            pil_img.save(f"{self.path}/image_sections/{filename}.pdf", "PDF")
+            #
+
         return cropped_images
 
     def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
@@ -395,7 +404,7 @@ class ProcessImages:
             # if folder doesn't exist, create it
             if not os.path.exists(self.path + "/detected_circles"):
                 os.makedirs(self.path + "/detected_circles")
-            # Save the image with detected ellipses
+            # Save the image with detected circles
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
         # get raw coordinates in pixel

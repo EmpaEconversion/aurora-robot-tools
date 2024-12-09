@@ -64,7 +64,7 @@ sns_palette = sns.color_palette("deep")
 seaborn_blue = sns_palette[0]  # First color in the palette (blue)
 seaborn_red = sns_palette[3]   # Fourth color in the palette (red)
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10, 8), layout="tight")
 x = "Cycle"
 y = "Specific discharge capacity (mAh/g)"
 # Farben für die Gruppen
@@ -72,21 +72,22 @@ color_group1 = seaborn_blue
 color_group2 = seaborn_red
 # Plotten der Punkte mit farblicher Gruppierung
 for key, value in cells.items():
-    if 2 <= key <= 17:  # Gruppe 1
-        ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.4)
-    elif key >= 18:  # Gruppe 2
-        ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.4)
+    # if 2 <= key <= 17:  # Gruppe 1
+    ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.6)
+    # elif key >= 18:  # Gruppe 2
+        # ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.6)
 # Achsenbeschriftungen
-ax.set_xlabel(f"{x}", fontsize=12)
-ax.set_ylabel(f"{y}", fontsize=12)
+ax.set_xlabel(f"{x}", fontsize=16)
+ax.set_ylabel(f"{y}", fontsize=16)
 ax.set_xlim(4, 350)
 # Manuelle Legende für die Gruppen
-group_legend_handles = [
-    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
-    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
-]
-ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=10)
-plt.tight_layout()
+##group_legend_handles = [
+    #plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
+    #plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
+#]
+ax.tick_params(axis='both', which='major', labelsize=14)  # 'both' adjusts x and y ticks
+#ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=14)
+plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 

@@ -91,10 +91,66 @@ performance = pd.read_excel("C:/lisc_gen14/data/performance_final.xlsx")
 # Initial specific discharge capacity (mAh/g), Specific discharge capacity 180th (mAh/g),
 # Cycles to 70% capacity, Initial efficiency (%)
 
+plots1 = True
 plots2 = False
 plots3 = False
 plots4 = False
-plots5 = True
+plots5 = False
+
+if plots1:
+    # Reshape the DataFrame for plotting
+    plot_df = df.melt(var_name="component", value_name="value")
+
+    # Map the column names to their labels
+    component_labels = {
+        "z1": "bottom",
+        "z2": "anode",
+        "z4": "separator",
+        "z5": "electrolyte",
+        "z6": "cathode",
+        "z7": "spacer",
+        "z8": "spring",
+        "z9": "top"
+    }
+
+    plot_df["component"] = plot_df["component"].map(component_labels)
+
+    # Set plot style
+    sns.set_theme(style="whitegrid")
+
+    # Create the combined plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Add the violin plot (gray color)
+    sns.violinplot(
+        data=plot_df,
+        x="component",
+        y="value",
+        ax=ax,
+        palette=["lightgray"],  # Gray color for all violins
+        inner=None,  # No inner lines
+        linewidth=1.5,  # Violin frame thickness
+        scale="width"  # Uniform width
+    )
+
+    # Add the swarm plot (blue points)
+    sns.swarmplot(
+        data=plot_df,
+        x="component",
+        y="value",
+        ax=ax,
+        size=6,  # Point size
+        color=seaborn_blue,  # Blue points
+        alpha=0.9  # Transparency
+    )
+
+    # Adjust labels and title
+    ax.set_xlabel("Components", fontsize=16)
+    ax.set_ylabel("absolut misalignment (dr_mm_corr) [mm]", fontsize=16)
+    ax.tick_params(axis="both", which="major", labelsize=14)
+
+    plt.tight_layout()
+    plt.show()
 
 if plots2:
     y_list = ["Fade rate 5-150 cycles (%/cycle)",  "Initial specific discharge capacity (mAh/g)",
@@ -132,16 +188,8 @@ if plots4:
     x = "d26"
     ys = ["Initial specific discharge capacity (mAh/g)", "Initial efficiency (%)"]
 
-    fig, ax = plt.subplots(1, len(ys), figsize=(8, 4), constrained_layout=True)
-    for i, y in enumerate(ys):
-        ax[i].scatter(performance[x], performance[y], color=seaborn_blue, s=20)
-        ax[i].set_xlabel("Electrode alignment [mm]", fontsize = 14)
-        ax[i].set_ylabel(y, fontsize = 14)
-        ax[i].tick_params(labelsize=12)
-
-    plt.show()
-
     fig, axes = plt.subplots(1, len(ys), figsize=(8, 4), constrained_layout=True)
+    numbers = ["a)", "b)"]
     for i, y in enumerate(ys):
         # Scatter plot with regression line
         sns.regplot(x=performance[x], y=performance[y], ax=axes[i], scatter_kws={"s": 20}, line_kws={"color": "blue"})
@@ -159,7 +207,7 @@ if plots4:
         axes[i].set_xlabel("Electrode alignment [mm]", fontsize=12)
         axes[i].set_ylabel(y, fontsize=12)
         axes[i].tick_params(labelsize=10)
-
+        axes[i].text(-0.05,1.05, f"{numbers[i]}", fontsize=18,ha='left',va='top',transform=axes[i].transAxes)
     plt.show()
 
 if plots5:
@@ -167,6 +215,7 @@ if plots5:
     ys2 = ["Fade rate 5-150 cycles (%/cycle)",  "Initial specific discharge capacity (mAh/g)",
         "Specific discharge capacity 180th (mAh/g)", "Cycles to 70% capacity", "Initial efficiency (%)",
         'First formation efficiency (%)', 'First formation specific discharge capacity (mAh/g)']
+
 
     fig, axes = plt.subplots(1, len(ys2), figsize=(8, 4), constrained_layout=True)
     for i, y in enumerate(ys2):
