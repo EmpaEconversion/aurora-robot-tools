@@ -249,7 +249,6 @@ class ProcessImages:
         transformed_image = cv2.warpPerspective(img, m,
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
                                                  (100+ 2* self.offset_mm)*self.mm_to_pixel))
-        # for cross check save image: # TODO delete later?
         # if folder doesn't exist, create it
         if not os.path.exists(self.path + "/transformed"):
             os.makedirs(self.path + "/transformed")
@@ -265,15 +264,6 @@ class ProcessImages:
             top_left_x = max(bottom_right_x - 2*self.offset_mm*self.mm_to_pixel, 0)
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             cropped_images[i+1] = cropped_image
-
-            #
-            # Save the image section
-            img_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
-            pil_img = Image.fromarray(img_rgb)
-            filename = f"c{filename.split(".")[0]}_{i}"
-            pil_img.save(f"{self.path}/image_sections/{filename}.pdf", "PDF")
-            #
-
         return cropped_images
 
     def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
@@ -460,8 +450,10 @@ class ProcessImages:
         """ Saves data with all coordinates, radius and alignment.
         """
         # add sample ID
-        # sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
-        sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14 else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
+        sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
+        # uncomment if special sample_ID
+        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14
+        #               else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
         # save json
         # Building JSON structure
