@@ -1,6 +1,8 @@
 """ Lina Scholz
 
 Script to analyse center coordinates and alignment of different parts from the data of proces_images.py.
+
+Super messy, sorry for that. Probably also very lengthy and many unnesessary steps.... TODO for later
 """
 
 import math
@@ -14,15 +16,15 @@ import matplotlib.pyplot as plt
 class Alignment:
     def __init__(self, path):
         self.path = path # path to images
-        self.df = pd.read_excel(os.path.join(path, "data/data.xlsx"), sheet_name="coordinates")
+        self.df = pd.read_excel(os.path.join(path, "data/data_manual_final.xlsx"), sheet_name="coordinates")
         self.alignment_df = pd.DataFrame(columns=["cell", "press", "z_electrodes", "intersection_area",
                                                   "x1", "y1", "z1", "x2", "y2", "z2", "x4", "y4", "z4",
-                                                  "x6", "y6", "z6", "x7", "y7", "z7", "x8", "y8", "z8",
-                                                  "x9", "y9", "z9"])
+                                                  "x5", "y5", "z5", "x6", "y6", "z6", "x7", "y7", "z7",
+                                                  "x8", "y8", "z8", "x9", "y9", "z9"])
         self.mm_to_pixel = 10
-        self.selected_steps = [0, 1, 2, 4, 6, 7, 8, 9]
+        self.selected_steps = [0, 1, 2, 4, 5, 6, 7, 8, 9]
         self.unique_cells = self.df['cell'].unique()
-        # specify if corrected coordinates or not (x_corr or x)
+        # specify if corrected coordinates or not (dx_mm_corr or x)
         self.xstr = "dx_mm_corr"
         self.ystr = "dy_mm_corr"
         self.zstr = "dz_mm_corr"
@@ -51,7 +53,8 @@ class Alignment:
             a1 = (0.5 * beta * R2 * R2 ) - (0.5 * R2 * R2 * math.sin(beta))
             a2 = (0.5 * alpha * R1 * R1) - (0.5 * R1 * R1 * math.sin(alpha))
             area = math.floor(a1 + a2)
-        percentage_area = round(area / (math.pi * R2**2) * 100, 2) # area of cathode overlapping with anode
+
+        percentage_area = round(area / (math.pi * R2**2) * 100, 4) # area of cathode overlapping with anode
         return percentage_area
 
     def plot_coordinates_by_cell(self, draw_circle=False) -> pd.DataFrame:
@@ -75,7 +78,7 @@ class Alignment:
         color_range = np.linspace(0.4, 1, len(self.selected_steps))
         color_range = color_range[::-1]
         step_name = {0: "press", 1: "bottom", 2: "anode", 4: "separator",
-                     6: "cathode", 7: "spacer", 8: "spring", 9: "top"}
+                     5: "electrolyte", 6: "cathode", 7: "spacer", 8: "spring", 9: "top"}
 
         # Loop over each cell and create a plot
         for cell in self.unique_cells:
@@ -100,6 +103,9 @@ class Alignment:
                    "x4": float(cell_df.loc[cell_df['step'] == 4, self.xstr]),
                    "y4": float(cell_df.loc[cell_df['step'] == 4, self.ystr]),
                    "z4": float(cell_df.loc[cell_df['step'] == 4, self.zstr]),
+                   "x5": float(cell_df.loc[cell_df['step'] == 5, self.xstr]),
+                   "y5": float(cell_df.loc[cell_df['step'] == 5, self.ystr]),
+                   "z5": float(cell_df.loc[cell_df['step'] == 5, self.zstr]),
                    "x6": float(cell_df.loc[cell_df['step'] == 6, self.xstr]),
                    "y6": float(cell_df.loc[cell_df['step'] == 6, self.ystr]),
                    "z6": float(cell_df.loc[cell_df['step'] == 6, self.zstr]),
@@ -151,8 +157,8 @@ class Alignment:
                 ax.set_xlim([-25, 25])
                 ax.set_ylim([-25, 25])
             else:
-                ax.set_xlim([-3, 3])
-                ax.set_ylim([-3, 3])
+                ax.set_xlim([-2.1, 2.1])
+                ax.set_ylim([-2.1, 2.1])
             ax.grid(True)
 
             # Save the plot as a JPG file named by the cell number
@@ -167,9 +173,8 @@ class Alignment:
         data_dir = os.path.join(self.path, "data")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-        with pd.ExcelWriter(os.path.join(data_dir, "alignment.xlsx")) as writer:
+        with pd.ExcelWriter(os.path.join(data_dir, "alignment_manual_final.xlsx")) as writer:
             self.alignment_df.to_excel(writer, sheet_name='alignment', index=False)
-        self.alignment_df.to_csv(os.path.join(data_dir, "alignment.csv"), index=False)
 
         return self.alignment_df
 
@@ -215,12 +220,10 @@ if __name__ == '__main__':
     # PARAMETER
     folderpath = "C:/lisc_gen14"
 
+    # CALL CLASS AND FUNCTIONS
     obj = Alignment(folderpath)
     data = obj.plot_coordinates_by_cell()
-    obj.plot_differences(step=2, name="Anode")
-    obj.plot_differences(step=6, name="Cathode")
-    obj.plot_differences(step=7, name="Spacer")
-    obj.plot_differences(step=8, name="Spring")
+    obj.plot_differences(step=2, name="Anode manual")
 
 
 
