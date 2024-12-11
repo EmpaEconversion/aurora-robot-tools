@@ -94,7 +94,7 @@ performance = pd.read_excel("C:/lisc_gen14/data/performance_final.xlsx")
 plots1 = True
 plots2 = False
 plots3 = False
-plots4 = False
+plots4 = True
 plots5 = False
 
 if plots1:

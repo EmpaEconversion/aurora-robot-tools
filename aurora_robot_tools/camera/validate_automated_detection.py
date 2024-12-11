@@ -18,10 +18,10 @@ from process_image import ProcessImages
 
 #%%
 
-compare_manual = True
-compare_cathodes = True
+compare_manual = False
+compare_cathodes = False
 modify = False
-compare_modify = False
+compare_modify = True
 significant_digits = False
 
 # Get Seaborn's default blue and red
@@ -136,7 +136,7 @@ if compare_manual:
             ax.set_xlabel('')
             ax.grid(True, linestyle="--", alpha=0.6)
 
-    axes[0, 0].text(-0.25,1.25,f"a)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes)
+    #axes[0, 0].text(-0.25,1.25,f"a)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes)
 
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.96])
@@ -200,7 +200,7 @@ if compare_cathodes:
             ax.set_xlabel('')
             ax.grid(True, linestyle="--", alpha=0.6)
 
-    axes[0, 0].text(-0.25,1.25,f"b)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes) 
+    #axes[0, 0].text(-0.25,1.25,f"b)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes) 
 
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.96])
