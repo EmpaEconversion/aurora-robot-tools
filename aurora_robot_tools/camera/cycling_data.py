@@ -19,7 +19,7 @@ import seaborn as sns
 
 lineplot = False
 
-cycling_data = r"G:\Limit\Lina Scholz\Cell Data\lisc_gen14\batch.lisc_gen14.json"
+cycling_data = r"G:\Limit\Lina Scholz\cycling_data_lisc\lisc_gen14\batch.lisc_gen14.json"
 
 keys = ['Sample ID', 'Cycle', 'Charge capacity (mAh)', 'Discharge capacity (mAh)', 'Efficiency (%)',
         'Specific charge capacity (mAh/g)', 'Specific discharge capacity (mAh/g)', 'Normalised discharge capacity (%)',
@@ -119,7 +119,7 @@ plt.show()
 #%%
 
 # Batches files are also JSON, and contain a list of cycles files
-batches_filename = r"G:\Limit\Lina Scholz\Cell Data\lisc_gen14\batch.lisc_gen14.json"
+batches_filename = r"G:\Limit\Lina Scholz\cycling_data_lisc\lisc_gen14\batch.lisc_gen14.json"
 batches_file = json.load(open(batches_filename))
 batches_data = batches_file['data']
 

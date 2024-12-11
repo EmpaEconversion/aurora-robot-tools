@@ -18,10 +18,10 @@ from process_image import ProcessImages
 
 #%%
 
-compare_manual = False
+compare_manual = True
 compare_cathodes = False
 modify = False
-compare_modify = True
+compare_modify = False
 significant_digits = False
 
 # Get Seaborn's default blue and red
@@ -74,6 +74,13 @@ if compare_manual:
     df_diff = df_diff.dropna()
     df_diff["dz_mm_corr"] = np.sqrt((df["dx_mm_corr"] - df_adj["dx_mm_corr"])**2 -
                                     (df["dy_mm_corr"] - df_adj["dy_mm_corr"])**2)
+    print("\nMean:\n")
+    print(sum(df_diff["dz_mm_corr"].to_list())/len(df_diff["dz_mm_corr"].to_list()))
+    print("\nMax:\n")
+    print(max(df_diff["dz_mm_corr"].to_list()))
+    print("\nMin:\n")
+    print(min(df_diff["dz_mm_corr"].to_list()))
+    print("\n")
 
     # df_diff.to_excel("C:/lisc_gen14/data/svfe_cathode_diff.xlsx")
 
@@ -140,7 +147,7 @@ if compare_manual:
 
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.96])
-    #plt.show()
+    plt.show()
 
 if compare_cathodes:
 

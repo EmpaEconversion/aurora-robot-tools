@@ -33,7 +33,7 @@ keys = ['Sample ID', 'Cycle', 'Charge capacity (mAh)', 'Discharge capacity (mAh)
         'Cycles to 75% energy', 'Cycles to 70% energy', 'Cycles to 60% energy', 'Cycles to 50% energy', 'Run ID',
         'Electrolyte to press (s)', 'Electrolyte to electrode (s)', 'Electrode to protection (s)', 'Press to protection (s)']
 
-cycling_data = r"G:\Limit\Lina Scholz\Cell Data\batch.lisc_gen14.json"
+cycling_data = r"G:\Limit\Lina Scholz\cycling_data_lisc\batch.lisc_gen14.json"
 alignment_data = r"C:\lisc_gen14\data\alignment_manual_final.xlsx"
 
 # Open and load the JSON file
