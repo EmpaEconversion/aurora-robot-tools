@@ -1,7 +1,47 @@
 """ Lina Scholz
 
-Script to read in images from folder, transform warped rectangle in straight rectangle,
-detect centers of all parts.
+Programm to the Semester Project:
+    "Integrating component alignment tracking in a robotic coin cell assembly system"
+
+The script does the following steps:
+    1. The images are read in from the folder with the run_ID of the cells, where they have been
+    stored during the assembly with the coin-cell robot.
+    2. From each batch of cells, the first image of the pressing tools is taken to determine the
+    transformation matrix, which is used in the next step to transfrom the warped image into a
+    straingt rectangle. This transformation matrix assignes a conversion factor from pixel to mm,
+    which enables precise distance measurements in millimeters ensuring a consistent aspect ratio.
+    3. All images are then transformed accordingly and split into image sections to be able to
+    assign the alignment of each cell component later.
+    4. For some components like the anode, the images are preprocessed for better detection.
+    Preprocessing steps whicha are applied are increased contrast and a 2D convolution with an
+    edge detection kernel.
+    5. The circles of all components are detected with OpenCV HoughCircles. The offset to the
+    pressing tool center is used as a reference to determine how much each component is misaligned
+    from the center of the cell in x and y. The x-axis is from the left to the right, while the
+    y-axis is from the top to the bottom (as it is specified from the image array in pixel)
+    6. To account for the thickness of the parts a correction factor is determined using the height
+    and the shift of the center of the pressing tool (Limit/Lina Scholz/Python Scripts/thickness_correction_factor).
+    This correction factor is applied according to the thickness of the parts and the pressing tool
+    position.
+    7. The output is a JSON file, and an image stacked all image sections. The JSON file provides
+    information about the aligment, image settings and calibration. The alignment is given for each
+    cell in pixel and in mm, where the alignment in mm is already corrected to account for the
+    thickness. Further the cell, step, presing tool position, radius, sample_ID and the row and
+    column within the large stacked image are given. The image settings provide the information
+    about the subsize of the image sections, cell number, step, mm_to_pixel and the filename. The
+    calibration gives a list about the correction factor for each pressing tool in x and y and the
+    thickness of the parts.
+
+Important to note:
+    Parameter, which are used for fine tuning and optimization of the detection are:
+    - ...
+    Parameter, which are subject to change are:
+    - ...
+
+Usage: The folder name to the images has to be given, in particular the run_ID has to be specified,
+       which is taken from the database. The script will then output a JSON file and a stacked image
+       with all images of each cell and step.
+
 """
 
 import h5py
@@ -13,6 +53,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from scipy import signal
+import sqlite3
 
 #%% FUNCTIONS
 
@@ -75,7 +116,7 @@ def _detect_ellipses(img: np.array, r: tuple) -> tuple[list[list], np.array]:
     return coords_ellipses, r_ellipses, img
 
 def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[list], list[list], np.array]:
-    """ Takes image, detects circles of pressing tools and provides list of coordinates.
+    """ Takes image, detects circles of compoments and provides list of coordinates.
 
     Args:
         img (array): image array
@@ -83,7 +124,7 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
         params (tuple): (param1, param2) for HoughCircles
 
     Return:
-        coords_circles (list[list]): list with all center coordinates of pressing tools
+        coords_circles (list[list]): list with all center coordinates of components
     """
     # Apply Hough transform
     detected_circles = cv2.HoughCircles(img,
@@ -111,7 +152,7 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
     return coords_circles, r_circles, img
 
 def _convolution(image: np.array, filter: np.array, i: bool) -> np.array:
-    """ Takes image an convolutes with the given filter
+    """ Takes image an convolutes it with the given filter
     """
     image_convolved = signal.convolve2d(image, filter, boundary='symm', mode='same')
     if i:
@@ -151,26 +192,28 @@ class ProcessImages:
     def __init__(self, path):
         # TRANSFORMATION ---------------------------------------------------------------------------
         self.path = path # path to images
-        self.run_ID = self.path.split("/")[-1]
+        self.run_ID = self.path.split("/")[-1] # get run_ID from path
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
         self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
-
-        # Parameter which might need to be changes if camera position changes ----------------------
+        # coordinates of pressing tools in mm
         self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
-        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]])
+        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]]) # pressing tools in edges
+
+        # Parameter, which are subject to change (of whole camera setup) ---------------------------
         self.mm_to_pixel = 10
         self.offset_mm = 20 # mm
         self.r = (210, 228) # (min, max) radius of pressing tool for reference detection
         self.r_ellipse = (205, 240) # (min, max) radius of pressing tool for reference detection
 
         # ALIGNMENT --------------------------------------------------------------------------------
-        self.alignment_df = pd.DataFrame()
-        # Parameter which might need to be changes if camera position changes ----------------------
+        self.alignment_df = pd.DataFrame() # storing alignment in data frame
+
+        # Parameter, which are subject to change (of whole camera setup) ---------------------------
         # radius of all parts from cell in mm (key corresponds to step)
         self.r_part = {0: (9.75, 10.25), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.75, 8.25),
                        5: (7.75, 8.25), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
-                       10: (7.5, 8.5)} # spring outer = 8: (4.85, 5.45), (6.5, 7.5), (6.25, 7.7)
+                       10: (7.5, 8.5)}
         # parameter for HoughCircles (param1, param2)
         self.params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
@@ -178,6 +221,7 @@ class ProcessImages:
         self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
                              (0.0375, -0.33), (0.0375, -0.2),
                              (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
+        # thickness of the stack for each assembly step in mm
         self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
 
     def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
@@ -206,7 +250,7 @@ class ProcessImages:
         # Save the image with detected ellipses
         cv2.imwrite(self.path + f"/reference/{ref_image_name}.jpg", image_with_circles)
 
-        transformation_M = self._get_transformation_matrix(coordinates)
+        transformation_M = self._get_transformation_matrix(coordinates) # determine trasnformation matrix
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
     def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
@@ -287,7 +331,7 @@ class ProcessImages:
         elif s >= 7: # account for spacer
             x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
             y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        else:
+        else: # no thickness to correct for
             x_corr = center[0]
             y_corr = center[1]
 
@@ -327,12 +371,13 @@ class ProcessImages:
             for array, numbers in self.ref:
                 if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
                     transformation_matrix = array
-            image_sections = self._transform_split(image, transformation_matrix, name)
+            image_sections = self._transform_split(image, transformation_matrix, name) # trasnform and split image
             for dictionary in information:
+                # add information to data frame
                 row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
                 self.df.loc[len(self.df)] = row
 
-        # save images in one big image
+        # save images in one big stacked image
         self.height, self.width = self.df["array"][0].shape[:2]
         self.df = self.df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
         # Create a 10x36 grid composite image
@@ -350,10 +395,11 @@ class ProcessImages:
         composite_image = np.vstack(image_rows)  # Stack all rows vertically
         self.df["img_row"] = rows
         self.df["img_col"] = cols
-        # Save as .h5
+        # create path if not existent
         data_dir = os.path.join(self.path, "json")
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
+        # Save as .h5
         h5_filename = os.path.join(data_dir, f"alignment.{self.run_ID}.h5")
         with h5py.File(h5_filename, "w") as h5_file:
             h5_file.create_dataset("image", data=composite_image)
@@ -373,14 +419,15 @@ class ProcessImages:
         y = []
         radius = [] # list to store radius
         for index, row in df.iterrows():
+            # get radius range of component
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
-            img = _preprocess_image(row["array"], row["step"])
-            parameter = self.params[row["step"]]
+            img = _preprocess_image(row["array"], row["step"]) # preprocess image
+            parameter = self.params[row["step"]] # parameter for HoughCircles
             if row["step"] == "type in step of part which should be detected as ellipse":
                 center, rad, image_with_circles = _detect_ellipses(img, r, parameter)
             else: # detect circle
                 center, rad, image_with_circles = _detect_circles(img, r, parameter)
-            # Assuming center is expected to be a list containing a tuple
+            # Assuming center as a list containing a tuple
             if center is not None and isinstance(center, list) and len(center) > 0:
                 x.append(center[0][0])
                 y.append(center[0][1])
@@ -397,7 +444,7 @@ class ProcessImages:
             # Save the image with detected circles
             filename = f"c{row["cell"]}_p{row["press"]}_s{row["step"]}"
             cv2.imwrite(self.path + f"/detected_circles/{filename}.jpg", image_with_circles)
-        # get raw coordinates in pixel
+        # store raw coordinates in pixel
         df["x"] = x
         df["y"] = y
         df["r_mm"] = radius
@@ -432,14 +479,16 @@ class ProcessImages:
             center of the parts in the different pressing tool positions due to the angle of the
             camera. The values are determined in thickness_distortion.py, but not perfect yet!
         """
-        x_corrected = []
+        x_corrected = [] # lists to store data
         y_corrected = []
         for index, row in df.iterrows():
             position = row["press"]
             step = row["step"]
+            # apply thickness correction
             coords_corrected = self._thickness_correction(position, step, (row["dx_mm"], row["dy_mm"]))
             x_corrected.append(coords_corrected[0])
             y_corrected.append(coords_corrected[1])
+        # store in data frame
         df["dx_mm_corr"] = x_corrected
         df["dy_mm_corr"] = y_corrected
         df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(5)
@@ -455,8 +504,8 @@ class ProcessImages:
         # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14
         #               else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
         self.df["sample_ID"] = sample_IDs
-        # save json
-        # Building JSON structure
+
+        # Building JSON structure and save it
         json_data = {
             "alignment": self.df[["cell", "step", "press", "r_mm",
                                   "dx_px", "dy_px", "dx_mm_corr", "dy_mm_corr",
@@ -494,8 +543,18 @@ class ProcessImages:
 #%% RUN CODE
 if __name__ == '__main__':
 
+    # Get Run ID from database
+    DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
+    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
+        run_id = cursor.fetchone()[0]
+
     # PARAMETER
-    folderpath = "C:/lisc_gen14"
+    IMAGE_FOLDER = "C:/Aurora_images/"
+    folderpath = os.path.join(IMAGE_FOLDER, run_id)
+    # when running from local device:
+    # folderpath = "path_to_folder_with_images"
 
     obj = ProcessImages(folderpath)
     data_list = obj.load_files()
@@ -503,6 +562,4 @@ if __name__ == '__main__':
     df = obj.get_centers(df)
     df = obj.correct_for_thickness(df)
     coordinates_df = obj.save()
-
-    print(coordinates_df)
 
