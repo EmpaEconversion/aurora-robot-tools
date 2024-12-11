@@ -34,9 +34,9 @@ The script does the following steps:
 
 Important to note:
     Parameter, which are used for fine tuning and optimization of the detection are:
-    - ...
+    - ... TODO
     Parameter, which are subject to change are:
-    - ...
+    - ... TODO
 
 Usage: The folder name to the images has to be given, in particular the run_ID has to be specified,
        which is taken from the database. The script will then output a JSON file and a stacked image
