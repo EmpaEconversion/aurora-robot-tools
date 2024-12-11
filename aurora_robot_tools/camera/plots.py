@@ -56,13 +56,13 @@ handles = [
     plt.Line2D([0], [0], color="purple", marker="o", linestyle="None", label="Anode"),
     plt.Line2D([0], [0], color="darkcyan", marker="o", linestyle="None", label="Cathode"),
 ]
-ax.legend(handles=handles, loc="lower left", fontsize = 14)
+ax.legend(handles=handles, loc="lower left", fontsize = 16)
 
 # Set axis limits and labels
 ax.set_xlim(0, (df["grid_x"].max() + 1) * offset)
 ax.set_ylim(0, (df["grid_y"].max() + 1) * offset)
-ax.set_xlabel("Pressing Tool Position", fontsize=16)
-ax.set_ylabel("Production Batch", fontsize=16)
+ax.set_xlabel("Pressing Tool Position", fontsize=20)
+ax.set_ylabel("Production Batch", fontsize=20)
 
 # Adjust grid lines and ticks
 ax.set_xticks(df["grid_x"].unique() * offset)
@@ -80,7 +80,7 @@ ax.set_yticks(ytick_positions)
 ax.set_yticklabels(np.arange(1, len(ytick_positions) + 1))
 
 # Sizes
-ax.tick_params(axis="both", labelsize=14)
+ax.tick_params(axis="both", labelsize=18)
 
 plt.show()
 
@@ -144,10 +144,25 @@ if plots1:
         alpha=0.9  # Transparency
     )
 
+    # Calculate and annotate the mean value above each violin
+    components = plot_df["component"].unique()
+    for i, component in enumerate(components):
+        component_data = plot_df[plot_df["component"] == component]["value"]
+        mean_value = component_data.mean()
+        ax.text(
+            i-1,  # X-coordinate (aligned with violin position)
+            component_data.max() + 0.35,  # Y-coordinate (slightly above the max value)
+            f"$\\overline{{\\Delta}}$: {mean_value:.2f}",  # Annotated text
+            fontsize=12,
+            ha="center",
+            va="bottom"
+        )
+
     # Adjust labels and title
     ax.set_xlabel("Components", fontsize=16)
     ax.set_ylabel("absolut misalignment (dr_mm_corr) [mm]", fontsize=16)
     ax.tick_params(axis="both", which="major", labelsize=14)
+    ax.set_ylim(bottom=0)
 
     plt.tight_layout()
     plt.show()
@@ -194,20 +209,45 @@ if plots4:
         # Scatter plot with regression line
         sns.regplot(x=performance[x], y=performance[y], ax=axes[i], scatter_kws={"s": 20}, line_kws={"color": "blue"})
 
-        # Calculate r and p values
-        r, p = stats.pearsonr(performance[x], performance[y])
+        # Calculate r and r^2
+        r, _ = stats.pearsonr(performance[x], performance[y])
+        r_squared = r**2
 
-        # Annotate r and p values
+        # Annotate r^2
         axes[i].text(
-            0.05, 0.95, f"r={r:.2f}, p={p:.1e}", 
-            transform=axes[i].transAxes, 
-            ha="left", va="top", fontsize=10
+            0.05, 0.95, f"$r^2$={r_squared:.2f}",
+            transform=axes[i].transAxes,
+            ha="left", va="top", fontsize=11
         )
         # Labels and ticks
-        axes[i].set_xlabel("Electrode alignment [mm]", fontsize=12)
-        axes[i].set_ylabel(y, fontsize=12)
-        axes[i].tick_params(labelsize=10)
+        axes[i].set_xlabel("Electrode alignment [mm]", fontsize=14)
+        axes[i].set_ylabel(y, fontsize=14)
+        axes[i].tick_params(labelsize=11)
         axes[i].text(-0.05,1.05, f"{numbers[i]}", fontsize=18,ha='left',va='top',transform=axes[i].transAxes)
+    plt.show()
+
+    x = "d26"
+    y = "Initial efficiency (%)"
+
+    fig, axes = plt.subplots(figsize=(4, 4), constrained_layout=True)
+    # Scatter plot with regression line
+    sns.regplot(x=performance[x], y=performance[y], ax=axes, scatter_kws={"s": 20}, line_kws={"color": "blue"})
+
+    # Calculate r and r^2
+    r, _ = stats.pearsonr(performance[x], performance[y])
+    r_squared = r**2
+
+    # Annotate r^2
+    axes.text(
+        0.05, 0.95, f"$r^2$={r_squared:.2f}",
+        transform=axes.transAxes,
+        ha="left", va="top", fontsize=11
+    )
+    # Labels and ticks
+    axes.set_xlabel("Electrode alignment [mm]", fontsize=12)
+    axes.set_ylabel(y, fontsize=12)
+    axes.tick_params(labelsize=10)
+    axes.set_xlim(-0.02, 1.4)
     plt.show()
 
 if plots5:

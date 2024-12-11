@@ -19,7 +19,7 @@ from process_image import ProcessImages
 #%%
 
 compare_manual = True
-compare_cathodes = False
+compare_cathodes = True
 modify = False
 compare_modify = False
 significant_digits = False
@@ -135,6 +135,17 @@ if compare_manual:
                 linewidth=2  # Optionally, adjust line width of the border
             )
 
+            # Calculate and annotate the mean deviation
+            mean_deviation = step_data[row].mean()
+            ax.text(
+                0.05, 0.95,  # Position (relative to axes coordinates)
+                f"$\\overline{{\\Delta}}$: {mean_deviation:.2f}",
+                fontsize=12,
+                ha='left',
+                va='top',
+                transform=ax.transAxes
+            )
+
             # Set the title and labels
             ax.set_title(f"{titles[step]}" if row_idx == 0 else "", fontsize=18)
             ax.set_ylabel(f"{y_labels[row_idx]} [mm]" if step_idx == 0 else "", fontsize=16)
@@ -143,11 +154,11 @@ if compare_manual:
             ax.set_xlabel('')
             ax.grid(True, linestyle="--", alpha=0.6)
 
-    #axes[0, 0].text(-0.25,1.25,f"a)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes)
+    axes[0, 0].text(-0.25,1.25,f"a)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes)
 
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.show()
+    #plt.show()
 
 if compare_cathodes:
 
@@ -199,6 +210,17 @@ if compare_cathodes:
                 linewidth=2  # Optionally, adjust line width of the border
             )
 
+            # Calculate and annotate the mean deviation
+            mean_deviation = step_data[row].mean()
+            ax.text(
+                0.05, 0.95,  # Position (relative to axes coordinates)
+                f"$\\overline{{\\Delta}}$: {mean_deviation:.2f}",
+                fontsize=12,
+                ha='left',
+                va='top',
+                transform=ax.transAxes
+            )
+
             # Set the title and labels
             ax.set_title(f"{titles[step_idx]}" if row_idx == 0 else "", fontsize=18)
             ax.set_ylabel(f"{y_labels[row_idx]} [mm]" if step_idx == 0 else "", fontsize=16)
@@ -207,7 +229,7 @@ if compare_cathodes:
             ax.set_xlabel('')
             ax.grid(True, linestyle="--", alpha=0.6)
 
-    #axes[0, 0].text(-0.25,1.25,f"b)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes) 
+    axes[0, 0].text(-0.25,1.25,f"b)",fontsize=18,ha='left',va='top',transform=axes[0, 0].transAxes) 
 
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.96])
