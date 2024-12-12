@@ -34,9 +34,14 @@ The script does the following steps:
 
 Important to note:
     Parameter, which are used for fine tuning and optimization of the detection are:
-    - ... TODO
+    - r_parts: defines the range of the radius of the circle to be detected
+    - params (param1, param2): param1 defines how many edges wil be detected, which affects if
+      faint circles with weak gradients are detected; param2 defines the threshold if a detected
+      circle is valid, therefore higher values result in stricter cirteria for the detecion and fewer circles
+    - mm_to_pixel: defining the pixel resolution in the image where the circles are to be detected
     Parameter, which are subject to change are:
-    - ... TODO
+    - r_params: if order or size of components changes
+    - z_thickness: if order or size of parts changes
 
 Usage: The folder name to the images has to be given, in particular the run_ID has to be specified,
        which is taken from the database. The script will then output a JSON file and a stacked image
@@ -128,7 +133,7 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
     """
     # Apply Hough transform
     detected_circles = cv2.HoughCircles(img,
-                    cv2.HOUGH_GRADIENT,
+                    method = cv2.HOUGH_GRADIENT,
                     dp = 1,
                     minDist = 500,
                     param1 = params[0], param2 = params[1],
