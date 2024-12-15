@@ -86,14 +86,14 @@ if compare_manual:
 
     # Show differences in plot
     rows_to_plot = ["dx_mm_corr", "dy_mm_corr", "dz_mm_corr"]
-    steps_to_plot = [0, 2, 6, 8]
+    steps_to_plot = [0, 2, 4, 6, 8]
 
     # Define colors for steps
     colors = cm.Set2.colors[:len(steps_to_plot)]
-    colors = [seaborn_blue, seaborn_blue, seaborn_blue, seaborn_blue]
+    colors = [seaborn_blue, seaborn_blue, seaborn_blue, seaborn_blue, seaborn_blue]
 
     # Create a figure with a 3x4 grid
-    fig, axes = plt.subplots(3, 4, figsize=(12, 12), sharey=True)
+    fig, axes = plt.subplots(3, len(steps_to_plot), figsize=(12, 12), sharey=True)
 
     # Adjust spacing between subplots
     plt.subplots_adjust(wspace=0.2, hspace=0.4)
@@ -102,7 +102,7 @@ if compare_manual:
     y_labels = ["dx automatic\n- dx manual\n", "dy automatic\n- dy manual\n", "r automatic\n- r manual\n"]
     y_labels = ["$\Delta$x", "$\Delta$y", "$\Delta$r"]
     # Titles
-    titles = {0: "Pressing Tool", 2: "Anode", 6: "Cathode", 8: "Spring"}
+    titles = {0: "Pressing Tool", 2: "Anode", 4: "Separator", 6: "Cathode", 8: "Spring"}
 
     # Loop through rows and steps to create the plots
     for row_idx, row in enumerate(rows_to_plot):

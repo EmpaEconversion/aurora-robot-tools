@@ -47,27 +47,32 @@ for _, row in df.iterrows():
 
     # Plot circles and their centers
     ax.add_artist(plt.Circle((cx1, cy1), r1, color="purple", alpha=0.6, label=f"Component {component1}"))
-    ax.add_artist(plt.Circle((cx2, cy2), r2, color="darkcyan", alpha=0.6, label=f"Component {component2}"))
-    ax.plot(cx1, cy1, "o", color="magenta", markersize=2)  # Center for component 1 (black)
-    ax.plot(cx2, cy2, "o", color="cyan", markersize=2)  # Center for component 2 (purple)
+    ax.add_artist(plt.Circle((cx2, cy2), r2, color="cyan", alpha=0.6, label=f"Component {component2}"))
+    # Add black outlines to circles
+    ax.add_artist(plt.Circle((cx1, cy1), r1, color="black", fill=False, linewidth=0.25))
+    ax.add_artist(plt.Circle((cx2, cy2), r2, color="black", fill=False, linewidth=0.25))
+
+    # Plot enlarged center points
+    ax.plot(cx1, cy1, "o", color="purple", markersize=4)
+    ax.plot(cx2, cy2, "o", color="cyan", markersize=4)
 
 # Add legend
 handles = [
     plt.Line2D([0], [0], color="purple", marker="o", linestyle="None", label="Anode"),
-    plt.Line2D([0], [0], color="darkcyan", marker="o", linestyle="None", label="Cathode"),
+    plt.Line2D([0], [0], color="cyan", marker="o", linestyle="None", label="Cathode"),
 ]
-ax.legend(handles=handles, loc="lower left", fontsize = 16)
+ax.legend(handles=handles, loc="lower left", fontsize = 30)
 
 # Set axis limits and labels
 ax.set_xlim(0, (df["grid_x"].max() + 1) * offset)
 ax.set_ylim(0, (df["grid_y"].max() + 1) * offset)
-ax.set_xlabel("Pressing Tool Position", fontsize=20)
-ax.set_ylabel("Production Batch", fontsize=20)
+ax.set_xlabel("Pressing Tool Position", fontsize=22)
+ax.set_ylabel("Production Batch", fontsize=22)
 
 # Adjust grid lines and ticks
 ax.set_xticks(df["grid_x"].unique() * offset)
 ax.set_yticks(np.arange(1, df["grid_y"].max() + 1) * offset)
-ax.grid(True, linestyle="--", alpha=0.5)
+#ax.grid(True, linestyle="--", alpha=0.5)
 
 # Relabel the x-axis
 xtick_positions = np.arange(offset, (df["grid_x"].max() + 1) * offset, offset)
@@ -80,7 +85,7 @@ ax.set_yticks(ytick_positions)
 ax.set_yticklabels(np.arange(1, len(ytick_positions) + 1))
 
 # Sizes
-ax.tick_params(axis="both", labelsize=18)
+ax.tick_params(axis="both", labelsize=20)
 
 plt.show()
 
@@ -153,19 +158,79 @@ if plots1:
             i-1,  # X-coordinate (aligned with violin position)
             component_data.max() + 0.35,  # Y-coordinate (slightly above the max value)
             f"$\\overline{{\\Delta}}$: {mean_value:.2f}",  # Annotated text
-            fontsize=12,
+            fontsize=20, # 20
             ha="center",
             va="bottom"
         )
 
     # Adjust labels and title
-    ax.set_xlabel("Components", fontsize=16)
-    ax.set_ylabel("absolut misalignment (dr_mm_corr) [mm]", fontsize=16)
-    ax.tick_params(axis="both", which="major", labelsize=14)
+    ax.set_xlabel("Components", fontsize=22) # 22
+    ax.set_ylabel("misalignment [mm]", fontsize=22) # 22
+    ax.tick_params(axis="both", which="major", labelsize=20) # 20
     ax.set_ylim(bottom=0)
 
     plt.tight_layout()
     plt.show()
+
+    # Create the combined plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Add the violin plot (gray color)
+    sns.violinplot(
+        data=plot_df,
+        x="component",
+        y="value",
+        ax=ax,
+        palette=["lightgray"],  # Gray color for all violins
+        inner=None,  # No inner lines
+        linewidth=1.5,  # Violin frame thickness
+        scale="width"  # Uniform width
+    )
+
+    # Add the swarm plot (blue points)
+    # First, we need to apply the red color to the last 14 points of the "z4" component
+    plot_df["color"] = [seaborn_blue] * len(plot_df)  # Default color (blue)
+
+    # Filter the last 14 points for "z4" and change their color to red
+    z6_last_14 = plot_df[(plot_df["component"] == "cathode")].tail(14)
+    plot_df.loc[z6_last_14.index, "color"] = "red"
+
+    # Add the swarm plot with color customization
+    sns.swarmplot(
+        data=plot_df,
+        x="component",
+        y="value",
+        ax=ax,
+        size=6,  # Point size
+        hue="color",  # Use the 'color' column to control the color of the points
+        # palette={"red": "red", seaborn_blue: seaborn_blue},  # Map red to red and default to seaborn_blue
+        alpha=0.9,  # Transparency
+        legend=False  # Remove the legend
+    )
+
+    # Calculate and annotate the mean value above each violin
+    components = plot_df["component"].unique()
+    for i, component in enumerate(components):
+        component_data = plot_df[plot_df["component"] == component]["value"]
+        mean_value = component_data.mean()
+        ax.text(
+            i-1,  # X-coordinate (aligned with violin position)
+            component_data.max() + 0.35,  # Y-coordinate (slightly above the max value)
+            f"$\\overline{{\\Delta}}$: {mean_value:.2f}",  # Annotated text
+            fontsize=20,  # 20
+            ha="center",
+            va="bottom"
+        )
+
+    # Adjust labels and title
+    ax.set_xlabel("Components", fontsize=22)  # 22
+    ax.set_ylabel("misalignment [mm]", fontsize=22)  # 22
+    ax.tick_params(axis="both", which="major", labelsize=20)  # 20
+    ax.set_ylim(bottom=0)
+
+    plt.tight_layout()
+    plt.show()
+
 
 if plots2:
     y_list = ["Fade rate 5-150 cycles (%/cycle)",  "Initial specific discharge capacity (mAh/g)",
@@ -227,11 +292,63 @@ if plots4:
     plt.show()
 
     x = "d26"
+    ys = ["Initial specific discharge capacity (mAh/g)", "Initial efficiency (%)"]
+
+    fig, axes = plt.subplots(1, len(ys), figsize=(8, 4), constrained_layout=True)
+    numbers = ["a)", "b)"]
+
+    for i, y in enumerate(ys):
+        # Split the data into the first 15 and the remaining 14 data points
+        first_15 = performance.iloc[:15]
+        remaining_14 = performance.iloc[15:]
+
+        # Add the regression line for the entire dataset
+        sns.regplot(
+            x=performance[x], y=performance[y], ax=axes[i],
+            scatter=False,  # Disable the scatter part (we will add it separately)
+            line_kws={"color": "blue"},  # Color for the regression line
+            fit_reg=True
+        )
+
+        # Scatter plot for the first 15 data points (blue)
+        axes[i].scatter(
+            first_15[x], first_15[y],
+            color="blue", s=20, label="First 15 points"
+        )
+
+        # Scatter plot for the remaining 14 data points (red)
+        axes[i].scatter(
+            remaining_14[x], remaining_14[y],
+            color="red", s=20, label="Remaining 14 points"
+        )
+
+        # Calculate r and r^2 for the whole dataset (if needed, you can calculate separately for each group)
+        r, _ = stats.pearsonr(performance[x], performance[y])
+        r_squared = r**2
+
+        # Annotate r^2
+        axes[i].text(
+            0.05, 0.95, f"$r^2$={r_squared:.2f}",
+            transform=axes[i].transAxes,
+            ha="left", va="top", fontsize=11
+        )
+
+        # Labels and ticks
+        axes[i].set_xlabel("Electrode alignment [mm]", fontsize=14)
+        axes[i].set_ylabel(y, fontsize=14)
+        axes[i].tick_params(labelsize=11)
+
+        # Add subplot labels (a), b) etc.)
+        axes[i].text(-0.05, 1.05, f"{numbers[i]}", fontsize=18, ha='left', va='top', transform=axes[i].transAxes)
+
+    plt.show()
+
+    x = "d26"
     y = "Initial efficiency (%)"
 
     fig, axes = plt.subplots(figsize=(4, 4), constrained_layout=True)
     # Scatter plot with regression line
-    sns.regplot(x=performance[x], y=performance[y], ax=axes, scatter_kws={"s": 20}, line_kws={"color": "blue"})
+    sns.regplot(x=performance[x], y=performance[y], ax=axes, scatter_kws={"s": 24}, line_kws={"color": "blue"})
 
     # Calculate r and r^2
     r, _ = stats.pearsonr(performance[x], performance[y])
@@ -241,12 +358,12 @@ if plots4:
     axes.text(
         0.05, 0.95, f"$r^2$={r_squared:.2f}",
         transform=axes.transAxes,
-        ha="left", va="top", fontsize=11
+        ha="left", va="top", fontsize=18
     )
     # Labels and ticks
-    axes.set_xlabel("Electrode alignment [mm]", fontsize=12)
-    axes.set_ylabel(y, fontsize=12)
-    axes.tick_params(labelsize=10)
+    axes.set_xlabel("Electrode alignment [mm]", fontsize=20)
+    axes.set_ylabel(y, fontsize=20)
+    axes.tick_params(labelsize=18)
     axes.set_xlim(-0.02, 1.4)
     plt.show()
 

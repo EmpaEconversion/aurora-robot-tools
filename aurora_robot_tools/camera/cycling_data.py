@@ -72,21 +72,21 @@ color_group1 = seaborn_blue
 color_group2 = seaborn_red
 # Plotten der Punkte mit farblicher Gruppierung
 for key, value in cells.items():
-    # if 2 <= key <= 17:  # Gruppe 1
-    ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.6)
-    # elif key >= 18:  # Gruppe 2
-        # ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.6)
+    if 2 <= key <= 17:  # Gruppe 1
+        ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.6)
+    elif key >= 18:  # Gruppe 2
+        ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.6)
 # Achsenbeschriftungen
-ax.set_xlabel(f"{x}", fontsize=16)
-ax.set_ylabel(f"{y}", fontsize=16)
+ax.set_xlabel(f"{x}", fontsize=22)
+ax.set_ylabel(f"{y}", fontsize=22)
 ax.set_xlim(4, 350)
 # Manuelle Legende für die Gruppen
-##group_legend_handles = [
-    #plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
-    #plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
-#]
-ax.tick_params(axis='both', which='major', labelsize=14)  # 'both' adjusts x and y ticks
-#ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=14)
+group_legend_handles = [
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
+    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
+]
+ax.tick_params(axis='both', which='major', labelsize=18)  # 'both' adjusts x and y ticks
+ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=18)
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
@@ -159,7 +159,7 @@ ax.scatter(single_cell_values[x_value], single_cell_values[y_value])
 ax.set_xlabel(x_value)
 ax.set_xticklabels(ax.get_xticks(), rotation = 90)
 ax.set_ylabel(y_value)
-plt.show()
+#plt.show()
 
 # x over y
 single_cell_values = batches_list_df.drop_duplicates(subset="Sample ID")
@@ -170,7 +170,7 @@ ax.scatter(single_cell_values[x_value], single_cell_values[y_value])
 ax.set_xlabel(x_value)
 ax.set_xticklabels(ax.get_xticks(), rotation = 90)
 ax.set_ylabel(y_value)
-plt.show()
+#plt.show()
 
 # Create a custom color palette for the groups
 palette = {'normally aligned': 'blue', 'misaligned cathode': 'red', 'reference': 'green'}
@@ -187,7 +187,7 @@ if lineplot:
         markers=True           # Optional, to add markers to the lines
     )
     plt.xlim(0, 350)
-    plt.show()
+    #plt.show()
 
 # Create the histogram with eneas data
 sns.histplot(
@@ -201,7 +201,7 @@ sns.histplot(
 )
 plt.xlabel("Initial Specific Discharge Capacity (mAh/g)", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 
 # Create the histogram with Initial specific discharge capacity (mAh/g) // First formation specific discharge capacity (mAh/g)
 sns.histplot(
@@ -215,7 +215,7 @@ sns.histplot(
 )
 plt.xlabel("Initial Specific Discharge Capacity (mAh/g)", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 #
 sns.histplot(
     data=batches_list_df_unique,
@@ -228,7 +228,7 @@ sns.histplot(
 )
 plt.xlabel("First formation specific discharge capacity (mAh/g)", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 
 # Create the histogram with Initial efficiency (%) // First formation efficiency (%)
 sns.histplot(
@@ -242,7 +242,7 @@ sns.histplot(
 )
 plt.xlabel("Initial efficiency (%)", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 #
 sns.histplot(
     data=batches_list_df_unique,
@@ -255,7 +255,7 @@ sns.histplot(
 )
 plt.xlabel("First formation efficiency (%)", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 
 # Create the histogram with Cycles to 70% capacity
 sns.histplot(
@@ -269,7 +269,7 @@ sns.histplot(
 )
 plt.xlabel("Cycles to 70% capacity", fontsize=12)
 plt.ylabel("Count", fontsize=12)
-plt.show()
+#plt.show()
 
 
 #%%
@@ -312,4 +312,4 @@ fig.update_layout(
 )
 
 # Show the plot
-fig.show()
+#fig.show()
