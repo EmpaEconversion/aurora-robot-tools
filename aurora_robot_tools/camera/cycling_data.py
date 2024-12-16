@@ -72,21 +72,21 @@ color_group1 = seaborn_blue
 color_group2 = seaborn_red
 # Plotten der Punkte mit farblicher Gruppierung
 for key, value in cells.items():
-    if 2 <= key <= 17:  # Gruppe 1
-        ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.6)
-    elif key >= 18:  # Gruppe 2
-        ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.6)
+    #if 2 <= key <= 17:  # Gruppe 1
+    ax.scatter(value[x], value[y], color=color_group1, s=8, alpha=0.6)
+    #elif key >= 18:  # Gruppe 2
+        #ax.scatter(value[x], value[y], color=color_group2, s=8, alpha=0.6)
 # Achsenbeschriftungen
 ax.set_xlabel(f"{x}", fontsize=22)
 ax.set_ylabel(f"{y}", fontsize=22)
-ax.set_xlim(4, 350)
+ax.set_xlim(4, 500)
 # Manuelle Legende für die Gruppen
 group_legend_handles = [
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group1, markersize=4, label="normally aligned"),
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_group2, markersize=4, label="misaligned cathode")
 ]
 ax.tick_params(axis='both', which='major', labelsize=18)  # 'both' adjusts x and y ticks
-ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=18)
+#ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=18)
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
@@ -113,7 +113,7 @@ group_legend_handles = [
 ]
 ax.legend(handles=group_legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=2, fontsize=10)
 plt.tight_layout()
-plt.show()
+#plt.show()
 
 
 #%%
@@ -308,8 +308,8 @@ fig.update_layout(
         orientation="h",  # Horizontal legend
         font=dict(size=10)
     ),
-    xaxis=dict(range=[4, 350])  # Set x-axis limits
+    xaxis=dict(range=[4, 500])  # Set x-axis limits
 )
 
 # Show the plot
-#fig.show()
+fig.show()
