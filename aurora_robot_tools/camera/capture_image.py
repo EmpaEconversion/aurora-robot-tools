@@ -5,8 +5,6 @@ Simple script to capture an image from the camera and save as png and raw 12-bit
 """
 
 import os
-import sys
-from datetime import datetime
 from PIL import Image
 import numpy as np
 import gxipy as gx
@@ -14,26 +12,8 @@ from time import sleep
 import h5py
 import sqlite3
 
-# get argument from command line
-if len(sys.argv) > 1:
-    step = str(int(sys.argv[1]))
-    if len(sys.argv) > 2:
-        run_id = sys.argv[2]
-    else:
-        run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-else:
-    step = datetime.now().strftime('%H%M%S')
-    run_id = datetime.today().strftime('%Y-%m-%d') # if no run_id, get date of today
-
-IMAGE_FOLDER = f"C:/Aurora_images/{run_id}/"
-PICKLE_FOLDER = f"C:/Aurora_images/{run_id}/raw/"
-DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
-
-# if folder doesn't exist, create it
-if not os.path.exists(IMAGE_FOLDER):
-    os.makedirs(IMAGE_FOLDER)
-if not os.path.exists(PICKLE_FOLDER):
-    os.makedirs(PICKLE_FOLDER)
+IMAGE_FOLDER = "C:/Aurora_images/"
+DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
 
 # Connect to camera
 device_manager = gx.DeviceManager()
@@ -70,7 +50,7 @@ for i in range(500):
         prev_avg_brightness = avg_brightness
         avg_brightness = np.mean(numpy_image)
         diff = avg_brightness - prev_avg_brightness
-        if abs(diff) < 20:
+        if abs(diff) < 50:
             stable += 1
         else:
             stable = 0
@@ -83,43 +63,51 @@ for i in range(500):
             raise ValueError
         sleep(1)
 
-# Save last image
-# Convert 12-bit image to 8-bit for saving as PNG
-numpy_image_8bit = (numpy_image >> 4).astype(np.uint8)
-im = Image.fromarray(numpy_image_8bit)
-
-# Get the cell numbers current in the presses
-with sqlite3.connect(DATABASE_FILEPATH) as conn:
-    cursor = conn.cursor()
-    cursor.execute("SELECT `Cell Number`, `Current Press Number` FROM Cell_Assembly_Table WHERE `Current Press Number` > 0")
-    result = cursor.fetchall()
-# looks like ((1,1),(2,4),(3,5))
-cell_nums = [x[0] for x in result]
-press_nums = [x[1] for x in result]
-
-# naming scheme of image files
-filename = "_".join([f"p{press:02d}c{cell:02d}s{step}" for press, cell in zip(press_nums, cell_nums)])
-
-# Check if filename already exists and add a number to it, save as png
-base_path = os.path.join(IMAGE_FOLDER)
-i = 1
-while os.path.exists(os.path.join(base_path, filename + ".png")):
-    filename = filename + "_" + str(i)
-    i += 1
-im.save(IMAGE_FOLDER + filename + ".png")
-
-# Also save raw 12-bit numpy array in HDF5 format with compression
-base_path = os.path.join(PICKLE_FOLDER)
-i = 1
-while os.path.exists(os.path.join(base_path, filename + ".h5")):
-    filename = filename + "_" + str(i)
-    i += 1
-with h5py.File(PICKLE_FOLDER + filename + ".h5", 'w') as f:
-    f.create_dataset('image', data=numpy_image, compression='gzip', compression_opts=9)
-
 # Stop data acquisition
 cam.stream_off()
 
 # Close connection
 cam.close_device()
 
+# Save last image
+# Convert 12-bit image to 8-bit for saving as PNG
+numpy_image_8bit = (numpy_image >> 4).astype(np.uint8)
+im = Image.fromarray(numpy_image_8bit)
+
+# Get Run ID from database and cell/press numbers from database
+with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
+    run_id = cursor.fetchone()[0]
+    cursor.execute(
+        "SELECT `Current Press Number`, `Cell Number`, `Last Completed Step` "
+        "FROM Cell_Assembly_Table "
+        "WHERE `Current Press Number` > 0 AND `Error Code` = 0 "
+        "ORDER BY `Current Press Number` ASC"
+    )
+    press_cell_steps = cursor.fetchall()
+
+# Make filename from press/cell/step numbers
+folderpath = os.path.join(IMAGE_FOLDER, run_id)
+filename = "_".join([f"p{p}c{c}s{s}" for p,c,s in press_cell_steps])
+
+# Make sure folder exists
+if not os.path.exists(folderpath):
+    os.makedirs(folderpath)
+
+# Save lossy compressed png image, make sure filename doesn't already exist
+if os.path.exists(os.path.join(folderpath, filename + ".png")):
+    i = 1
+    while os.path.exists(os.path.join(folderpath, filename + f"_{i}.png")):
+        i += 1
+    filename += f"_{i}"
+im.save(os.path.join(folderpath, filename + ".png"), compress_level=9)
+
+# Save lossless compressed raw 12-bit numpy array
+if os.path.exists(os.path.join(folderpath, filename + ".h5")):
+    i = 1
+    while os.path.exists(os.path.join(folderpath, filename + f"_{i}.h5")):
+        i += 1
+    filename += f"_{i}"
+with h5py.File(os.path.join(folderpath, filename + ".h5"), 'w') as f:
+    f.create_dataset('image', data=numpy_image, compression='gzip', compression_opts=9)

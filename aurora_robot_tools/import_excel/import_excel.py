@@ -1,4 +1,4 @@
-""" Copyright © 2024, Empa, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia
+"""Copyright © 2024, Empa, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia.
 
 Read the user input Excel file and write the data to a SQL database.
 
@@ -14,30 +14,33 @@ Usage:
 
 import os
 import sqlite3
+import sys
 import warnings
 from tkinter import Tk, filedialog
+
 import pandas as pd
 
 # Ignore the pandas data validation warning
-warnings.filterwarnings('ignore', '.*extension is not supported and will be removed.*')
+warnings.filterwarnings("ignore", ".*extension is not supported and will be removed.*")
 
 DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
 
+# Open dialog to select the input file
 DEFAULT_INPUT_FILEPATH = "%userprofile%\\Desktop\\Inputs"
 Tk().withdraw()  # to hide the main window
 input_filepath = filedialog.askopenfilename(
     initialdir = DEFAULT_INPUT_FILEPATH,
     title = "Select the input Excel file",
-    filetypes = [("Excel files", "*.xlsx")]
+    filetypes = [("Excel files", "*.xlsx")],
 )
 
 exit_code=0
 
 if not input_filepath:
-    print('No input file selected - not updating the database.')
+    print("No input file selected - not updating the database.")
 
 if input_filepath:
-    print(f'Reading {input_filepath}')
+    print(f"Reading {input_filepath}")
 
     # Read the excel file
     df = pd.read_excel(input_filepath, sheet_name="Input Table", dtype={"Casing Type": str})
@@ -63,24 +66,41 @@ if input_filepath:
     # Fill the details for electrolyte properties
     df["Electrolyte Name"] = df["Electrolyte Position"].map(
         df_electrolyte.set_index("Electrolyte Position")["Name"]
-        )
+    )
     df["Electrolyte Description"] = df["Electrolyte Position"].map(
         df_electrolyte.set_index("Electrolyte Position")["Description"]
-        )
+    )
     df["Electrolyte Amount Before Separator (uL)"] = df["Electrolyte Amount (uL)"] * (
         (df["Electrolyte Dispense Order"]=="Before") + 0.5*(df["Electrolyte Dispense Order"]=="Both")
-        )
+    )
     df["Electrolyte Amount After Separator (uL)"] = df["Electrolyte Amount (uL)"] * (
         (df["Electrolyte Dispense Order"]=="After") + 0.5*(df["Electrolyte Dispense Order"]=="Both")
-        )
+    )
 
     # Fill the details for electrode properties
-    anode_columns = [col for col in df_electrodes.columns if "Anode" in col and col != "Anode Type"]
-    cathode_columns = [col for col in df_electrodes.columns if "Cathode" in col and col != "Cathode Type"]
-    for column in anode_columns:
-        df[column] = df["Anode Type"].map(df_electrodes.set_index("Anode Type")[column])
-    for column in cathode_columns:
-        df[column] = df["Cathode Type"].map(df_electrodes.set_index("Cathode Type")[column])
+    # df_anode is df_electrodes where 'anode' is in the column name
+    df_anode = df_electrodes[[col for col in df_electrodes.columns if "Anode" in col]]
+    df_anode = df_anode.dropna(subset=["Anode Type"])
+    # if diameter is missing or 0, set to 15 mm
+    df_anode["Anode Diameter (mm)"] = df_anode["Anode Diameter (mm)"].fillna(15).replace(0, 15)
+
+    # df_cathode is df_electrodes where 'cathode' is in the column name
+    df_cathode = df_electrodes[[col for col in df_electrodes.columns if "Cathode" in col]]
+    df_cathode = df_cathode.dropna(subset=["Cathode Type"])
+    # if diameter is missing or 0, set to 14 mm
+    df_cathode["Cathode Diameter (mm)"] = df_cathode["Cathode Diameter (mm)"].fillna(14).replace(0, 14)
+
+    # If Anode Type or Cathode Type contains duplicates, raise an error
+    if df_anode["Anode Type"].duplicated().any() or df_cathode["Cathode Type"].duplicated().any():
+        print(
+            "CRITICAL: Anode Type or Cathode Type in electrode properties table contains "
+            "duplicates. Check the input file.",
+        )
+        sys.exit(1)
+
+    # Merge with input table on Anode Type and Cathode Type
+    df = df.merge(df_anode, on="Anode Type", how="left")
+    df = df.merge(df_cathode, on="Cathode Type", how="left")
 
     # Add columns which will be filled in later
     df["Anode Weight (mg)"] = 0
@@ -91,7 +111,7 @@ if input_filepath:
     df["Cathode Active Material Weight (mg)"] = 0
     df["Cathode Balancing Capacity (mAh)"] = 0
     df["Cathode Rack Position"] = 0
-    df["N:P ratio overlap factor"] = 14**2 / 15**2 # HACK this is fixed, but useful to store for future
+    df["N:P ratio overlap factor"] = 0
     df["Actual N:P Ratio"] = 0
     df["Cell Number"] = 0
     df["Last Completed Step"] = 0
@@ -101,82 +121,114 @@ if input_filepath:
     df["Sample ID"] = ""
 
     # First filling of anode and cathode positions
-    df.loc[df["Anode Type"].notnull(), "Anode Rack Position"] = df["Rack Position"]
-    df.loc[df["Cathode Type"].notnull(), "Cathode Rack Position"] = df["Rack Position"]
-    df.loc[df["Anode Type"].notnull(), "Anode Weight (mg)"] = 0
-    df.loc[df["Cathode Type"].notnull(), "Cathode Weight (mg)"] = 0
+    df.loc[df["Anode Type"].notna(), "Anode Rack Position"] = df["Rack Position"]
+    df.loc[df["Cathode Type"].notna(), "Cathode Rack Position"] = df["Rack Position"]
+    df.loc[df["Anode Type"].notna(), "Anode Weight (mg)"] = 0
+    df.loc[df["Cathode Type"].notna(), "Cathode Weight (mg)"] = 0
 
-    print('Successfully read and manipulated the Excel file.')
+    print("Successfully read and manipulated the Excel file.")
 
     # Warnings to the user
     columns_to_check = [
-        'Anode Type',
-        'Anode Balancing Specific Capacity (mAh/g)',
-        'Anode C-rate Definition Specific Capacity (mAh/g)',
-        'Anode C-rate Definition Areal Capacity (mAh/cm2)',
-        'Cathode Type',
-        'Cathode Balancing Specific Capacity (mAh/g)',
-        'Cathode C-rate Definition Specific Capacity (mAh/g)',
-        'Cathode C-rate Definition Areal Capacity (mAh/cm2)',
-        'Target N:P Ratio',
-        'Minimum N:P Ratio',
-        'Maximum N:P Ratio',
-        'Separator',
-        'Electrolyte Position',
-        'Electrolyte Amount (uL)',
-        'Electrolyte Dispense Order',
-        'Batch Number',
+        "Anode Type",
+        "Anode Balancing Specific Capacity (mAh/g)",
+        "Anode C-rate Definition Specific Capacity (mAh/g)",
+        "Anode C-rate Definition Areal Capacity (mAh/cm2)",
+        "Cathode Type",
+        "Cathode Balancing Specific Capacity (mAh/g)",
+        "Cathode C-rate Definition Specific Capacity (mAh/g)",
+        "Cathode C-rate Definition Areal Capacity (mAh/cm2)",
+        "Target N:P Ratio",
+        "Minimum N:P Ratio",
+        "Maximum N:P Ratio",
+        "Separator",
+        "Electrolyte Position",
+        "Electrolyte Amount (uL)",
+        "Electrolyte Dispense Order",
+        "Batch Number",
     ]
     missing_columns = set(columns_to_check) - set(df.columns)
     if missing_columns:
         exit_code=1
         print("CRITICAL: these columns are missing from the input:", missing_columns)
 
-    used_rows = df["Anode Type"].notnull() | df["Cathode Type"].notnull()
+    used_rows = df["Anode Type"].notna() | df["Cathode Type"].notna()
 
     if (~df["Electrolyte Dispense Order"].loc[used_rows].isin(["Before", "After", "Both"])).any():
         exit_code=1
         print('CRITICAL: electrolyte dispense order must be "Before", "After" or "Both".')
     if (df["Electrolyte Amount (uL)"]>500).any():
         exit_code=1
-        print(f'CRITICAL: your input has electrolyte volumes ({max(df["Electrolyte Amount (uL)"])} uL) that are too large.')
+        print(
+            "CRITICAL: your input has electrolyte volumes "
+            f"({max(df["Electrolyte Amount (uL)"])} uL) that are too large.",
+        )
     elif (df["Electrolyte Amount (uL)"]>150).any():
         print(f'WARNING: your input has large electrolyte volumes up {max(df["Electrolyte Amount (uL)"])} uL.')
     if (~df["Separator"].loc[used_rows].isin(["Whatman","Celgard"])).any():
-        print('WARNING: separator type not recognised. Check the input file.')
+        print("WARNING: separator type not recognised. Check the input file.")
     if (df["Rack Position"] != pd.Series(range(1, 37))).any():
         exit_code=1
-        print('CRITICAL: rack positions must be sequential 1-36. Check the input file.')
+        print("CRITICAL: rack positions must be sequential 1-36. Check the input file.")
 
     if exit_code:
-        print('Critical problems: did not update database.')
-        exit(1)
+        print("Critical problems: did not update database.")
+        sys.exit(1)
 
     # Connect to the database and create the Cell_Assembly_Table
     with sqlite3.connect(DATABASE_FILEPATH) as conn:
-        df.to_sql("Cell_Assembly_Table", conn, index=False, if_exists="replace",
-                dtype={"Anode Rack Position": "INTEGER",
-                        "Cathode Rack Position": "INTEGER",
-                        "Cell Number": "INTEGER",
-                        "Last Completed Step": "INTEGER",
-                        "Current Press Number": "INTEGER",
-                        "Error Code": "INTEGER",
-                        "Casing Type": "TEXT",
-                        "Barcode": "TEXT",
-                        "Batch Number": "INTEGER",
-                }
+        df.to_sql(
+            "Cell_Assembly_Table",
+            conn,
+            index=False,
+            if_exists="replace",
+            dtype={
+                "Anode Rack Position": "INTEGER",
+                "Cathode Rack Position": "INTEGER",
+                "Cell Number": "INTEGER",
+                "Last Completed Step": "INTEGER",
+                "Current Press Number": "INTEGER",
+                "Error Code": "INTEGER",
+                "Casing Type": "TEXT",
+                "Barcode": "TEXT",
+                "Batch Number": "INTEGER",
+            },
         )
-        df_press.to_sql("Press_Table", conn, index=False, if_exists="replace",
-                        dtype={col: "INTEGER" for col in df_press.columns})
+        df_press.to_sql(
+            "Press_Table",
+            conn,
+            index=False,
+            if_exists="replace",
+            dtype={col: "INTEGER" for col in df_press.columns},
+        )
         electrolyte_dtype={col: "REAL" for col in df_electrolyte.columns}
         electrolyte_dtype["Electrolyte Position"] = "INTEGER"
         electrolyte_dtype["Name"] = "TEXT"
         electrolyte_dtype["Description"] = "TEXT"
-        df_electrolyte.to_sql("Electrolyte_Table", conn, index=False, if_exists="replace",
-                            dtype=electrolyte_dtype)
-        df_settings.to_sql("Settings_Table", conn, index=False, if_exists="replace",
-                           dtype={"key": "TEXT", "value": "TEXT"})
-        df_timestamp.to_sql("Timestamp_Table", conn, index=False, if_exists="replace",
-                            dtype={"Cell Number": "INTEGER", "Step Number": "INTEGER", "Timestamp": "VARCHAR(255)"})
+        df_electrolyte.to_sql(
+            "Electrolyte_Table",
+            conn,
+            index = False,
+            if_exists = "replace",
+            dtype = electrolyte_dtype,
+        )
+        df_settings.to_sql(
+            "Settings_Table",
+            conn,
+            index = False,
+            if_exists = "replace",
+            dtype = {"key": "TEXT", "value": "TEXT"},
+        )
+        df_timestamp.to_sql(
+            "Timestamp_Table",
+            conn,
+            index = False,
+            if_exists = "replace",
+            dtype = {
+                "Cell Number": "INTEGER",
+                "Step Number": "INTEGER",
+                "Timestamp": "VARCHAR(255)",
+            },
+        )
 
-    print(f'Successfully updated the database.')
+    print("Successfully updated the database.")

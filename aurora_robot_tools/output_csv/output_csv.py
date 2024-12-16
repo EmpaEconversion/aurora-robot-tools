@@ -1,9 +1,11 @@
-""" Copyright © 2024, Empa, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia
+"""Copyright © 2024, Empa, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia.
 
 Convert the finished database to a csv file that can be read by Aurora and AiiDA.
 """
 import sqlite3
+import sys
 from tkinter import Tk, filedialog
+
 import pandas as pd
 
 DATABASE_FILEPATH = "C:\\Modules\\Database\\chemspeedDB.db"
@@ -22,11 +24,11 @@ output_filepath = filedialog.asksaveasfilename(
     title = "Export chemspeed.db to .csv",
     filetypes = [("csv files", "*.csv")],
     initialdir=DEFAULT_OUTPUT_FILEPATH,
-    initialfile=f"{run_id}.csv"
+    initialfile=f"{run_id}.csv",
 )
 if not output_filepath:
-    print('No output file selected - not updating the database.')
-    exit()
+    print("No output file selected - not updating the database.")
+    sys.exit()
 if not output_filepath.endswith(".csv"):
     output_filepath += ".csv"
 
@@ -76,7 +78,7 @@ with sqlite3.connect(DATABASE_FILEPATH) as conn:
     if df.empty:
         print("No finished cells found in database.")
         print("No output file created.")
-        exit()
+        sys.exit()
     # Add activate material weight columns if they don't exist
     for xode in ["Anode", "Cathode"]:
         if f"{xode} Active Material Weight (mg)" not in df.columns:
@@ -87,18 +89,34 @@ with sqlite3.connect(DATABASE_FILEPATH) as conn:
 
     # Add Run ID to dataframe
     df["Run ID"] = run_id
-    # Remove Current Press Number and Error Code columns
-    df = df.drop(columns=["Current Press Number", "Error Code"])
+    # Remove certain columns, these are either unnecessary or will be recalculated
+    columns_to_drop = [
+        "Last Completed Step",
+        "Current Press Number",
+        "Error Code",
+        "Anode Active Material Weight (mg)",
+        "Anode Balancing Capacity (mAh)",
+        "Cathode Active Material Weight (mg)",
+        "Cathode Balancing Capacity (mAh)",
+        "N:P ratio overlap factor",
+        "Actual N:P Ratio",
+    ]
+    df = df.drop(columns=columns_to_drop)
     # Get timestamp table, pivot so step numbers are columns, merge with cell assembly table
     df_timestamp = pd.read_sql("SELECT * FROM Timestamp_Table", conn)
     # Remove rows with the same cell number and step number, keep the latest timestamp
     df_timestamp = df_timestamp.sort_values("Timestamp", ascending=False).drop_duplicates(["Cell Number", "Step Number"])
-    df_timestamp = df_timestamp.pivot(index="Cell Number", columns="Step Number", values="Timestamp")
+    df_timestamp = df_timestamp.pivot_table(index="Cell Number", columns="Step Number", values="Timestamp")
     df_timestamp.columns = [f"Timestamp Step {col}" for col in df_timestamp.columns]
-    df = pd.merge(df, df_timestamp, on="Cell Number", how="left") # LEFT merge
+    df = df.merge(df_timestamp, on="Cell Number", how="left") # LEFT merge
+
+    # Remove any semi-colons from the dataframe that could break the csv file
+    df = df.replace(";", ".", regex=True)
+
+    # Output dataframe to a csv file
     df.to_csv(output_filepath, index=False, sep=";")
 
     # Create a csv file that can be read by AiiDA
     column_conversion = {old: new for old, new in column_conversion.items() if old in df.columns}
-    df.rename(columns=column_conversion, inplace=True)
+    df = df.rename(columns=column_conversion)
     df.to_csv(output_filepath[:-4]+"_aiida.csv", index=False, sep=";")
