@@ -57,7 +57,7 @@ class Alignment:
         percentage_area = round(area / (math.pi * R2**2) * 100, 4) # area of cathode overlapping with anode
         return percentage_area
 
-    def plot_coordinates_by_cell(self, draw_circle=False) -> pd.DataFrame:
+    def plot_coordinates_by_cell(self, draw_circle=False, save=False) -> pd.DataFrame:
         """ Plots the center points of all parts for each cell.
 
         The circle of the size of the parts is only plotted if desired. The images with the center
@@ -162,11 +162,12 @@ class Alignment:
             ax.grid(True)
 
             # Save the plot as a JPG file named by the cell number
-            data_dir = os.path.join(self.path, "plot")
-            if not os.path.exists(data_dir):
-                os.makedirs(data_dir)
-            plt.savefig(os.path.join(data_dir, f"center_cell_{cell}.jpg"), format="jpg")
-            plt.close()
+            if save:
+                data_dir = os.path.join(self.path, "plot")
+                if not os.path.exists(data_dir):
+                    os.makedirs(data_dir)
+                plt.savefig(os.path.join(data_dir, f"center_cell_{cell}.jpg"), format="jpg")
+                plt.close()
 
         # Save alignment data frame
         self.alignment_df = self.alignment_df.sort_values(by='cell')
@@ -178,42 +179,6 @@ class Alignment:
 
         return self.alignment_df
 
-    def plot_differences(self, step: int, name: str):
-        """ Gives a plot of the part defined in the step and its alignment vs. cell number/rack position.
-
-        Args:
-            step (int): step of robot of part which should be investigated
-            name (str): name of part
-        """
-        # create folder plot if not existent
-        if not os.path.exists('plot'):
-            os.makedirs('plot')
-
-        df_filtered = self.df[self.df['step'].isin([0, step])] # filter for specific steps
-        # pivot data frame to have step 0 and 2 next to each other
-        df_pivot = df_filtered.pivot_table(index='cell', columns='step', values=[self.xstr, self.ystr])
-        # calculate difference
-        df_pivot['x_diff'] = (df_pivot[self.xstr, step] - df_pivot[self.xstr, 0]) / self.mm_to_pixel
-        df_pivot['y_diff'] = (df_pivot[self.ystr, step] - df_pivot[self.ystr, 0]) / self.mm_to_pixel
-
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.scatter(df_pivot.index, df_pivot['x_diff'], color='blue', label='x_diff', s=50)
-        ax.scatter(df_pivot.index, df_pivot['y_diff'], color='red', label='y_diff', s=50)
-
-        ax.set_xlabel('Cell Number / Rack Position')
-        ax.set_ylabel('Misalignment [mm]')
-        ax.set_title(f'{name} Misalignment')
-        ax.set_ylim([-0.4, 0.4])
-        ax.legend()
-        ax.grid(True)
-
-        # Save the plot as a JPG file named by the cell number
-        data_dir = os.path.join(self.path, "plot")
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-        plt.savefig(os.path.join(data_dir, f'differences_plot_{name}.png'), format="jpg")
-        plt.close()
-
 #%% RUN CODE
 if __name__ == '__main__':
 
@@ -223,7 +188,6 @@ if __name__ == '__main__':
     # CALL CLASS AND FUNCTIONS
     obj = Alignment(folderpath)
     data = obj.plot_coordinates_by_cell()
-    obj.plot_differences(step=2, name="Anode manual")
 
 
 
