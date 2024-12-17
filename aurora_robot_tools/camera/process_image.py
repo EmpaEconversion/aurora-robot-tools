@@ -154,13 +154,12 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
         r_circles = None
     return coords_circles, r_circles, img
 
-def _convolution(image: np.array, filter: np.array, imaginary: bool) -> np.array:
+def _convolution(image: np.array, filter: np.array) -> np.array:
     """ Takes image an convolutes it with the given filter
     """
     image_convolved = signal.convolve2d(image, filter, boundary='symm', mode='same')
-    if imaginary:
-        # Compute the magnitude of the complex result
-        image_convolved = np.abs(image_convolved)
+    # Compute the magnitude for the case of complex kernels
+    image_convolved = np.abs(image_convolved)
     # Normalize the magnitude to the range [0, 255] and convert to uint8
     image_normalized = cv2.normalize(image_convolved, None, 0, 255, cv2.NORM_MINMAX)
     image_normalized = image_normalized.astype(np.uint8)
@@ -181,7 +180,7 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
         # a kernel with imaginary numbers gave the best results
         # Horizontal operator is real, vertical is imaginary (for the gradients in the image)
         filter_2 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
-        processed_image = _convolution(image_contrast, filter_2, imaginary = True)
+        processed_image = _convolution(image_contrast, filter_2)
     else:
         processed_image = image # no preprossessing
     return processed_image
