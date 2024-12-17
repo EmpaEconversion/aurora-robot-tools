@@ -373,14 +373,18 @@ class ProcessImages:
             self.df (DataFrame): columns cell, step, press, transformed image section, center coordinates
         """
         for name, information, image in data_list:
+            transformation_matrix = 0 # default value if 
             for array, numbers in self.ref:
                 if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
                     transformation_matrix = array
-            image_sections = self._transform_split(image, transformation_matrix, name) # trasnform and split image
-            for dictionary in information:
-                # add information to data frame
-                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
-                self.df.loc[len(self.df)] = row
+            if isinstance(transformation_matrix, (np.ndarray)): 
+                image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
+                for dictionary in information:
+                    # add information to data frame
+                    row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
+                    self.df.loc[len(self.df)] = row
+            else: # consider fact if there is no transformation matrix in case step 0 is missing -> do not consider cells
+                print("Images skipped as there is no transformation matrix.")
 
         # save images in one big stacked image
         self.height, self.width = self.df["array"][0].shape[:2]
@@ -389,15 +393,23 @@ class ProcessImages:
         image_rows = []
         cols = []
         rows = []
+        max_images_per_row = max(self.df.groupby("cell")["step"].count())
         for i, cell in enumerate(self.df["cell"].unique()):
             cell_images = self.df[self.df["cell"] == cell].sort_values(by="step")["array"].to_list()
-            cell_img = cell_images/np.max(cell_images)*255 # convert to 8 bit
-            cell_img = cell_img.astype(np.uint8) # image array
-            row_image = np.hstack(cell_img)  # Concatenate images in one row
+            num_images = len(cell_images)
+            # Normalisiere die Bilder und konvertiere sie in 8-Bit
+            cell_images = [img / np.max(img) * 255 for img in cell_images]
+            cell_images = [img.astype(np.uint8) for img in cell_images]
+            # Falls weniger Bilder als `max_images_per_row`, füge schwarze Bilder hinzu
+            while len(cell_images) < max_images_per_row:
+                black_image = np.zeros_like(cell_images[0])  # Erstelle ein schwarzes Bild mit derselben Größe
+                cell_images.append(black_image)
+            row_image = np.hstack(cell_images)
             image_rows.append(row_image)
-            rows.extend([i] * len(cell_images))
-            cols.extend(range(len(cell_images)))
-        composite_image = np.vstack(image_rows)  # Stack all rows vertically
+            rows.extend([i] * num_images)
+            cols.extend(range(num_images))
+        composite_image = np.vstack(image_rows)
+
         self.df["img_row"] = rows
         self.df["img_col"] = cols
         # create path if not existent
@@ -545,16 +557,15 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # Get Run ID from database
-    #DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
-    #with sqlite3.connect(DATABASE_FILEPATH) as conn:
-    #    cursor = conn.cursor()
-    #    cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
-    #    run_id = cursor.fetchone()[0]
+    DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
+    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
+        run_id = cursor.fetchone()[0]
 
     # PARAMETER
-    #IMAGE_FOLDER = "C:/Aurora_images/"
-    #folderpath = os.path.join(IMAGE_FOLDER, run_id)
-    folderpath = "C:/gen18"
+    IMAGE_FOLDER = "C:/Aurora_images/"
+    folderpath = os.path.join(IMAGE_FOLDER, run_id)
 
     obj = ProcessImages(folderpath)
     data_list = obj.load_files()
