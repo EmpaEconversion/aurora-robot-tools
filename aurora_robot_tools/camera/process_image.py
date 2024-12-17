@@ -553,8 +553,6 @@ if __name__ == '__main__':
     # PARAMETER
     IMAGE_FOLDER = "C:/Aurora_images/"
     folderpath = os.path.join(IMAGE_FOLDER, run_id)
-    # when running from local device:
-    # folderpath = "C:/lisc_gen14"
 
     obj = ProcessImages(folderpath)
     data_list = obj.load_files()
