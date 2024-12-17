@@ -202,8 +202,8 @@ class ProcessImages:
         # Parameter, which are subject to change (of whole camera setup) ---------------------------
         self.mm_to_pixel = 10
         self.offset_mm = 20 # mm
-        self.r = (21.0, 22.8) # (min, max) radius of pressing tool for reference detection [mm]
-        self.r_ellipse = (20.5, 24.0) # (min, max) radius of pressing tool for reference detection [mm]
+        self.r = (19, 23) # (min, max) radius of pressing tool for reference detection [mm]
+        self.r_ellipse = (19.5, 23.0) # (min, max) radius of pressing tool for reference detection [mm]
 
         # ALIGNMENT --------------------------------------------------------------------------------
         self.alignment_df = pd.DataFrame() # storing alignment in data frame
@@ -235,6 +235,8 @@ class ProcessImages:
             tuple with transformation matrix and list of cell numbers
         """
         img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
+        # Apply Gaussian blur to reduce noise
+        img = cv2.GaussianBlur(img, (9, 9), 2)
         ref_image_name = "_".join(str(d["c"]) for d in filenameinfo) # name with all cells belonging to reference
 
         if ellipse_detection:
@@ -543,15 +545,16 @@ class ProcessImages:
 if __name__ == '__main__':
 
     # Get Run ID from database
-    DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
-        run_id = cursor.fetchone()[0]
+    #DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
+    #with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    #    cursor = conn.cursor()
+    #    cursor.execute("SELECT `value` FROM Settings_Table WHERE `key` = 'Base Sample ID'")
+    #    run_id = cursor.fetchone()[0]
 
     # PARAMETER
-    IMAGE_FOLDER = "C:/Aurora_images/"
-    folderpath = os.path.join(IMAGE_FOLDER, run_id)
+    #IMAGE_FOLDER = "C:/Aurora_images/"
+    #folderpath = os.path.join(IMAGE_FOLDER, run_id)
+    folderpath = "C:/gen18"
 
     obj = ProcessImages(folderpath)
     data_list = obj.load_files()
