@@ -178,6 +178,8 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
     """
     if step == 2:
         image_contrast = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # contrast
+        # a kernel with imaginary numbers gave the best results
+        # Horizontal operator is real, vertical is imaginary (for the gradients in the image)
         filter_2 = np.array([[-3-3j, 0-10j, +3-3j], [-10+0j, 0+0j, +10+0j], [-3+3j, 0+10j, +3+3j]])
         processed_image = _convolution(image_contrast, filter_2, imaginary = True)
     else:
