@@ -81,6 +81,7 @@ def _detect_ellipses(img: np.array, r: tuple) -> tuple[list[list], np.array]:
 
     Args:
         img (array): image array
+        r (tuple): (minimum_radius, maximum_radius) to detect
 
     Returns:
         coords_ellipses (list[list]): list with all six center coordinates of pressing tools
@@ -191,42 +192,45 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
 
 
 class ProcessImages:
-    def __init__(self, path: str):
-        # TRANSFORMATION ---------------------------------------------------------------------------
+    def __init__(self, path: str) -> None:
         self.path = path # path to images
         self.run_ID = Path(self.path).name  # get run_ID from path
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
-        self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
-        # coordinates of pressing tools in mm
-        self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
-        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]]) # pressing tools in edges
+        self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # dataframe for all data
 
-        # Parameter, which are subject to change (of whole camera setup) ---------------------------
-        self.mm_to_pixel = 10
-        self.offset_mm = 20 # mm
+        # Coordinates of pressing tools in mm
+        self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
+        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]]) # pressing tools 1,5,6,2 coordinates in mm
         self.r = (19, 23) # (min, max) radius of pressing tool for reference detection [mm]
         self.r_ellipse = (19.5, 23.0) # (min, max) radius of pressing tool for reference detection [mm]
 
-        # ALIGNMENT --------------------------------------------------------------------------------
-        self.alignment_df = pd.DataFrame() # storing alignment in data frame
+        # Sub-image settings
+        self.mm_to_pixel = 10 # px/mm
+        self.offset_mm = 20 # mm
 
-        # Parameter, which are subject to change (of whole camera setup) ---------------------------
-        # radius of all parts from cell in mm (key corresponds to step)
+        # Radii of all parts of cell in mm (key corresponds to step)
         self.r_part = {0: (9.75, 10.25), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.75, 8.25),
                        5: (7.75, 8.25), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
                        10: (7.5, 8.5)}
-        # parameter for HoughCircles (param1, param2)
-        self.hough_params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
-                      (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
-        # parameter to account for thickness of parts and correct center accordingly
+
+        # Thickness of the stack for each assembly step in mm
+        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
+        # Thickness correction factor for each pressing tool
         self.z_correction = [[-0.175, -0.33], [-0.175, -0.2], # dz/dx & dz/dy values
                              [0.0375, -0.33], [0.0375, -0.2],
                              [0.125, -0.33], [0.125, -0.2]] # mm thickness to mm x,y shift
-        # thickness of the stack for each assembly step in mm
-        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
 
-    def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
+        # Parameters for HoughCircles detection (param1, param2)
+        self.hough_params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
+                      (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
+
+    def _get_references(
+            self,
+            filenameinfo: list[dict],
+            img: np.array,
+            ellipse_detection: bool = True,
+    ) -> tuple[np.array, list]:
         """Take each image from step 0 and get the four corner coordinates of the pressing tools.
 
         Args:
@@ -356,7 +360,7 @@ class ProcessImages:
             try:
                 transformation_matrix = next(m for m, cells in self.ref if cells == [d["c"] for d in information])
             except StopIteration:
-                print(f"WARNING: No reference image found for cells {[d["c"] for d in information]}, using first reference image.")
+                print(f"WARNING: No ref image found for cells {[d["c"] for d in information]}, using first ref image.")
                 transformation_matrix = self.ref[0][0]
             image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
             for dictionary in information:
@@ -485,12 +489,7 @@ class ProcessImages:
 
     def save(self) -> pd.DataFrame:
         """Save data with all coordinates, radii and alignments."""
-        # add sample ID
-        sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
-        # uncomment if special sample_ID
-        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14
-        #               else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
-        self.df["sample_ID"] = sample_IDs
+        self.df["sample_ID"] = [self.run_ID + "_" + f"{num:02d}" for num in self.df["cell"]]
 
         # Building JSON structure and save it
         json_data = {
@@ -503,7 +502,7 @@ class ProcessImages:
                 "steps": len(self.df["step"].unique()),
                 "mm_to_px": self.mm_to_pixel,
                 "raw_filename": f"alignment.{self.run_ID}.h5",
-                "comp_filename": f"alignment.{self.run_ID}.jpg"
+                "comp_filename": f"alignment.{self.run_ID}.jpg",
             },
             "calibration": {
                 "dxdz": [x[0] for x in self.z_correction],
