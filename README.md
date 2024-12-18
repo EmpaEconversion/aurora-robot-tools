@@ -23,6 +23,7 @@ The executables or Python scripts can be run directly from the command line, or 
 ## Contributors
 
 - [Graham Kimbell](https://github.com/g-kimbell)
+- [Lina Scholz](https://github.com/linasofie/)
 
 ## Acknowledgements
 
