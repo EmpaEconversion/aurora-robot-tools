@@ -353,19 +353,16 @@ class ProcessImages:
 
         """
         for name, information, image in data_list:
-            transformation_matrix = None
-            for array, numbers in self.ref:
-                if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
-                    transformation_matrix = array
-                    break
-            if transformation_matrix:
-                image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
-                for dictionary in information:
-                    # add information to data frame
-                    row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
-                    self.df.loc[len(self.df)] = row
-            else:  # if reference image and transformation matrix missing do not consider cells
-                print("Images skipped as there is no transformation matrix.")
+            try:
+                transformation_matrix = next(m for m, cells in self.ref if cells == [d["c"] for d in information])
+            except StopIteration:
+                print(f"WARNING: No reference image found for cells {[d["c"] for d in information]}, using first reference image.")
+                transformation_matrix = self.ref[0][0]
+            image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
+            for dictionary in information:
+                # add information to data frame
+                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
+                self.df.loc[len(self.df)] = row
 
         # save images in one big stacked image
         self.height, self.width = self.df["array"][0].shape[:2]
@@ -449,18 +446,17 @@ class ProcessImages:
         df["r_mm"] = radius
         # get difference to pressing tool in pixel
         df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
-        dx_px_list = []
-        dy_dx_list = []
-        for cell in df["cell"].unique():
-            cell_df = df[df["cell"] == cell]
-            dx_px = (cell_df["x"] - cell_df.loc[cell_df["step"] == 0, "x"].iloc[0]).tolist()
-            dy_px = (cell_df["y"] - cell_df.loc[cell_df["step"] == 0, "y"].iloc[0]).tolist()
-            dx_px_list.extend(dx_px)
-            dy_dx_list.extend(dy_px)
-        df["dx_px"] = dx_px_list
-        df["dy_px"] = dy_dx_list
 
-        # get difference to pressing tool in mm
+        # Extract reference coordinates as x,y for step 0
+        ref_coords = df[df["step"] == 0][["cell","x", "y"]].rename(columns={"x": "x0", "y": "y0"})
+        # Merge reference coordinates into df
+        df = df.merge(ref_coords, on="cell", how="left")
+        # If refernce coordinates missing, assume press is at centre of image
+        df = df.fillna({"x0": self.width/2, "y0": self.height/2})
+
+        # Calculate deltas
+        df["dx_px"] = df["x"] - df["x0"]
+        df["dy_px"] = df["y"] - df["y0"]
         df["dx_mm"] = df["dx_px"] / self.mm_to_pixel
         df["dy_mm"] = df["dy_px"] / self.mm_to_pixel
 
