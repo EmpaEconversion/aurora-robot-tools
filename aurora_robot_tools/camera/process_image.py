@@ -398,12 +398,12 @@ class ProcessImages:
         for i, cell in enumerate(self.df["cell"].unique()):
             cell_images = self.df[self.df["cell"] == cell].sort_values(by="step")["array"].to_list()
             num_images = len(cell_images)
-            # Normalisiere die Bilder und konvertiere sie in 8-Bit
+            # Normalize the images and convert them to 8-bit
             cell_images = [img / np.max(img) * 255 for img in cell_images]
             cell_images = [img.astype(np.uint8) for img in cell_images]
-            # Falls weniger Bilder als `max_images_per_row`, füge schwarze Bilder hinzu
+            # If fewer images than `max_images_per_row`, add black images
             while len(cell_images) < max_images_per_row:
-                black_image = np.zeros_like(cell_images[0])  # Erstelle ein schwarzes Bild mit derselben Größe
+                black_image = np.zeros_like(cell_images[0])  # Create a black image with the same size
                 cell_images.append(black_image)
             row_image = np.hstack(cell_images)
             image_rows.append(row_image)
