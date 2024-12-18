@@ -220,9 +220,9 @@ class ProcessImages:
         self.hough_params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
         # parameter to account for thickness of parts and correct center accordingly
-        self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
-                             (0.0375, -0.33), (0.0375, -0.2),
-                             (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
+        self.z_correction = [[-0.175, -0.33], [-0.175, -0.2], # dz/dx & dz/dy values
+                             [0.0375, -0.33], [0.0375, -0.2],
+                             [0.125, -0.33], [0.125, -0.2]] # mm thickness to mm x,y shift
         # thickness of the stack for each assembly step in mm
         self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
 
@@ -319,22 +319,6 @@ class ProcessImages:
             cropped_image = transformed_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             cropped_images[i+1] = cropped_image
         return cropped_images
-
-    def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
-        """Correct center position for component height.
-
-        Args:
-            p (int): pressing tool position
-            s (int): step
-            center (tuple): coordinates (x, y)
-
-        Returns:
-            (x_corr, y_corr) (tuple): corrected coordinates
-
-        """
-        x_corr = center[0] - self.z_thickness[s] * self.z_correction[p-1][0]
-        y_corr = center[1] - self.z_thickness[s] * self.z_correction[p-1][1]
-        return (x_corr, y_corr)
 
     def load_files(self) -> list[tuple]:
         """Load images and stores them in list with filename and image array.
@@ -484,25 +468,22 @@ class ProcessImages:
         return df
 
     def correct_for_thickness(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Account for thickness of parts, correcting corresponding distortion in coordinates.
+        """Account for thickness of parts shifting detected centres due to perspective.
 
-        From the reference image it is determined, how much the height of the parts move the
-        center of the parts in the different pressing tool positions due to the angle of the
-        camera. This is determined manually.
+        Uses the thickness of the parts and the z_correction to correct the x, y, and r coordinates.
+        z_correction is determined manually.
+
+        Args:
+            df (DataFrame): data frame containing step, press, and center coordinates
+
+        Returns:
+            df (DataFrame): data frame with corrected x, y, and r coordinates
+
         """
-        x_corrected = [] # lists to store data
-        y_corrected = []
-        for _index, row in df.iterrows():
-            position = row["press"]
-            step = row["step"]
-            # apply thickness correction
-            coords_corrected = self._thickness_correction(position, step, (row["dx_mm"], row["dy_mm"]))
-            x_corrected.append(coords_corrected[0])
-            y_corrected.append(coords_corrected[1])
-        # store in data frame
-        df["dx_mm_corr"] = x_corrected
-        df["dy_mm_corr"] = y_corrected
-        df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(5)
+        thicknesses = np.array([self.z_thickness[s] for s in df["step"]])
+        z_corrections = np.array([self.z_correction[p-1] for p in df["press"]])
+        df["dx_mm_corr"] = df["dx_mm"] - thicknesses * z_corrections[:, 0]
+        df["dy_mm_corr"] = df["dy_mm"] - thicknesses * z_corrections[:, 1]
         self.df = df
         return df
 
