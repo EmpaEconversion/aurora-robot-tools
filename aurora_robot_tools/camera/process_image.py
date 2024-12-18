@@ -1,4 +1,4 @@
-""" Copyright © 2024, Empa, Lina Scholz, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia
+"""Copyright © 2024, Empa, Lina Scholz, Graham Kimbell, Enea Svaluto-Ferro, Ruben Kuhnel, Corsin Battaglia.
 
 The script does the following steps:
     1. The images are read in from the folder with the run_ID of the cells, where they have been
@@ -48,17 +48,18 @@ Usage: The input it the filename where the images are stores. This does not have
 
 """
 
-import h5py
-import os
-import cv2
-import re
 import json
+import os
+import re
+import sqlite3
+from pathlib import Path
+
+import cv2
+import h5py
 import numpy as np
 import pandas as pd
 from PIL import Image
 from scipy import signal
-import sqlite3
-from pathlib import Path
 
 
 def _parse_filename(filename: str) -> list[dict]:
@@ -69,19 +70,22 @@ def _parse_filename(filename: str) -> list[dict]:
 
     Returns:
         list of dictionaries containing keys 'p', 'c', 's' for press, cell, step in the photo
+
     """
     pattern = re.compile(r"p(\d+)c(\d+)s(\d+)")
     matches = pattern.findall(filename)
     return [{"p": int(p), "c": int(c), "s": int(s)} for p, c, s in matches]
 
 def _detect_ellipses(img: np.array, r: tuple) -> tuple[list[list], np.array]:
-    """ Takes image, detects ellipses of pressing tools and provides list of coordinates.
+    """Take image, detect ellipses of pressing tools and provide list of coordinates.
 
     Args:
         img (array): image array
+        r (tuple): (minimum_radius, maximum_radius) to detect
 
-    Return:
+    Returns:
         coords_ellipses (list[list]): list with all six center coordinates of pressing tools
+
     """
     coords = [] # list to store reference coordinates
     edges = cv2.Canny(img, 50, 150) # Edge detection for ellipses
@@ -119,15 +123,16 @@ def _detect_ellipses(img: np.array, r: tuple) -> tuple[list[list], np.array]:
     return coords_ellipses, r_ellipses, img
 
 def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[list], list[list], np.array]:
-    """ Takes image, detects circles of compoments and provides list of coordinates.
+    """Take image, detect circles of compoments and provides list of coordinates.
 
     Args:
         img (array): image array
         radius (tuple): (minimum_radius, maximum_radius) to detect
         params (tuple): (param1, param2) for HoughCircles
 
-    Return:
+    Returns:
         coords_circles (list[list]): list with all center coordinates of components
+
     """
     # Apply Hough transform
     detected_circles = cv2.HoughCircles(img,
@@ -154,26 +159,25 @@ def _detect_circles(img: np.array, radius: tuple, params: tuple) -> tuple[list[l
         r_circles = None
     return coords_circles, r_circles, img
 
-def _convolution(image: np.array, filter: np.array) -> np.array:
-    """ Takes image an convolutes it with the given filter
-    """
-    image_convolved = signal.convolve2d(image, filter, boundary='symm', mode='same')
+def _convolution(image: np.array, kernel: np.array) -> np.array:
+    """Take image an convolutes it with the given filter."""
+    image_convolved = signal.convolve2d(image, kernel, boundary="symm", mode="same")
     # Compute the magnitude for the case of complex kernels
     image_convolved = np.abs(image_convolved)
     # Normalize the magnitude to the range [0, 255] and convert to uint8
     image_normalized = cv2.normalize(image_convolved, None, 0, 255, cv2.NORM_MINMAX)
-    image_normalized = image_normalized.astype(np.uint8)
-    return image_normalized
+    return image_normalized.astype(np.uint8)
 
 def _preprocess_image(image: np.array, step: int) -> np.array:
-    """ Takes image and applies preprocessing steps (blur, contrast)
+    """Take image and apply preprocessing steps (blur, contrast).
 
     Args:
         image (array): image array
         step (int): robot assembly step
 
-    Return:
+    Returns:
         processed_image (array): processed image
+
     """
     if step == 2:
         image_contrast = cv2.convertScaleAbs(image, alpha=2.5, beta=0) # contrast
@@ -188,43 +192,46 @@ def _preprocess_image(image: np.array, step: int) -> np.array:
 
 
 class ProcessImages:
-    def __init__(self, path):
-        # TRANSFORMATION ---------------------------------------------------------------------------
+    def __init__(self, path: str) -> None:
         self.path = path # path to images
         self.run_ID = Path(self.path).name  # get run_ID from path
         self.ref = [] # list with references (coords and corresponding cell numbers)
         self.data_list = [] # list to store image data
-        self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # data frame for all data
-        # coordinates of pressing tools in mm
-        self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
-        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]]) # pressing tools in edges
+        self.df = pd.DataFrame(columns=["cell", "step", "press", "array"]) # dataframe for all data
 
-        # Parameter, which are subject to change (of whole camera setup) ---------------------------
-        self.mm_to_pixel = 10
-        self.offset_mm = 20 # mm
+        # Coordinates of pressing tools in mm
+        self.press_position = [[0, 0], [0, 100], [95, 0], [95, 100], [190, 0], [190, 100]] # sorted by press position
+        self.mm_coords = np.float32([[0, 0], [190, 0], [190, 100], [0, 100]]) # pressing tools 1,5,6,2 coordinates in mm
         self.r = (19, 23) # (min, max) radius of pressing tool for reference detection [mm]
         self.r_ellipse = (19.5, 23.0) # (min, max) radius of pressing tool for reference detection [mm]
 
-        # ALIGNMENT --------------------------------------------------------------------------------
-        self.alignment_df = pd.DataFrame() # storing alignment in data frame
+        # Sub-image settings
+        self.mm_to_pixel = 10 # px/mm
+        self.offset_mm = 20 # mm
 
-        # Parameter, which are subject to change (of whole camera setup) ---------------------------
-        # radius of all parts from cell in mm (key corresponds to step)
+        # Radii of all parts of cell in mm (key corresponds to step)
         self.r_part = {0: (9.75, 10.25), 1: (9.75, 10.25), 2: (7.25, 7.75), 3: (7, 8), 4: (7.75, 8.25),
                        5: (7.75, 8.25), 6: (6.75, 7.25), 7: (7.55, 8.25), 8: (6.75, 7.7), 9: (7.5, 8.5),
                        10: (7.5, 8.5)}
-        # parameter for HoughCircles (param1, param2)
+
+        # Thickness of the stack for each assembly step in mm
+        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
+        # Thickness correction factor for each pressing tool
+        self.z_correction = [[-0.175, -0.33], [-0.175, -0.2], # dz/dx & dz/dy values
+                             [0.0375, -0.33], [0.0375, -0.2],
+                             [0.125, -0.33], [0.125, -0.2]] # mm thickness to mm x,y shift
+
+        # Parameters for HoughCircles detection (param1, param2)
         self.hough_params =[(30, 50), (30, 50), (5, 10), (30, 50), (30, 50),
                       (30, 50), (5, 25), (30, 50), (5, 20), (30, 50), (30, 50)]
-        # parameter to account for thickness of parts and correct center accordingly
-        self.z_correction = [(-0.175, -0.33), (-0.175, -0.2), # dz/dx & dz/dy values
-                             (0.0375, -0.33), (0.0375, -0.2),
-                             (0.125, -0.33), (0.125, -0.2)] # mm thickness to mm x,y shift
-        # thickness of the stack for each assembly step in mm
-        self.z_thickness = [0, 2.7, 0.3, 0.3, 1.55, 1.55, 1.55, 2.55, 3.3, 3.5, 3.5]
 
-    def _get_references(self, filenameinfo: list[dict], img: np.array, ellipse_detection=True) -> tuple[np.array, list]:
-        """ Takes each image from step 0 and gets the four corner coordinates of the pressing tools
+    def _get_references(
+            self,
+            filenameinfo: list[dict],
+            img: np.array,
+            ellipse_detection: bool = True,
+    ) -> tuple[np.array, list]:
+        """Take each image from step 0 and get the four corner coordinates of the pressing tools.
 
         Args:
             filenameinfo (list[dicts]): list of dicts with press, cell, step
@@ -233,6 +240,7 @@ class ProcessImages:
 
         Returns:
             tuple with transformation matrix and list of cell numbers
+
         """
         img = cv2.convertScaleAbs(img, alpha=2, beta=0) # increase contrast
         # Apply Gaussian blur to reduce noise
@@ -257,13 +265,14 @@ class ProcessImages:
         return (transformation_M, [d["c"] for d in filenameinfo]) # transformation matrix with cell numbers
 
     def _get_transformation_matrix(self, centers: list[tuple]) -> np.array:
-        """ Takes center points of reference image and gets transformation matrix.
+        """Take center points of reference image and gets transformation matrix.
 
         Args:
             centers (list[tuple]): list with the four corner coordinates
 
         Returns:
             M (array): transformation matrix
+
         """
         pts2 = np.float32((self.mm_coords + self.offset_mm)*self.mm_to_pixel)
         # Sort center coordinates in correct order for transformation matrix
@@ -278,12 +287,11 @@ class ProcessImages:
         # Arrange in desired order: upper left, upper right, lower right, lower left
         centers_sorted = np.float32([top_half_sorted[0], top_half_sorted[-1],
                                      bottom_half_sorted[-1], bottom_half_sorted[0]])
-        # Transform Perspective
-        M = cv2.getPerspectiveTransform(centers_sorted, pts2) # transformation matrix
-        return M
+        # Return the transformation matrix
+        return cv2.getPerspectiveTransform(centers_sorted, pts2)
 
     def _transform_split(self, img: np.array, m: np.array, filename: str) -> dict[np.array]:
-        """ Transform and crop an image to give one sub-image per press position.
+        """Transform and crop an image to give one sub-image per press position.
 
         Args:
             img (array): image array
@@ -292,6 +300,7 @@ class ProcessImages:
 
         Returns:
             cropped_images (array): transformed image splitted into subsections
+
         """
         transformed_image = cv2.warpPerspective(img, m,
                                                 ((190+ 2* self.offset_mm)*self.mm_to_pixel,
@@ -315,35 +324,8 @@ class ProcessImages:
             cropped_images[i+1] = cropped_image
         return cropped_images
 
-    def _thickness_correction(self, p: int, s: int, center: tuple) -> tuple:
-        """ Correct center position for component height.
-
-        Args:
-            p (int): pressing tool position
-            s (int): step
-            center (tuple): coordinates (x, y)
-
-        Returns:
-            (x_corr, y_corr) (tuple): corrected coordinates
-        """
-        position = p - 1 # index to 0 to find in list
-        if (s >= 1) & (s < 4): # account for bottom part
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        elif (s >= 4) & (s < 7): # account for separator
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        elif s >= 7: # account for spacer
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        else: # no thickness to correct for
-            x_corr = center[0]
-            y_corr = center[1]
-
-        return (x_corr, y_corr)
-
     def load_files(self) -> list[tuple]:
-        """ Loads images and stores them in list with filename and image array
+        """Load images and stores them in list with filename and image array.
 
         All images are loaded and stored in list with a tuple of their filename and 8 bit image
         array. Images from step 0 are stored additionally in a separate list to use them as a
@@ -351,12 +333,13 @@ class ProcessImages:
 
         Returns:
             list: list containing filename, information from image name and image array
+
         """
         for filename in os.listdir(self.path):
-            if filename.endswith('.h5'): # read all .h5 files
+            if filename.endswith(".h5"): # read all .h5 files
                 filepath = os.path.join(self.path, filename)
-                with h5py.File(filepath, 'r') as f:
-                    content = f['image'][:]
+                with h5py.File(filepath, "r") as f:
+                    content = f["image"][:]
                     content = content/np.max(content)*255 # convert to 8 bit
                     content = content.astype(np.uint8) # image array
                 info = _parse_filename(filename) # extract info from filename
@@ -367,24 +350,23 @@ class ProcessImages:
         return self.data_list
 
     def store_data(self, data_list: list[tuple]) -> pd.DataFrame:
-        """ For each image array transform image and store image sections in DataFrame.
+        """For each image array transform image and store image sections in DataFrame.
 
         Returns:
             self.df (DataFrame): columns cell, step, press, transformed image section, center coordinates
+
         """
         for name, information, image in data_list:
-            transformation_matrix = 0 # default value if 
-            for array, numbers in self.ref:
-                if numbers == [d["c"] for d in information]: # find matching transformation matrix for cell numbers
-                    transformation_matrix = array
-            if isinstance(transformation_matrix, (np.ndarray)): 
-                image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
-                for dictionary in information:
-                    # add information to data frame
-                    row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
-                    self.df.loc[len(self.df)] = row
-            else: # consider fact if there is no transformation matrix in case step 0 is missing -> do not consider cells
-                print("Images skipped as there is no transformation matrix.")
+            try:
+                transformation_matrix = next(m for m, cells in self.ref if cells == [d["c"] for d in information])
+            except StopIteration:
+                print(f"WARNING: No ref image found for cells {[d["c"] for d in information]}, using first ref image.")
+                transformation_matrix = self.ref[0][0]
+            image_sections = self._transform_split(image, transformation_matrix, name) # transform and split image
+            for dictionary in information:
+                # add information to data frame
+                row = [dictionary["c"], dictionary["s"], dictionary["p"], image_sections[int(dictionary["p"])]]
+                self.df.loc[len(self.df)] = row
 
         # save images in one big stacked image
         self.height, self.width = self.df["array"][0].shape[:2]
@@ -397,12 +379,12 @@ class ProcessImages:
         for i, cell in enumerate(self.df["cell"].unique()):
             cell_images = self.df[self.df["cell"] == cell].sort_values(by="step")["array"].to_list()
             num_images = len(cell_images)
-            # Normalisiere die Bilder und konvertiere sie in 8-Bit
+            # Normalize the images and convert them to 8-bit
             cell_images = [img / np.max(img) * 255 for img in cell_images]
             cell_images = [img.astype(np.uint8) for img in cell_images]
-            # Falls weniger Bilder als `max_images_per_row`, füge schwarze Bilder hinzu
+            # If fewer images than `max_images_per_row`, add black images
             while len(cell_images) < max_images_per_row:
-                black_image = np.zeros_like(cell_images[0])  # Erstelle ein schwarzes Bild mit derselben Größe
+                black_image = np.zeros_like(cell_images[0])  # Create a black image with the same size
                 cell_images.append(black_image)
             row_image = np.hstack(cell_images)
             image_rows.append(row_image)
@@ -427,15 +409,16 @@ class ProcessImages:
         return self.df
 
     def get_centers(self, df: pd.DataFrame) -> pd.DataFrame:
-        """ Detect centers of parts for each image section in data frame.
+        """Detect centers of parts for each image section in data frame.
 
         Returns:
             self.df (data frame): data frame with column of center coordinates added
+
         """
         x = [] # list to store coordinates
         y = []
         radius = [] # list to store radius
-        for index, row in df.iterrows():
+        for _index, row in df.iterrows():
             # get radius range of component
             r = tuple(int(x * self.mm_to_pixel) for x in self.r_part[row["step"]])
             img = _preprocess_image(row["array"], row["step"]) # preprocess image
@@ -467,18 +450,17 @@ class ProcessImages:
         df["r_mm"] = radius
         # get difference to pressing tool in pixel
         df = df.sort_values(by=["cell", "step"]) # Ensure images are sorted by 'cell' and 'step'
-        dx_px_list = []
-        dy_dx_list = []
-        for cell in df["cell"].unique():
-            cell_df = df[df["cell"] == cell]
-            dx_px = (cell_df["x"] - cell_df.loc[cell_df['step'] == 0, 'x'].iloc[0]).tolist()
-            dy_px = (cell_df["y"] - cell_df.loc[cell_df['step'] == 0, 'y'].iloc[0]).tolist()
-            dx_px_list.extend(dx_px)
-            dy_dx_list.extend(dy_px)
-        df["dx_px"] = dx_px_list
-        df["dy_px"] = dy_dx_list
 
-        # get difference to pressing tool in mm
+        # Extract reference coordinates as x,y for step 0
+        ref_coords = df[df["step"] == 0][["cell","x", "y"]].rename(columns={"x": "x0", "y": "y0"})
+        # Merge reference coordinates into df
+        df = df.merge(ref_coords, on="cell", how="left")
+        # If refernce coordinates missing, assume press is at centre of image
+        df = df.fillna({"x0": self.width/2, "y0": self.height/2})
+
+        # Calculate deltas
+        df["dx_px"] = df["x"] - df["x0"]
+        df["dy_px"] = df["y"] - df["y0"]
         df["dx_mm"] = df["dx_px"] / self.mm_to_pixel
         df["dy_mm"] = df["dy_px"] / self.mm_to_pixel
 
@@ -486,37 +468,28 @@ class ProcessImages:
         return df
 
     def correct_for_thickness(self, df: pd.DataFrame) -> pd.DataFrame:
-        """ Account for thickness of parts, correcting corresponding distortion in coordinates.
+        """Account for thickness of parts shifting detected centres due to perspective.
 
-            From the reference image it is determined, how much the hight of the parts move the
-            center of the parts in the different pressing tool positions due to the angle of the
-            camera. This is determined manually.
+        Uses the thickness of the parts and the z_correction to correct the x, y, and r coordinates.
+        z_correction is determined manually.
+
+        Args:
+            df (DataFrame): data frame containing step, press, and center coordinates
+
+        Returns:
+            df (DataFrame): data frame with corrected x, y, and r coordinates
+
         """
-        x_corrected = [] # lists to store data
-        y_corrected = []
-        for index, row in df.iterrows():
-            position = row["press"]
-            step = row["step"]
-            # apply thickness correction
-            coords_corrected = self._thickness_correction(position, step, (row["dx_mm"], row["dy_mm"]))
-            x_corrected.append(coords_corrected[0])
-            y_corrected.append(coords_corrected[1])
-        # store in data frame
-        df["dx_mm_corr"] = x_corrected
-        df["dy_mm_corr"] = y_corrected
-        df["dz_mm_corr"] = np.sqrt(df["dx_mm_corr"]**2 + df["dy_mm_corr"]**2).round(5)
+        thicknesses = np.array([self.z_thickness[s] for s in df["step"]])
+        z_corrections = np.array([self.z_correction[p-1] for p in df["press"]])
+        df["dx_mm_corr"] = df["dx_mm"] - thicknesses * z_corrections[:, 0]
+        df["dy_mm_corr"] = df["dy_mm"] - thicknesses * z_corrections[:, 1]
         self.df = df
         return df
 
     def save(self) -> pd.DataFrame:
-        """ Save data with all coordinates, radii and alignments.
-        """
-        # add sample ID
-        sample_IDs = [self.run_ID + "_" + f"{num:02}" for num in self.df["cell"]]
-        # uncomment if special sample_ID
-        # sample_IDs = [f"241022_{self.run_ID}_2-13_{num:02}" if num < 14
-        #               else f"241023_{self.run_ID}_14_36_{num:02}" for num in self.df["cell"]]
-        self.df["sample_ID"] = sample_IDs
+        """Save data with all coordinates, radii and alignments."""
+        self.df["sample_ID"] = [self.run_ID + "_" + f"{num:02d}" for num in self.df["cell"]]
 
         # Building JSON structure and save it
         json_data = {
@@ -529,7 +502,7 @@ class ProcessImages:
                 "steps": len(self.df["step"].unique()),
                 "mm_to_px": self.mm_to_pixel,
                 "raw_filename": f"alignment.{self.run_ID}.h5",
-                "comp_filename": f"alignment.{self.run_ID}.jpg"
+                "comp_filename": f"alignment.{self.run_ID}.jpg",
             },
             "calibration": {
                 "dxdz": [x[0] for x in self.z_correction],
@@ -549,12 +522,12 @@ class ProcessImages:
         if not os.path.exists(data_dir_data):
             os.makedirs(data_dir_data)
         with pd.ExcelWriter(os.path.join(data_dir_data, "data.xlsx")) as writer:
-            self.df.to_excel(writer, sheet_name='coordinates', index=False)
+            self.df.to_excel(writer, sheet_name="coordinates", index=False)
 
         return self.df
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # Get Run ID from database
     DATABASE_FILEPATH = "C:/Modules/Database/chemspeedDB.db"
