@@ -332,20 +332,8 @@ class ProcessImages:
             (x_corr, y_corr) (tuple): corrected coordinates
 
         """
-        position = p - 1 # index to 0 to find in list
-        if (s >= 1) & (s < 4): # account for bottom part
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        elif (s >= 4) & (s < 7): # account for separator
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        elif s >= 7: # account for spacer
-            x_corr = center[0] - self.z_thickness[s] * self.z_correction[position][0]
-            y_corr = center[1] - self.z_thickness[s] * self.z_correction[position][1]
-        else: # no thickness to correct for
-            x_corr = center[0]
-            y_corr = center[1]
-
+        x_corr = center[0] - self.z_thickness[s] * self.z_correction[p-1][0]
+        y_corr = center[1] - self.z_thickness[s] * self.z_correction[p-1][1]
         return (x_corr, y_corr)
 
     def load_files(self) -> list[tuple]:
