@@ -1,13 +1,27 @@
 """Command line interface for robot tools."""
 
+import logging
 from typing import Annotated
 
-from typer import Argument, Typer
+from typer import Argument, Option, Typer
+
+v_option = Option(0, "--verbose", "-v", count=True, help="Increase verbosity")
+q_option = Option(0, "--quiet", "-q", count=True, help="Decrease verbosity")
 
 app = Typer(
     add_completion=False,
     pretty_exceptions_enable=False,
 )
+
+
+def get_log_level(verbosity: int, quietness: int) -> int:
+    """Get the logging level based on verbosity and quietness."""
+    level = logging.WARNING  # Default level
+    level -= verbosity * 10
+    level += quietness * 10
+    level = max(level, logging.DEBUG)
+    level = min(level, logging.CRITICAL)
+    return level
 
 
 @app.command()
@@ -51,10 +65,14 @@ def assign(link: bool = Argument(True), elyte_limit: int = Argument(0)) -> None:
 
 
 @app.command()
-def startcam() -> None:
+def startcam(verbosity: int = v_option, quietness: int = q_option) -> None:
     """Start the camera daemon."""
+    from aurora_robot_tools.camera.camera_daemon import logger as startcam_logger
     from aurora_robot_tools.camera.camera_daemon import main as startcam_main
 
+    log_level = get_log_level(verbosity, quietness)
+    startcam_logger.setLevel(log_level)
+    startcam_logger.addHandler(logging.StreamHandler())
     startcam_main()
 
 
@@ -72,6 +90,14 @@ def bottom_photo() -> None:
     from aurora_robot_tools.camera.send_camera_command import send_command
 
     send_command("capturebottom")
+
+
+@app.command()
+def bottom_photo_qr() -> None:
+    """Save a photo from bottom-up camera, detect QR code, write to database."""
+    from aurora_robot_tools.camera.send_camera_command import send_command
+
+    send_command("capturebottomqr")
 
 
 @app.command()
@@ -130,14 +156,6 @@ def xml_to_app(filepath: str) -> None:
     from aurora_robot_tools.chemapp_edit import xml_to_app
 
     xml_to_app(filepath)
-
-
-@app.command()
-def led(input: str) -> None:
-    """Set the LED ring light color."""
-    from aurora_robot_tools.camera.ringlight import set_light
-
-    set_light(input)
 
 
 if __name__ == "__main__":

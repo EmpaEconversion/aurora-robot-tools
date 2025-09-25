@@ -7,13 +7,13 @@ from typing import Literal
 from aurora_robot_tools.config import CAMERA_PORT
 
 
-def send_command(command: Literal["capturebottom", "capturetop"]) -> None:
+def send_command(command: Literal["capturebottom", "capturetop", "capturebottomqr"]) -> None:
     """Trigger camera to record snapshot."""
     PORT = CAMERA_PORT
     # To allow for the camera to adjust exposure
     if command == "capturetop":
         sleep(5)
-    if command == "capturebottom":
+    if command in ["capturebottom", "capturebottomqr"]:
         sleep(0.5)
 
     # Connect to camera daemon and send command
