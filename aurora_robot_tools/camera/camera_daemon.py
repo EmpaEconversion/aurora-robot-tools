@@ -97,6 +97,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         else:  # Other components
             rack_position = result[0]
         label = f"cell_{cell_number}_rack_{rack_position}_step_{step_number}"
+    global radius_mm
     radius_mm = step_radius.get(int(result[1]), 10.0)
 
     # Detect circle in image
@@ -109,7 +110,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         dy_mm = (y // 2 - coords[1]) / mm_to_px
         logger.info("Misalignment x: %d mm, y: %d mm", dx_mm, dy_mm)
         if result[0] > 0:
-            write_coords_to_db(result[0], result[1], dx_mm, dy_mm)
+            write_coords_to_db(cell_number, step_number, rack_position, dx_mm, dy_mm)
     else:
         logger.info("Could not detect circle")
     photo_path = PHOTO_PATH / run_id / "bottom_camera" / f"{label!s}.jpg"
@@ -178,14 +179,16 @@ def capture_top(client_socket: socket.socket) -> None:
     logger.info("Frame saved as %s", photo_path)
 
 
-def write_coords_to_db(cell: int, step: int, dx_mm: float, dy_mm: float) -> None:
+def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
     """Write the coordinates to the database."""
     with sqlite3.connect(DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
-        # insert Cell Number, Step Number, dx_mm, dy_mm into Calibration_Table
+        # insert Cell Number, Step Number, Rack Position dx_mm, dy_mm into Calibration_Table
         cursor.execute(
-            "INSERT INTO Calibration_Table (`Cell Number`, `Step Number`, `dx_mm`, `dy_mm`) VALUES (?, ?, ?, ?)",
-            (cell, step, dx_mm, dy_mm),
+            "INSERT INTO Calibration_Table "
+            "(`Cell Number`, `Step Number`, `Rack Postiion`, `dx_mm`, `dy_mm`) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (cell, step, rack, dx_mm, dy_mm),
         )
         conn.commit()
 

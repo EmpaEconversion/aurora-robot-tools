@@ -322,6 +322,7 @@ def write_to_sql(
             dtype={
                 "Cell Number": "INTEGER",
                 "Step Number": "INTEGER",
+                "Rack Position": "INTEGER",
                 "dx_mm": "REAL",
                 "dy_mm": "REAL",
             },
