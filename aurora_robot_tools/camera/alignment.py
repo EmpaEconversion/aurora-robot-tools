@@ -65,14 +65,12 @@ def process_folder(
 ) -> None:
     """Process all images in a folder."""
     folder_path = Path(folder_path)
-    # get all images with format cell_*_step_*.png
+    # Get all images with format cell_*_step_*.png
+    # May also be in format cell_*_rack_*_step_*.png
     images = [
         *folder_path.glob("cell_*_step_*.png"),
-        *folder_path.glob("cell_*_rack_*_step_*.png"),
         *folder_path.glob("cell_*_step_*.jpg"),
-        *folder_path.glob("cell_*_rack_*_step_*.jpg"),
         *folder_path.glob("cell_*_step_*.jpeg"),
-        *folder_path.glob("cell_*_rack_*_step_*.jpeg"),
     ]
     if len(images) == 0:
         msg = f"No images found in {folder_path}."
