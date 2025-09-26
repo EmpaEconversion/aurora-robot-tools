@@ -392,7 +392,10 @@ def realign_app(
                 # Fit to a rectangular grid if needed
                 if fit_to_grid:
                     print(f"Fitting {rack_name} to grid based on {len(ffdf)} points.")
-                    wells, _res = fit_coords_to_grid(wells_edited)
+                    if rack_type == "Full rack":
+                        wells, _res = fit_coords_to_grid(wells_edited, 2, 18)
+                    else:
+                        wells, _res = fit_coords_to_grid(wells_edited, 2, 9)
                 wells_before.append(wells_orig)
                 wells_after.append(wells_edited)
                 wells_after_fit.append(wells)
@@ -400,7 +403,8 @@ def realign_app(
 
                 # Write back to the app xml
                 myapp.write_rack_wells(rack_name, wells)
-                print(f"Updated {wells.size} wells in {rack_name}.")
+                # size//2 because there are 2 coordinates for each well
+                print(f"Updated {wells.size // 2} wells in {rack_name}.")
 
     # Save the new app file
     new_filename = app_path.with_name(app_path.stem + "_calibrated.app")
