@@ -186,7 +186,7 @@ def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: flo
         # insert Cell Number, Step Number, Rack Position dx_mm, dy_mm into Calibration_Table
         cursor.execute(
             "INSERT INTO Calibration_Table "
-            "(`Cell Number`, `Step Number`, `Rack Postiion`, `dx_mm`, `dy_mm`) "
+            "(`Cell Number`, `Step Number`, `Rack Position`, `dx_mm`, `dy_mm`) "
             "VALUES (?, ?, ?, ?, ?)",
             (cell, step, rack, dx_mm, dy_mm),
         )
