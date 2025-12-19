@@ -88,7 +88,7 @@ def make_mixing_steps(mixing_matrix: np.ndarray) -> pd.DataFrame:
     # Write the mixing steps to a dataframe
     return pd.DataFrame(
         columns=["Source Position", "Target Position", "Volume (uL)"],
-        data=zip(source_positions, target_positions, volumes_to_mix),
+        data=zip(source_positions, target_positions, volumes_to_mix, strict=True),
     )
 
 
