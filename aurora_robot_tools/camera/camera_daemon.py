@@ -66,7 +66,8 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             client_socket.sendall(b"1")
             return
     captured_frame = last_frame_b.copy()
-    client_socket.sendall(b"0")
+    if not read_qr:  # If QR, wait until it is detected before moving on
+        client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
     with sqlite3.connect(DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
@@ -100,6 +101,33 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
     global radius_mm
     radius_mm = step_radius.get(int(result[1]), 10.0)
 
+    # If QR, try to read it and update db
+    if read_qr:
+        qr = detect_qr_code(captured_frame)
+        i = 1
+        attempts = 3
+        while not qr and i < attempts:
+            # Try again
+            logger.info(f"Could not detect QR, attempt number {i + 1}")
+            captured_frame = last_frame_b.copy()
+            qr = detect_qr_code(captured_frame)
+            i += 1
+        if qr:
+            logger.info("Found QR code: %s", qr)
+            if cell_number:
+                with sqlite3.connect(DATABASE_FILEPATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE Cell_Assembly_Table SET `Barcode` = ? WHERE `Cell Number` = ?",
+                        (qr, cell_number),
+                    )
+                logger.info("Updated barcode in database")
+            else:
+                logger.info("No cell number, cannot update database")
+        else:
+            logger.info("Could not detect QR code")
+        client_socket.sendall(b"0")  # Let autosuite continue
+
     # Detect circle in image
     global coords
     coords = detect_circle(captured_frame, radius_mm * mm_to_px)
@@ -118,24 +146,6 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         photo_path.parent.mkdir(parents=True)
     cv2.imwrite(str(photo_path), captured_frame)
     logger.info("Frame saved as %s", photo_path)
-
-    # If QR, try to read it and update db
-    if read_qr:
-        qr = detect_qr_code(captured_frame)
-        if qr:
-            logger.info("Found QR code: %s", qr)
-            if cell_number:
-                with sqlite3.connect(DATABASE_FILEPATH) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "UPDATE Cell_Assembly_Table SET `Barcode` = ? WHERE `Cell Number` = ?",
-                        (qr, cell_number),
-                    )
-                logger.info("Updated barcode in database")
-            else:
-                logger.info("No cell number, cannot update database")
-        else:
-            logger.info("Could not detect QR code")
 
 
 def detect_qr_code(frame: np.ndarray) -> str | None:
