@@ -153,6 +153,25 @@ def detect_qr_code(frame: np.ndarray) -> str | None:
     results = zxingcpp.read_barcodes(frame)
     if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
         return results[0].text
+
+    # Try grayscale
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
+    # Try equalizing
+    frame = cv2.equalizeHist(frame)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
+    # Try blur
+    frame = cv2.GaussianBlur(frame, (5, 5), 0)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
     return None
 
 
