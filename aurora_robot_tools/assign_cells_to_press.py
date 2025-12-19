@@ -62,9 +62,6 @@ def main(link_rack_pos_to_press: bool, limit_electrolytes_per_batch: int) -> Non
         df = pd.read_sql("SELECT * FROM Cell_Assembly_Table", conn)
         df_press = pd.read_sql("SELECT * FROM Press_Table", conn)
 
-    # Check where the cell number loaded is 0 and where the error code is 0 for the presses
-    working_press_numbers = np.where(df_press["Error Code"] == 0)[0] + 1
-
     # Find rack positions with cells that are assigned for assembly (Cell Number > 0), have not
     # finished assembly, with no error code, and find their cell numbers and electrolyte positions
     available_rack_pos = (
@@ -173,11 +170,16 @@ def main(link_rack_pos_to_press: bool, limit_electrolytes_per_batch: int) -> Non
             + "".join(
                 [
                     f"{p:<10} {r:<9} {c:<9}\n"
-                    for p, r, c in zip(presses_already_loaded, rack_already_loaded, cells_already_loaded)
+                    for p, r, c in zip(presses_already_loaded, rack_already_loaded, cells_already_loaded, strict=True)
                 ]
             )
             + "\nDo you also want to load new cells?\n\nPress | Rack | Cell\n"
-            + "".join([f"{p:<10} {r:<9} {c:<9}\n" for p, r, c in zip(presses_to_load, rack_to_load, cells_to_load)]),
+            + "".join(
+                [
+                    f"{p:<10} {r:<9} {c:<9}\n"
+                    for p, r, c in zip(presses_to_load, rack_to_load, cells_to_load, strict=True)
+                ]
+            ),
         )
     else:
         load_new_cells = True
@@ -185,9 +187,13 @@ def main(link_rack_pos_to_press: bool, limit_electrolytes_per_batch: int) -> Non
     # Write the updated tables back to the database
     if load_new_cells and len(cells_to_load) > 0:
         print(
-            "Loading:\n"
-            + "Press | Rack | Cell\n"
-            + "".join([f"{p:<7} {r:<6} {c:<6}\n" for p, r, c in zip(presses_to_load, rack_to_load, cells_to_load)])
+            "Loading:\nPress | Rack | Cell\n"
+            + "".join(
+                [
+                    f"{p:<7} {r:<6} {c:<6}\n"
+                    for p, r, c in zip(presses_to_load, rack_to_load, cells_to_load, strict=True)
+                ]
+            )
         )
         with sqlite3.connect(DATABASE_FILEPATH) as conn:
             df_press.to_sql("Press_Table", conn, index=False, if_exists="replace")

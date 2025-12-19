@@ -66,7 +66,8 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             client_socket.sendall(b"1")
             return
     captured_frame = last_frame_b.copy()
-    client_socket.sendall(b"0")
+    if not read_qr:  # If QR, wait until it is detected before moving on
+        client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
     with sqlite3.connect(DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
@@ -97,30 +98,20 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         else:  # Other components
             rack_position = result[0]
         label = f"cell_{cell_number}_rack_{rack_position}_step_{step_number}"
+    global radius_mm
     radius_mm = step_radius.get(int(result[1]), 10.0)
-
-    # Detect circle in image
-    global coords
-    coords = detect_circle(captured_frame, radius_mm * mm_to_px)
-    if coords[0] is not None:
-        x = captured_frame.shape[1]
-        y = captured_frame.shape[0]
-        dx_mm = (x // 2 - coords[0]) / mm_to_px
-        dy_mm = (y // 2 - coords[1]) / mm_to_px
-        logger.info("Misalignment x: %d mm, y: %d mm", dx_mm, dy_mm)
-        if result[0] > 0:
-            write_coords_to_db(result[0], result[1], dx_mm, dy_mm)
-    else:
-        logger.info("Could not detect circle")
-    photo_path = PHOTO_PATH / run_id / "bottom_camera" / f"{label!s}.jpg"
-    if not photo_path.parent.exists():
-        photo_path.parent.mkdir(parents=True)
-    cv2.imwrite(str(photo_path), captured_frame)
-    logger.info("Frame saved as %s", photo_path)
 
     # If QR, try to read it and update db
     if read_qr:
         qr = detect_qr_code(captured_frame)
+        i = 1
+        attempts = 3
+        while not qr and i < attempts:
+            # Try again
+            logger.info(f"Could not detect QR, attempt number {i + 1}")
+            captured_frame = last_frame_b.copy()
+            qr = detect_qr_code(captured_frame)
+            i += 1
         if qr:
             logger.info("Found QR code: %s", qr)
             if cell_number:
@@ -135,6 +126,26 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
                 logger.info("No cell number, cannot update database")
         else:
             logger.info("Could not detect QR code")
+        client_socket.sendall(b"0")  # Let autosuite continue
+
+    # Detect circle in image
+    global coords
+    coords = detect_circle(captured_frame, radius_mm * mm_to_px)
+    if coords[0] is not None:
+        x = captured_frame.shape[1]
+        y = captured_frame.shape[0]
+        dx_mm = (x // 2 - coords[0]) / mm_to_px
+        dy_mm = (y // 2 - coords[1]) / mm_to_px
+        logger.info("Misalignment x: %d mm, y: %d mm", dx_mm, dy_mm)
+        if result[0] > 0:
+            write_coords_to_db(cell_number, step_number, rack_position, dx_mm, dy_mm)
+    else:
+        logger.info("Could not detect circle")
+    photo_path = PHOTO_PATH / run_id / "bottom_camera" / f"{label!s}.jpg"
+    if not photo_path.parent.exists():
+        photo_path.parent.mkdir(parents=True)
+    cv2.imwrite(str(photo_path), captured_frame)
+    logger.info("Frame saved as %s", photo_path)
 
 
 def detect_qr_code(frame: np.ndarray) -> str | None:
@@ -142,6 +153,25 @@ def detect_qr_code(frame: np.ndarray) -> str | None:
     results = zxingcpp.read_barcodes(frame)
     if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
         return results[0].text
+
+    # Try grayscale
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
+    # Try equalizing
+    frame = cv2.equalizeHist(frame)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
+    # Try blur
+    frame = cv2.GaussianBlur(frame, (5, 5), 0)
+    results = zxingcpp.read_barcodes(frame)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+
     return None
 
 
@@ -178,14 +208,16 @@ def capture_top(client_socket: socket.socket) -> None:
     logger.info("Frame saved as %s", photo_path)
 
 
-def write_coords_to_db(cell: int, step: int, dx_mm: float, dy_mm: float) -> None:
+def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
     """Write the coordinates to the database."""
     with sqlite3.connect(DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
-        # insert Cell Number, Step Number, dx_mm, dy_mm into Calibration_Table
+        # insert Cell Number, Step Number, Rack Position dx_mm, dy_mm into Calibration_Table
         cursor.execute(
-            "INSERT INTO Calibration_Table (`Cell Number`, `Step Number`, `dx_mm`, `dy_mm`) VALUES (?, ?, ?, ?)",
-            (cell, step, dx_mm, dy_mm),
+            "INSERT INTO Calibration_Table "
+            "(`Cell Number`, `Step Number`, `Rack Position`, `dx_mm`, `dy_mm`) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (cell, step, rack, dx_mm, dy_mm),
         )
         conn.commit()
 
@@ -295,6 +327,9 @@ def main() -> None:
             cam_t.AcquisitionMode.set(gx.GxAcquisitionModeEntry.CONTINUOUS)
             cam_t.ExposureAuto.set(gx.GxAutoEntry.CONTINUOUS)
             cam_t.stream_on()
+            frame_t = cam_t.data_stream[0].get_image().get_numpy_array()
+            if not isinstance(frame_t, np.ndarray) or frame_t.size[0] == 0 or frame_t.size[1] == 0:
+                raise ValueError("Couldn't get an image from topcam")
     except Exception:
         cam_t = None
         logger.warning("Top camera not available")

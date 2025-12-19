@@ -178,10 +178,40 @@ def get_alignment_from_json(filepath: Path | str) -> pd.DataFrame:
 
 
 step_dict = {
-    "Anode": {"Step": 30, "Bottom rack": "Anode Bottom (18 well)", "Top rack": "Anode Top (18 well)"},
-    "Cathode": {"Step": 40, "Bottom rack": "Cathode Bottom (18 well)", "Top rack": "Cathode Top (18 well)"},
-    "Separator": {"Step": 60, "Bottom rack": "Separator Bottom (18 well)", "Top rack": "Separator Top (18 well)"},
-    "Spacer": {"Step": 100, "Bottom rack": "Spacer Bottom (18 well)", "Top rack": "Spacer Top (18 well)"},
+    "Bottom": {
+        "Step": 10,
+        "Full rack": "Bottom casing (36 well)",
+        "Gripper type": "1NH",
+    },
+    "Anode": {
+        "Step": 30,
+        "Bottom rack": "Anode Bottom (18 well)",
+        "Top rack": "Anode Top (18 well)",
+        "Gripper type": "1NH",
+    },
+    "Cathode": {
+        "Step": 40,
+        "Bottom rack": "Cathode Bottom (18 well)",
+        "Top rack": "Cathode Top (18 well)",
+        "Gripper type": "1NH",
+    },
+    "Separator": {
+        "Step": 60,
+        "Bottom rack": "Separator Bottom (18 well)",
+        "Top rack": "Separator Top (18 well)",
+        "Gripper type": "1NH",
+    },
+    "Spacer": {
+        "Step": 100,
+        "Bottom rack": "Spacer Bottom (18 well)",
+        "Top rack": "Spacer Top (18 well)",
+        "Gripper type": "1NH",
+    },
+    "Top": {
+        "Step": 120,
+        "Full rack": "Top casing (36 well)",
+        "Gripper type": "1NH",
+    },
 }
 
 
@@ -249,6 +279,13 @@ def realign_app(
         if len(fdf) < 4:
             print(f"Not enough points for {component_name}. Need at least 4 to align.")
             continue
+
+        # Get the gripper type for the component
+        gripper_type = component_dict.get("Gripper type")
+        if gripper_type not in ["1NH", "4NH"]:
+            msg = f"Unknown gripper type {gripper_type} for {component_name}."
+            raise ValueError(msg)
+
         # Align all racks asscociated with the component
         for rack_type in ["Bottom rack", "Top rack", "Full rack"]:
             # Get the rack name and find it in the app
@@ -281,52 +318,84 @@ def realign_app(
                 # +dx means the PIECE is too far in +x, so the PIECE needs to move -x
                 # +dy means the PIECE is too far in +y, so the PIECE needs to move -y
 
-                # Bottom rack:
+                # Bottom rack 4NH:
                 # to move PIECE +x move the 4NH +y
                 # to move PIECE +y move the 4NH -x
 
-                # Top rack:
+                # Top rack 4NH:
                 # to move PIECE +x move the 4NH -y
                 # to move PIECE +y move the 4NH +x
+
+                # Any rack 1NH:
+                # to move PIECE +x move the 1NH -x
+                # to move PIECE +y move the 1NH -y
 
                 for _i, row in ffdf.iterrows():
                     rack_pos = int(row["Rack Position"])
                     dx_mm = row["dx_mm"]
                     dy_mm = row["dy_mm"]
 
-                    if rack_type == "Bottom rack":
-                        idx = get_bottom_rack_idx(rack_pos)
+                    # Get the index
+                    get_index = {
+                        "Bottom rack": get_bottom_rack_idx,
+                        "Top rack": get_top_rack_idx,
+                        "Full rack": get_full_rack_idx,
+                    }
+                    idx = get_index[rack_type](rack_pos)
+
+                    if gripper_type == "1NH":
+                        # Doesn't matter if the rack is top, bottom, or full
+
                         # the piece is +dx_mm too far in x
                         # to correct we move the piece -dx_mm in x
-                        # so move the 4NH -dx_mm in y
-                        wells[idx][1] -= dx_mm / 1000  # 4NH pickup y
-                        wells_edited[idx][1] = wells[idx][1].copy()
+                        # so move the 1NH +dx_mm in x
+                        wells[idx][0] += dx_mm / 1000  # 1NH pickup x
+                        wells_edited[idx][0] = wells[idx][0].copy()
                         # the piece is +dy_mm too far in y
                         # to correct we move the piece -dy_mm in y
-                        # we need to move the 4NH +dy_mm in x
-                        wells[idx][0] += dy_mm / 1000  # 4NH pickup x
-                        wells_edited[idx][0] = wells[idx][0].copy()
-                    elif rack_type == "Top rack":
-                        idx = get_top_rack_idx(rack_pos)
-                        # the piece is +dx_mm too far in x
-                        # to correct we move the piece -dx_mm in x
-                        # we need to move the 4NH +dx_mm in y
-                        wells[idx][1] += dx_mm / 1000  # 4NH pickup y
+                        # we need to move the 1NH +dy_mm in x
+                        wells[idx][1] += dy_mm / 1000  # 1NH pickup y
                         wells_edited[idx][1] = wells[idx][1].copy()
-                        # the piece is +dy_mm too far in y
-                        # to correct we move the piece -dy_mm in y
-                        # we need to move the 4NH -dy_mm in x
-                        wells[idx][0] -= dy_mm / 1000  # 4NH pickup x
-                        wells_edited[idx][0] = wells[idx][0].copy()
-                    elif rack_type == "Full rack":
-                        msg = "Full rack alignment not implemented."
-                        raise ValueError(msg)
-                        idx = get_full_rack_idx(rack_pos)
+
+                    elif gripper_type == "4NH":
+                        # 4NH faces in different directions for top and bottom
+                        # so needs different corrections
+
+                        if rack_type == "Full rack":
+                            msg = f"Rack '{rack_name}': 4NH cannot be used with full rack"
+                            raise ValueError(msg)
+
+                        if rack_type == "Bottom rack":
+                            # the piece is +dx_mm too far in x
+                            # to correct we move the piece -dx_mm in x
+                            # so move the 4NH -dx_mm in y
+                            wells[idx][1] -= dx_mm / 1000  # 4NH pickup y
+                            wells_edited[idx][1] = wells[idx][1].copy()
+                            # the piece is +dy_mm too far in y
+                            # to correct we move the piece -dy_mm in y
+                            # we need to move the 4NH +dy_mm in x
+                            wells[idx][0] += dy_mm / 1000  # 4NH pickup x
+                            wells_edited[idx][0] = wells[idx][0].copy()
+
+                        elif rack_type == "Top rack":
+                            # the piece is +dx_mm too far in x
+                            # to correct we move the piece -dx_mm in x
+                            # we need to move the 4NH +dx_mm in y
+                            wells[idx][1] += dx_mm / 1000  # 4NH pickup y
+                            wells_edited[idx][1] = wells[idx][1].copy()
+                            # the piece is +dy_mm too far in y
+                            # to correct we move the piece -dy_mm in y
+                            # we need to move the 4NH -dy_mm in x
+                            wells[idx][0] -= dy_mm / 1000  # 4NH pickup x
+                            wells_edited[idx][0] = wells[idx][0].copy()
 
                 # Fit to a rectangular grid if needed
                 if fit_to_grid:
                     print(f"Fitting {rack_name} to grid based on {len(ffdf)} points.")
-                    wells, _res = fit_coords_to_grid(wells_edited)
+                    if rack_type == "Full rack":
+                        wells, _res = fit_coords_to_grid(wells_edited, 2, 18)
+                    else:
+                        wells, _res = fit_coords_to_grid(wells_edited, 2, 9)
                 wells_before.append(wells_orig)
                 wells_after.append(wells_edited)
                 wells_after_fit.append(wells)
@@ -334,7 +403,8 @@ def realign_app(
 
                 # Write back to the app xml
                 myapp.write_rack_wells(rack_name, wells)
-                print(f"Updated {wells.size} wells in {rack_name}.")
+                # size//2 because there are 2 coordinates for each well
+                print(f"Updated {wells.size // 2} wells in {rack_name}.")
 
     # Save the new app file
     new_filename = app_path.with_name(app_path.stem + "_calibrated.app")
