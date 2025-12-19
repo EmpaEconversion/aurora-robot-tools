@@ -1,6 +1,6 @@
 """Version information for aurora-robot-tools."""
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 __author__ = "Graham Kimbell"
 __title__ = "Aurora robot tools"
 __description__ = """
