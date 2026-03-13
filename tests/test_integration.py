@@ -15,13 +15,17 @@ runner = CliRunner()
 def test_excel_import(test_dir: Path, tmp_path: Path) -> None:
     """Test full import."""
     fake_xlsx = test_dir / "date_name_tag.xlsx"
-    with patch("aurora_robot_tools.import_excel.filedialog.askopenfilename", return_value=str(fake_xlsx)):
+
+    with (
+        patch("aurora_robot_tools.import_excel.Tk"),
+        patch("aurora_robot_tools.import_excel.filedialog.askopenfilename", return_value=str(fake_xlsx)),
+    ):
         result = runner.invoke(app, ["import-excel"])
+
     assert result.exit_code == 0
 
     # Check db now exists and has the correct structure
     db_path = tmp_path / "test.db"
-    db_path = Path("./test.db")
     assert db_path.exists()
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
