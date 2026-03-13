@@ -346,7 +346,7 @@ def write_to_sql(
             },
         )
         df_calibration = pd.DataFrame(
-            columns=["Cell Number", "Step Number", "dx_mm", "dy_mm"],
+            columns=["Cell Number", "Step Number", "Rack Position", "dx_mm", "dy_mm"],
         )
         df_calibration.to_sql(
             "Calibration_Table",
