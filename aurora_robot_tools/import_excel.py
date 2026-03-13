@@ -253,6 +253,34 @@ def sanity_check(df: pd.DataFrame) -> None:
             msg = "CRITICAL: Mass fractions must be between 0 and 1."
             raise ValueError(msg)
 
+    if not all(df["Bottom Electrode"].isin({"Anode", "Cathode"})):
+        msg = "CRITICAL: Bottom electrode must be 'Anode' or 'Cathode'"
+        raise ValueError(msg)
+
+    if any(len(group["Bottom Electode"]) > 1 for _, group in df.groupby("Batch")):
+        msg = (
+            "WARNING: You cannot have a balancing batch with different electrode orientations. "
+            "'Batch' determines which electrodes can be swapped during balancing. "
+            "'Bottom electrode' must be the same in each batch. "
+            "Automatically adjusting batches to accommodate this. "
+        )
+        print(msg)
+        fix_mixed_batches(df)
+
+
+def fix_mixed_batches(df: pd.DataFrame) -> None:
+    """Fix batches with mixed electrode orienation. Modifies df in place."""
+    new_batch_col = []
+    current_batch = 1
+    for _, group in df.groupby("Batch"):
+        electrode_to_new_batch = {}
+        for electrode in group["Bottom Electrode"]:
+            if electrode not in electrode_to_new_batch:
+                electrode_to_new_batch[electrode] = current_batch
+                current_batch += 1
+            new_batch_col.append(electrode_to_new_batch[electrode])
+    df["Batch"] = new_batch_col
+
 
 def write_to_sql(
     db_path: Path,
