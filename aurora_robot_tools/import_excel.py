@@ -247,20 +247,19 @@ def sanity_check(df: pd.DataFrame) -> None:
         raise ValueError(msg)
 
     for xode in ["Anode", "Cathode"]:
-        if any(df[f"{xode} active material mass fraction"] > 1.0) or any(
-            df[f"{xode} active material mass fraction"] < 0.0
+        if any(df[f"{xode} Active Material Mass Fraction"] > 1.0) or any(
+            df[f"{xode} Active Material Mass Fraction"] < 0.0
         ):
             msg = "CRITICAL: Mass fractions must be between 0 and 1."
             raise ValueError(msg)
-
-    if not all(df["Bottom Electrode"].isin({"Anode", "Cathode"})):
+    if not all(df[df["Cell Number"] > 0]["Bottom Electrode"].isin({"Anode", "Cathode"})):
         msg = "CRITICAL: Bottom electrode must be 'Anode' or 'Cathode'"
         raise ValueError(msg)
 
-    if any(len(group["Bottom Electode"]) > 1 for _, group in df.groupby("Batch")):
+    if any(len(group["Bottom Electrode"]) > 1 for _, group in df.groupby("Batch Number")):
         msg = (
             "WARNING: You cannot have a balancing batch with different electrode orientations. "
-            "'Batch' determines which electrodes can be swapped during balancing. "
+            "'Batch Number' determines which electrodes can be swapped during balancing. "
             "'Bottom electrode' must be the same in each batch. "
             "Automatically adjusting batches to accommodate this. "
         )
@@ -270,16 +269,16 @@ def sanity_check(df: pd.DataFrame) -> None:
 
 def fix_mixed_batches(df: pd.DataFrame) -> None:
     """Fix batches with mixed electrode orienation. Modifies df in place."""
-    new_batch_col = []
+    new_batch_col = df["Batch Number"].copy()  # preserves NaNs by default
     current_batch = 1
-    for _, group in df.groupby("Batch"):
+    for _batch, group in df.groupby("Batch Number", sort=False):  # dropna=True, skips NaN rows
         electrode_to_new_batch = {}
-        for electrode in group["Bottom Electrode"]:
+        for idx, electrode in zip(group.index, group["Bottom Electrode"], strict=True):
             if electrode not in electrode_to_new_batch:
                 electrode_to_new_batch[electrode] = current_batch
                 current_batch += 1
-            new_batch_col.append(electrode_to_new_batch[electrode])
-    df["Batch"] = new_batch_col
+            new_batch_col[idx] = electrode_to_new_batch[electrode]
+    df["Batch Number"] = new_batch_col
 
 
 def write_to_sql(
