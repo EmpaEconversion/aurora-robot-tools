@@ -67,7 +67,7 @@ def read_excel(input_filepath: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.Dat
     return df, df_components, df_electrolyte
 
 
-def create_aux_tables(input_filepath: Path) -> pd.DataFrame:
+def create_aux_tables(input_filepath: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create the press, settings and timestamp tables."""
     df_press = pd.DataFrame()
     df_press["Press Number"] = [1, 2, 3, 4, 5, 6]
