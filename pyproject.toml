@@ -27,8 +27,9 @@ version = { attr = "aurora_robot_tools.version.__version__" }
 [project.optional-dependencies]
 dev = [
     "pre-commit>=4.3.0",
-    "pytest>=8.4.2",
-    "ruff>=0.12.11",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.6",
 ]
 
 [project.scripts]
