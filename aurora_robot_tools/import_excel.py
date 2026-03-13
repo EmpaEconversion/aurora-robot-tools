@@ -246,6 +246,13 @@ def sanity_check(df: pd.DataFrame) -> None:
         msg = "CRITICAL: You have separators thicker than 1 mm, this is not currently allowed."
         raise ValueError(msg)
 
+    for xode in ["Anode", "Cathode"]:
+        if any(df[f"{xode} active material mass fraction"] > 1.0) or any(
+            df[f"{xode} active material mass fraction"] < 0.0
+        ):
+            msg = "CRITICAL: Mass fractions must be between 0 and 1."
+            raise ValueError(msg)
+
 
 def write_to_sql(
     db_path: Path,
