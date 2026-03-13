@@ -18,7 +18,7 @@ from tkinter import Tk, filedialog
 import numpy as np
 import pandas as pd
 
-from aurora_robot_tools.config import DATABASE_FILEPATH, INPUT_DIR
+from aurora_robot_tools import config
 
 # Ignore the pandas data validation warning
 warnings.filterwarnings("ignore", ".*extension is not supported and will be removed.*")
@@ -365,7 +365,7 @@ def write_to_sql(
 
 def main() -> None:
     """Read in excel input, manipulate, and write to sql database."""
-    input_filepath = get_input(INPUT_DIR)
+    input_filepath = get_input(config.INPUT_DIR)
     df, df_components, df_electrolyte = read_excel(input_filepath)
     df_press, df_settings, df_timestamp = create_aux_tables(input_filepath)
     df = merge_electrolyte(df, df_electrolyte)
@@ -375,8 +375,7 @@ def main() -> None:
     df = reorder_df(df)
     print("Successfully read and manipulated the Excel file.")
     sanity_check(df)
-    write_to_sql(Path(DATABASE_FILEPATH), df, df_press, df_electrolyte, df_settings, df_timestamp)
-    print("Successfully updated the database.")
+    write_to_sql(Path(config.DATABASE_FILEPATH), df, df_press, df_electrolyte, df_settings, df_timestamp)
 
 
 if __name__ == "__main__":

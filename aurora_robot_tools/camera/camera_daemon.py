@@ -13,8 +13,8 @@ import gxipy as gx
 import numpy as np
 import zxingcpp
 
+from aurora_robot_tools import config
 from aurora_robot_tools.camera.ringlight import set_light
-from aurora_robot_tools.config import CAMERA_PORT, DATABASE_FILEPATH
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ last_frame_t = None
 def socket_listener() -> None:
     """Capture images when requested by socket connection."""
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("127.0.0.1", CAMERA_PORT))
+    server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
     server_socket.listen(1)
     logger.info("Listening for connections...")
     while True:
@@ -69,7 +69,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
     if not read_qr:  # If QR, wait until it is detected before moving on
         client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # get LATEST value from Timestamp_table where `Complete` = 0
         cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
@@ -115,7 +115,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         if qr:
             logger.info("Found QR code: %s", qr)
             if cell_number:
-                with sqlite3.connect(DATABASE_FILEPATH) as conn:
+                with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
                     cursor = conn.cursor()
                     cursor.execute(
                         "UPDATE Cell_Assembly_Table SET `Barcode` = ? WHERE `Cell Number` = ?",
@@ -187,7 +187,7 @@ def capture_top(client_socket: socket.socket) -> None:
     captured_frame_2 = last_frame_t.copy()
     client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # get LATEST value from Timestamp_table where `Complete` = 0
         cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
@@ -210,7 +210,7 @@ def capture_top(client_socket: socket.socket) -> None:
 
 def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
     """Write the coordinates to the database."""
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # insert Cell Number, Step Number, Rack Position dx_mm, dy_mm into Calibration_Table
         cursor.execute(
@@ -282,7 +282,7 @@ def main() -> None:
 
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(("127.0.0.1", CAMERA_PORT))
+        server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
         server_socket.close()
     except OSError:
         logger.critical("Cameras are already running!")

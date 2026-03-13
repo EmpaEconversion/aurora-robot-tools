@@ -4,12 +4,12 @@ import socket
 from time import sleep
 from typing import Literal
 
-from aurora_robot_tools.config import CAMERA_PORT
+from aurora_robot_tools import config
 
 
 def send_command(command: Literal["capturebottom", "capturetop", "capturebottomqr"]) -> None:
     """Trigger camera to record snapshot."""
-    PORT = CAMERA_PORT
+    PORT = config.CAMERA_PORT
     # To allow for the camera to adjust exposure
     if command == "capturetop":
         sleep(5)

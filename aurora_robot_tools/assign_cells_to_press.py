@@ -35,7 +35,7 @@ from tkinter import Tk, messagebox
 import numpy as np
 import pandas as pd
 
-from aurora_robot_tools.config import DATABASE_FILEPATH
+from aurora_robot_tools import config
 
 RETURN_STEP = 140  # Step number for returned cell in robot recipe
 
@@ -58,7 +58,7 @@ def main(link_rack_pos_to_press: bool, limit_electrolytes_per_batch: int) -> Non
 
     """
     # Read the Cell_Assembly_Table and Press_Table tables from the database.
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         df = pd.read_sql("SELECT * FROM Cell_Assembly_Table", conn)
         df_press = pd.read_sql("SELECT * FROM Press_Table", conn)
 
@@ -195,7 +195,7 @@ def main(link_rack_pos_to_press: bool, limit_electrolytes_per_batch: int) -> Non
                 ]
             )
         )
-        with sqlite3.connect(DATABASE_FILEPATH) as conn:
+        with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
             df_press.to_sql("Press_Table", conn, index=False, if_exists="replace")
             df.to_sql("Cell_Assembly_Table", conn, index=False, if_exists="replace")
         print("Successfully updated the database")

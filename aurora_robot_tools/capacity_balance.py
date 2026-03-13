@@ -58,7 +58,7 @@ import pandas as pd
 import pulp
 from scipy.optimize import linear_sum_assignment
 
-from aurora_robot_tools.config import DATABASE_FILEPATH
+from aurora_robot_tools import config
 
 TIMEOUT_SECONDS = 30
 
@@ -355,11 +355,11 @@ def main(sorting_method: int) -> None:
             7 - Reverse sort by capacity
 
     """
-    print(f"Reading from database {DATABASE_FILEPATH}")
+    print(f"Reading from database {config.DATABASE_FILEPATH}")
     print(f"Using sorting method {sorting_method}")
 
     # Connect to the database and create the Cell_Assembly_Table
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         df = pd.read_sql("SELECT * FROM Cell_Assembly_Table", conn)
         df_settings = pd.read_sql("SELECT * FROM Settings_Table", conn)
     base_sample_id = df_settings.loc[df_settings["key"] == "Base Sample ID", "value"].to_numpy()[0]
@@ -462,7 +462,7 @@ def main(sorting_method: int) -> None:
         update_cell_numbers(df, base_sample_id)
 
     # Write the updated table back to the database
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         df.to_sql("Cell_Assembly_Table", conn, index=False, if_exists="replace")
     print("Updated database successfully")
 
