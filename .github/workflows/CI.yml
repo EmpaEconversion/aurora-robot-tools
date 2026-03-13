@@ -42,7 +42,7 @@ jobs:
   
       - name: Test with pytest
         run: |
-          pytest --cov=aurora_robot_tools  --cov-report=term --cov-report=xml
+          pytest --mock-camera --cov=aurora_robot_tools  --cov-report=term --cov-report=xml
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5

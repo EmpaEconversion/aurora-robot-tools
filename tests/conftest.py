@@ -1,10 +1,23 @@
 """Set up tests."""
 
+import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from aurora_robot_tools import config
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add option to ignore gxipy module in tests."""
+    parser.addoption("--mock-camera", action="store_true", default=False)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Ignore gxipy module, which needs drivers installed."""
+    if config.getoption("--mock-camera", default=False):
+        sys.modules["gxipy"] = MagicMock()
 
 
 @pytest.fixture
