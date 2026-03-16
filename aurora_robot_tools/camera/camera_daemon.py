@@ -5,7 +5,6 @@ import logging
 import socket
 import sqlite3
 import threading
-from pathlib import Path
 from time import sleep
 
 import cv2
@@ -13,23 +12,14 @@ import gxipy as gx
 import numpy as np
 import zxingcpp
 
+from aurora_robot_tools import config
 from aurora_robot_tools.camera.ringlight import set_light
-from aurora_robot_tools.config import CAMERA_PORT, DATABASE_FILEPATH
 
 logger = logging.getLogger(__name__)
 
-PHOTO_PATH = Path("C:/Aurora_webcam_images/")
-
-step_radius = {
-    1: 10.0,
-    2: 10.0,
-    30: 7.5,
-    40: 7.0,
-    60: 8.0,
-    100: 8.0,
-    120: 9.0,
-}
-mm_to_px = 1600 / 20
+PHOTO_PATH = config.IMAGE_DIR
+step_radius = {k: v.get("Radius", 10.0) for k, v in config.STEP_DEFINITION.items()}
+mm_to_px = config.MM_TO_PX
 radius_mm = 10.0
 coords = (None, None)
 last_frame_b = None
@@ -39,7 +29,7 @@ last_frame_t = None
 def socket_listener() -> None:
     """Capture images when requested by socket connection."""
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("127.0.0.1", CAMERA_PORT))
+    server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
     server_socket.listen(1)
     logger.info("Listening for connections...")
     while True:
@@ -69,7 +59,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
     if not read_qr:  # If QR, wait until it is detected before moving on
         client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # get LATEST value from Timestamp_table where `Complete` = 0
         cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
@@ -93,7 +83,9 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             rack_position = result[1]
         elif step_number in [40, 90]:  # Cathode
             rack_position = result[2]
-        elif step_number in [1, 2]:  # pressing tool
+        elif step_number in [1, 2]:  # needle-head reference
+            rack_position = 0
+        elif step_number in [3, 4, 5, 6]:  # pressing tool
             rack_position = cell_number
         else:  # Other components
             rack_position = result[0]
@@ -115,7 +107,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         if qr:
             logger.info("Found QR code: %s", qr)
             if cell_number:
-                with sqlite3.connect(DATABASE_FILEPATH) as conn:
+                with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
                     cursor = conn.cursor()
                     cursor.execute(
                         "UPDATE Cell_Assembly_Table SET `Barcode` = ? WHERE `Cell Number` = ?",
@@ -187,7 +179,7 @@ def capture_top(client_socket: socket.socket) -> None:
     captured_frame_2 = last_frame_t.copy()
     client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # get LATEST value from Timestamp_table where `Complete` = 0
         cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
@@ -210,7 +202,7 @@ def capture_top(client_socket: socket.socket) -> None:
 
 def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
     """Write the coordinates to the database."""
-    with sqlite3.connect(DATABASE_FILEPATH) as conn:
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
         # insert Cell Number, Step Number, Rack Position dx_mm, dy_mm into Calibration_Table
         cursor.execute(
@@ -282,7 +274,7 @@ def main() -> None:
 
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(("127.0.0.1", CAMERA_PORT))
+        server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
         server_socket.close()
     except OSError:
         logger.critical("Cameras are already running!")

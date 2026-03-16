@@ -11,23 +11,64 @@ IMAGE_DIR = Path("C:/Aurora_images/")
 
 CAMERA_PORT = 13865
 
+MM_TO_PX = 1500 / 20
+
 # Current step definitions
-STEP_DEFINITION = {
+STEP_DEFINITION: dict[int, dict[str, str | float]] = {
+    0: {
+        "Step": "Unknown",
+        "Description": "Step performed without step number",
+        "Radius": 0.5,
+    },
+    1: {
+        "Step": "4NH reference",
+        "Description": "Calibration of 4NH tool",
+        "Radius": 0.5,
+    },
+    2: {
+        "Step": "1NH reference",
+        "Description": "Calibration of 1NH tool",
+        "Radius": 0.5,
+    },
+    3: {
+        "Step": "Press 4NH reference",
+        "Description": "Calibration of pressing position with 4NH",
+        "Radius": 10.0,
+    },
+    4: {
+        "Step": "Press gripper reference",
+        "Description": "Calibration of pressing position with gripper tool",
+        "Radius": 10.0,
+    },
+    5: {
+        "Step": "Press gripper QR reference",
+        "Description": "Calibration of pressing position with gripper tool at QR zone",
+        "Radius": 10.0,
+    },
+    6: {
+        "Step": "Press 1NH reference",
+        "Description": "Calibration of pressing position with 1NH",
+        "Radius": 10.0,
+    },
     10: {
         "Step": "Bottom",
         "Description": "Place bottom casing",
+        "Radius": 10.0,
     },
     20: {
         "Step": "Spacer",
         "Description": "Place bottom spacer",
+        "Radius": 8.0,
     },
     30: {
         "Step": "Anode",
         "Description": "Place anode face up",
+        "Radius": 7.5,
     },
     40: {
         "Step": "Cathode",
         "Description": "Place cathode face up",
+        "Radius": 7.0,
     },
     50: {
         "Step": "Electrolyte",
@@ -36,6 +77,7 @@ STEP_DEFINITION = {
     60: {
         "Step": "Separator",
         "Description": "Place separator",
+        "Radius": 8.0,
     },
     70: {
         "Step": "Electrolyte",
@@ -44,14 +86,17 @@ STEP_DEFINITION = {
     80: {
         "Step": "Anode",
         "Description": "Place anode face down",
+        "Radius": 7.5,
     },
     90: {
         "Step": "Cathode",
         "Description": "Place cathode face down",
+        "Radius": 7.0,
     },
     100: {
         "Step": "Spacer",
         "Description": "Place top spacer",
+        "Radius": 8.0,
     },
     110: {
         "Step": "Spring",
@@ -60,6 +105,7 @@ STEP_DEFINITION = {
     120: {
         "Step": "Top",
         "Description": "Place top casing",
+        "Radius": 9.0,
     },
     130: {
         "Step": "Press",

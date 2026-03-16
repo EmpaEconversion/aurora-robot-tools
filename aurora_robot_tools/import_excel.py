@@ -18,7 +18,7 @@ from tkinter import Tk, filedialog
 import numpy as np
 import pandas as pd
 
-from aurora_robot_tools.config import DATABASE_FILEPATH, INPUT_DIR
+from aurora_robot_tools import config
 
 # Ignore the pandas data validation warning
 warnings.filterwarnings("ignore", ".*extension is not supported and will be removed.*")
@@ -67,7 +67,7 @@ def read_excel(input_filepath: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.Dat
     return df, df_components, df_electrolyte
 
 
-def create_aux_tables(input_filepath: Path) -> pd.DataFrame:
+def create_aux_tables(input_filepath: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create the press, settings and timestamp tables."""
     df_press = pd.DataFrame()
     df_press["Press Number"] = [1, 2, 3, 4, 5, 6]
@@ -246,6 +246,40 @@ def sanity_check(df: pd.DataFrame) -> None:
         msg = "CRITICAL: You have separators thicker than 1 mm, this is not currently allowed."
         raise ValueError(msg)
 
+    for xode in ["Anode", "Cathode"]:
+        if any(df[f"{xode} Active Material Mass Fraction"] > 1.0) or any(
+            df[f"{xode} Active Material Mass Fraction"] < 0.0
+        ):
+            msg = "CRITICAL: Mass fractions must be between 0 and 1."
+            raise ValueError(msg)
+    if not all(df[df["Cell Number"] > 0]["Bottom Electrode"].isin({"Anode", "Cathode"})):
+        msg = "CRITICAL: Bottom electrode must be 'Anode' or 'Cathode'"
+        raise ValueError(msg)
+
+    if any(len(set(group["Bottom Electrode"])) > 1 for _, group in df.groupby("Batch Number")):
+        msg = (
+            "WARNING: You cannot have a balancing batch with different electrode orientations. "
+            "'Batch Number' determines which electrodes can be swapped during balancing. "
+            "'Bottom electrode' must be the same in each batch. "
+            "Automatically adjusting batches to accommodate this. "
+        )
+        print(msg)
+        fix_mixed_batches(df)
+
+
+def fix_mixed_batches(df: pd.DataFrame) -> None:
+    """Fix batches with mixed electrode orienation. Modifies df in place."""
+    new_batch_col = df["Batch Number"].copy()  # preserves NaNs by default
+    current_batch = 1
+    for _batch, group in df.groupby("Batch Number", sort=False):  # dropna=True, skips NaN rows
+        electrode_to_new_batch = {}
+        for idx, electrode in zip(group.index, group["Bottom Electrode"], strict=True):
+            if electrode not in electrode_to_new_batch:
+                electrode_to_new_batch[electrode] = current_batch
+                current_batch += 1
+            new_batch_col[idx] = electrode_to_new_batch[electrode]
+    df["Batch Number"] = new_batch_col
+
 
 def write_to_sql(
     db_path: Path,
@@ -312,7 +346,7 @@ def write_to_sql(
             },
         )
         df_calibration = pd.DataFrame(
-            columns=["Cell Number", "Step Number", "dx_mm", "dy_mm"],
+            columns=["Cell Number", "Step Number", "Rack Position", "dx_mm", "dy_mm"],
         )
         df_calibration.to_sql(
             "Calibration_Table",
@@ -327,11 +361,13 @@ def write_to_sql(
                 "dy_mm": "REAL",
             },
         )
+        cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL;")
 
 
 def main() -> None:
     """Read in excel input, manipulate, and write to sql database."""
-    input_filepath = get_input(INPUT_DIR)
+    input_filepath = get_input(config.INPUT_DIR)
     df, df_components, df_electrolyte = read_excel(input_filepath)
     df_press, df_settings, df_timestamp = create_aux_tables(input_filepath)
     df = merge_electrolyte(df, df_electrolyte)
@@ -341,8 +377,7 @@ def main() -> None:
     df = reorder_df(df)
     print("Successfully read and manipulated the Excel file.")
     sanity_check(df)
-    write_to_sql(Path(DATABASE_FILEPATH), df, df_press, df_electrolyte, df_settings, df_timestamp)
-    print("Successfully updated the database.")
+    write_to_sql(Path(config.DATABASE_FILEPATH), df, df_press, df_electrolyte, df_settings, df_timestamp)
 
 
 if __name__ == "__main__":

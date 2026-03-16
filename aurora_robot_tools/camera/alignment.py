@@ -10,17 +10,10 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-step_radius = {
-    0: 2.0,
-    1: 10.0,
-    2: 10.0,
-    30: 7.5,
-    40: 7.0,
-    60: 8.0,
-    100: 8.0,
-    120: 9.0,
-}
-mm_to_px = 1600 / 20
+from aurora_robot_tools import config
+
+step_radius = {k: v.get("Radius", 10.0) for k, v in config.STEP_DEFINITION.items()}
+mm_to_px = config.MM_TO_PX
 
 
 def detect_circle(image: np.ndarray, step_radius_px: float) -> tuple:

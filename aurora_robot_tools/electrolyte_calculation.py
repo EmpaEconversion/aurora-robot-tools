@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from aurora_robot_tools.config import DATABASE_FILEPATH
+from aurora_robot_tools import config
 
 
 def read_db(db_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -113,7 +113,7 @@ def main(safety_factor: float = 1.1) -> None:
     """Determine the electrolyte mixing steps."""
     print(f"Multiplying all electrolyte volumes by {safety_factor}.")
 
-    df, df_electrolyte = read_db(DATABASE_FILEPATH)
+    df, df_electrolyte = read_db(config.DATABASE_FILEPATH)
 
     mix_fractions = get_mix_fractions(df_electrolyte)
 
@@ -131,7 +131,7 @@ def main(safety_factor: float = 1.1) -> None:
     df_mixing_table = make_mixing_steps(mixing_matrix)
 
     # Write the electrolyte and mixing table back to the database
-    write_db(DATABASE_FILEPATH, df_electrolyte, df_mixing_table)
+    write_db(config.DATABASE_FILEPATH, df_electrolyte, df_mixing_table)
 
     print("Successfully calculated the electrolyte mixing steps, wrote to Mixing_Table in database.")
 
