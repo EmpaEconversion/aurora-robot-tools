@@ -256,7 +256,7 @@ def sanity_check(df: pd.DataFrame) -> None:
         msg = "CRITICAL: Bottom electrode must be 'Anode' or 'Cathode'"
         raise ValueError(msg)
 
-    if any(len(group["Bottom Electrode"]) > 1 for _, group in df.groupby("Batch Number")):
+    if any(len(set(group["Bottom Electrode"])) > 1 for _, group in df.groupby("Batch Number")):
         msg = (
             "WARNING: You cannot have a balancing batch with different electrode orientations. "
             "'Batch Number' determines which electrodes can be swapped during balancing. "
