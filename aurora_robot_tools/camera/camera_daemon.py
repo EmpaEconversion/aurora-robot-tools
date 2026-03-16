@@ -5,7 +5,6 @@ import logging
 import socket
 import sqlite3
 import threading
-from pathlib import Path
 from time import sleep
 
 import cv2
@@ -18,18 +17,9 @@ from aurora_robot_tools.camera.ringlight import set_light
 
 logger = logging.getLogger(__name__)
 
-PHOTO_PATH = Path("C:/Aurora_webcam_images/")
-
-step_radius = {
-    1: 10.0,
-    2: 10.0,
-    30: 7.5,
-    40: 7.0,
-    60: 8.0,
-    100: 8.0,
-    120: 9.0,
-}
-mm_to_px = 1600 / 20
+PHOTO_PATH = config.IMAGE_DIR
+step_radius = {k: v.get("Radius", 10.0) for k, v in config.STEP_DEFINITION.items()}
+mm_to_px = config.MM_TO_PX
 radius_mm = 10.0
 coords = (None, None)
 last_frame_b = None
@@ -93,7 +83,9 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             rack_position = result[1]
         elif step_number in [40, 90]:  # Cathode
             rack_position = result[2]
-        elif step_number in [1, 2]:  # pressing tool
+        elif step_number in [1, 2]:  # needle-head reference
+            rack_position = 0
+        elif step_number in [3, 4, 5, 6]:  # pressing tool
             rack_position = cell_number
         else:  # Other components
             rack_position = result[0]
