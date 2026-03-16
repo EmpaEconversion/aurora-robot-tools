@@ -361,6 +361,8 @@ def write_to_sql(
                 "dy_mm": "REAL",
             },
         )
+        cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL;")
 
 
 def main() -> None:
