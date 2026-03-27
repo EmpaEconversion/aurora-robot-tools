@@ -143,6 +143,16 @@ def recalibrate(
 
 
 @app.command()
+def reorder_zones(
+    app_path: str,
+) -> None:
+    """Reset the order of wells in zones, as defined in config.py."""
+    from aurora_robot_tools.chemapp_edit import reorder_wells_app
+
+    reorder_wells_app(app_path)
+
+
+@app.command()
 def app_to_xml(filepath: str) -> None:
     """Convert Chemspeed APP to XML."""
     from aurora_robot_tools.chemapp_edit import app_to_xml

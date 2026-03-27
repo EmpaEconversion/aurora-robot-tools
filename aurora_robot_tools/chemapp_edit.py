@@ -10,6 +10,8 @@ import pandas as pd
 import xmltodict
 from scipy.optimize import least_squares
 
+from aurora_robot_tools import config
+
 
 def app_to_xml(filepath: Path | str) -> Path:
     """Gzip open the .app, save as .xml."""
@@ -35,11 +37,13 @@ class ChemspeedApp:
         self.filepath = Path(filepath)
         self.tree = self.openfile(Path(filepath))
         self.racks = self.get_all_racks()
+        self.zones = self.get_all_zones()
 
     def openfile(self, filepath: Path) -> et.ElementTree:
         """Open a chemspeed.app file and return the root element."""
         with gzip.open(filepath, "rb") as f:
-            return et.parse(f)
+            parser = et.XMLParser(remove_blank_text=True)
+            return et.parse(f, parser)
 
     def get_all_racks(self) -> dict[str, et.Element]:
         """Get the rack elements from the xml tree."""
@@ -87,10 +91,46 @@ class ChemspeedApp:
             rack.find(f"wellparameterss/wellparameters{i}/xvalue").text = x
             rack.find(f"wellparameterss/wellparameters{i}/yvalue").text = y
 
+    def get_all_zones(self) -> dict[str, et.Element]:
+        """Get all zone elements from the xml tree."""
+        elements = self.tree.findall(".//*[@typeid='Chemspeed.SAZone.1']")
+        zones = {}
+        for element in elements:
+            name = element.find("name").text
+            zones[name] = element
+        return zones
+
+    def get_device_id_from_name(self) -> dict[str, int]:
+        """Get the device ID from racks."""
+        racks = self.get_all_racks()
+        return {k: int(v.find("deviceid").text) for k, v in racks.items()}
+
     def save_as(self, filepath: Path | str) -> None:
         """Write the xml tree to a file."""
         with gzip.open(filepath, "wb") as f:
-            self.tree.write(f, encoding="utf-8", xml_declaration=True)
+            self.tree.write(
+                f,
+                encoding="utf-8",
+                xml_declaration=True,
+                pretty_print=True,
+            )
+
+    def gen_zone_layout(self, bottom_rack: str, top_rack: str | None = None) -> list[dict]:
+        """Generate the well positions for a bottom (18) + top (18) racks or (36) well racks."""
+        rack_ids = self.get_device_id_from_name()
+        bottom_rack_id = rack_ids[bottom_rack]
+        if top_rack:
+            top_rack_id = rack_ids[top_rack]
+            return [{"id": i // 2 + 9 * (i % 2), "deviceID": bottom_rack_id, "index": i} for i in range(18)] + [
+                {"id": i // 2 + 9 * (i % 2), "deviceID": top_rack_id, "index": 18 + i} for i in range(18)
+            ]
+        return [{"id": i // 2 + 18 * (i % 2), "deviceID": bottom_rack_id, "index": i} for i in range(36)]
+
+    def set_zone_layout(self, zone_name: str, bottom_rack: str, top_rack: str | None = None) -> None:
+        """Reset ordering on a zone."""
+        zone_elem = self.zones[zone_name]
+        wells_data = self.gen_zone_layout(bottom_rack, top_rack)
+        reset_wells(zone_elem, wells_data)
 
 
 def get_bottom_rack_idx(rack_pos: int) -> int:
@@ -410,3 +450,43 @@ def realign_app(
     new_filename = app_path.with_name(app_path.stem + "_calibrated.app")
     myapp.save_as(new_filename)
     print(f"Saved calibrated app file to {new_filename}")
+
+
+def reset_wells(
+    zone_elem: et.Element,
+    wells_data: list[dict[str, str | int]],
+) -> None:
+    """Modify element in place, update with positions defined in wells_data.
+
+    Args:
+        zone_elem: <zone> Element
+        wells_data: list of dicts like:
+            [{"id": "0", "deviceID": "7", "index": "0"}, ...]
+
+    """
+    """Recalibrate the APP file."""
+    # Remove all existing <well> elements
+    for well in list(zone_elem.findall("well")):
+        zone_elem.remove(well)
+
+    # Recreate wells in correct order (1,2 bottom row ... 17, 18 top row)
+    print(f"Updating order of {len(wells_data)} wells in {zone_elem.find('name').text}")
+    for w in wells_data:
+        new_well = et.SubElement(zone_elem, "well")
+        new_well.set("id", str(w["id"]))
+        new_well.set("deviceID", str(w["deviceID"]))
+        new_well.set("progID", "Chemspeed.SAModuleConfigurableRack.1")  # Fixed
+        new_well.set("index", str(w["index"]))
+
+
+def reorder_wells_app(
+    app_path: str | Path,
+) -> None:
+    """Reorder the wells in the zones defined in config.py."""
+    app_path = Path(app_path)
+    app = ChemspeedApp(app_path)
+    for zone, racks in config.ZONE_ORDERING:
+        app.set_zone_layout(zone, *racks)
+    new_filename = app_path.with_name(app_path.stem + "_reordered.app")
+    app.save_as(new_filename)
+    print(f"Saved reordered app file to {new_filename}")
