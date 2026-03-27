@@ -164,3 +164,15 @@ STEP_DEFINITION_0_1 = {
         "Description": "Return completed cell to rack",
     },
 }
+
+# Define zone name : [bottom_rack_name, top_rack_name], or [full_rack_name]
+ZONE_ORDERING: dict[str, list[str]] = {
+    "Anode Zone": ["Anode Bottom (18 well)", "Anode Top (18 well)"],
+    "Cathode Zone": ["Cathode Bottom (18 well)", "Cathode Top (18 well)"],
+    "Separator Zone": ["Separator Bottom (18 well)", "Separator Top (18 well)"],
+    "Spacer Zone": ["Spacer Bottom (18 well)", "Spacer Top (18 well)"],
+    "Bottom Zone": ["Bottom casing (36 well)"],
+    "Top Zone": ["Top casing (36 well)"],
+    "Spring Zone": ["Spring (36 well)"],
+    "Gasket Zone": ["Top casing (36 well)"],
+}
