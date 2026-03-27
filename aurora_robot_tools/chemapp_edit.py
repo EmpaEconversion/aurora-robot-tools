@@ -485,7 +485,7 @@ def reorder_wells_app(
     """Reorder the wells in the zones defined in config.py."""
     app_path = Path(app_path)
     app = ChemspeedApp(app_path)
-    for zone, racks in config.ZONE_ORDERING:
+    for zone, racks in config.ZONE_ORDERING.items():
         app.set_zone_layout(zone, *racks)
     new_filename = app_path.with_name(app_path.stem + "_reordered.app")
     app.save_as(new_filename)
