@@ -23,3 +23,20 @@ venv.bak/
 
 # mypy cache for type checking
 .mypy_cache/
+
+# =========================
+# PlatformIO / VS Code
+# =========================
+.pio/
+.vscode/
+
+# Build directories
+build/
+
+# =========================
+# Hardware documentation
+# =========================
+hardware/
+
+
+
