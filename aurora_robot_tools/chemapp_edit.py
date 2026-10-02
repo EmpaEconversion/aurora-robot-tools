@@ -223,6 +223,12 @@ step_dict = {
         "Full rack": "Bottom casing (36 well)",
         "Gripper type": "1NH",
     },
+    "Bottom Spacer": {
+        "Step": 20,
+        "Bottom rack": "Spacer Bottom (18 well)",
+        "Top rack": "Spacer Top (18 well)",
+        "Gripper type": "1NH",
+    },
     "Anode": {
         "Step": 30,
         "Bottom rack": "Anode Bottom (18 well)",
@@ -241,7 +247,7 @@ step_dict = {
         "Top rack": "Separator Top (18 well)",
         "Gripper type": "1NH",
     },
-    "Spacer": {
+    "Top Spacer": {
         "Step": 100,
         "Bottom rack": "Spacer Bottom (18 well)",
         "Top rack": "Spacer Top (18 well)",

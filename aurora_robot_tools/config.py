@@ -11,54 +11,59 @@ IMAGE_DIR = Path("C:/Aurora_images/")
 
 CAMERA_PORT = 13865
 
-MM_TO_PX = 1500 / 20
+MM_TO_PX = 1870 / 20
 
 # Current step definitions
 STEP_DEFINITION: dict[int, dict[str, str | float]] = {
     0: {
         "Step": "Unknown",
         "Description": "Step performed without step number",
-        "Radius": 0.5,
+        "Radius": 2.0,
     },
     1: {
         "Step": "4NH reference",
         "Description": "Calibration of 4NH tool",
-        "Radius": 0.5,
+        "Radius": 2.0,
     },
     2: {
         "Step": "1NH reference",
         "Description": "Calibration of 1NH tool",
-        "Radius": 0.5,
+        "Radius": 2.0,
     },
     3: {
         "Step": "Press 4NH reference",
         "Description": "Calibration of pressing position with 4NH",
-        "Radius": 10.0,
+        "Radius": 9.8,
     },
     4: {
         "Step": "Press gripper reference",
         "Description": "Calibration of pressing position with gripper tool",
-        "Radius": 10.0,
+        "Radius": 9.8,
     },
     5: {
         "Step": "Press gripper QR reference",
         "Description": "Calibration of pressing position with gripper tool at QR zone",
-        "Radius": 10.0,
+        "Radius": 9.8,
     },
     6: {
         "Step": "Press 1NH reference",
         "Description": "Calibration of pressing position with 1NH",
-        "Radius": 10.0,
+        "Radius": 9.8,
+    },
+    7: {
+        "Step": "Press 1NH reference 15 mm paper",
+        "Description": "Calibration of pressing position with 1NH picking up 15 mm diameter paper",
+        "Radius": 7.5,
     },
     10: {
         "Step": "Bottom",
         "Description": "Place bottom casing",
-        "Radius": 10.0,
+        "Radius": 9.7,
     },
     20: {
         "Step": "Spacer",
         "Description": "Place bottom spacer",
-        "Radius": 8.0,
+        "Radius": 7.92,
     },
     30: {
         "Step": "Anode",
@@ -96,7 +101,12 @@ STEP_DEFINITION: dict[int, dict[str, str | float]] = {
     100: {
         "Step": "Spacer",
         "Description": "Place top spacer",
-        "Radius": 8.0,
+        "Radius": 7.9,
+    },
+    105: {
+        "Step": "Spacer welded spring",
+        "Description": "Place top spacer with welded waveform spring",
+        "Radius": 7.95,
     },
     110: {
         "Step": "Spring",
@@ -105,7 +115,7 @@ STEP_DEFINITION: dict[int, dict[str, str | float]] = {
     120: {
         "Step": "Top",
         "Description": "Place top casing",
-        "Radius": 9.0,
+        "Radius": 9.1,
     },
     130: {
         "Step": "Press",
