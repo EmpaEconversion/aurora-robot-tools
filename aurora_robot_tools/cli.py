@@ -67,13 +67,21 @@ def assign(link: bool = Argument(True), elyte_limit: int = Argument(0)) -> None:
 @app.command()
 def startcam(verbosity: int = v_option, quietness: int = q_option) -> None:
     """Start the camera daemon."""
-    from aurora_robot_tools.camera.camera_daemon import logger as startcam_logger
     from aurora_robot_tools.camera.camera_daemon import main as startcam_main
 
     log_level = get_log_level(verbosity, quietness)
+    startcam_logger = logging.getLogger("aurora_robot_tools.camera")
     startcam_logger.setLevel(log_level)
     startcam_logger.addHandler(logging.StreamHandler())
     startcam_main()
+
+
+@app.command()
+def listcams() -> None:
+    """List connected cameras and test opening them."""
+    from aurora_robot_tools.camera.cameras import list_cameras
+
+    list_cameras()
 
 
 @app.command()
@@ -98,6 +106,14 @@ def bottom_photo_qr() -> None:
     from aurora_robot_tools.camera.send_camera_command import send_command
 
     send_command("capturebottomqr")
+
+
+@app.command()
+def arm_photo() -> None:
+    """Save a photo from the camera on the robot arm."""
+    from aurora_robot_tools.camera.send_camera_command import send_command
+
+    send_command("capturearm")
 
 
 @app.command()

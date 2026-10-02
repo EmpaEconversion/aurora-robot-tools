@@ -1,31 +1,92 @@
-"""Daemon for live view of bottom-up camera, listens for capture command."""
+"""Daemon for live view of the robot cameras, listens for capture commands."""
 
 import contextlib
 import logging
 import socket
 import sqlite3
 import threading
+import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import partial
-from time import sleep
 
 import cv2
-import gxipy as gx
 import numpy as np
 import zxingcpp
 
 from aurora_robot_tools import config
+from aurora_robot_tools.camera.cameras import Camera, GxiCamera, UsbCamera
 from aurora_robot_tools.camera.ringlight import set_light
 
 logger = logging.getLogger(__name__)
 
 PHOTO_PATH = config.IMAGE_DIR
 step_radius = {k: v.get("Radius", 10.0) for k, v in config.STEP_DEFINITION.items()}
-mm_to_px = config.MM_TO_PX
-radius_mm = 10.0
-coords = (None, None)
-last_frame_b = None
-last_frame_t = None
+STARTUP_TIMEOUT_S = 15.0
+
+
+class CircleTarget:
+    """Finds a circle with some radius and draws it on previews."""
+
+    def __init__(self, mm_to_px: float, radius_mm: float = 10.0) -> None:
+        """Set the pixel calibration and initial target radius."""
+        self.mm_to_px = mm_to_px
+        self._lock = threading.Lock()
+        self._radius_mm = radius_mm
+        self._coords: tuple[int, int] | None = None
+
+    def locate(self, frame: np.ndarray, radius_mm: float) -> tuple[float, float] | None:
+        """Detect the circle and return its offset from the image centre in mm, None if not found."""
+        x, y = detect_circle(frame, radius_mm * self.mm_to_px)
+        coords = None if x is None else (x, y)
+        with self._lock:
+            self._radius_mm = radius_mm
+            self._coords = coords
+        if coords is None:
+            return None
+        height, width = frame.shape[:2]
+        return (width // 2 - x) / self.mm_to_px, (height // 2 - y) / self.mm_to_px
+
+    def overlay(self, image: np.ndarray, scale: float) -> np.ndarray:
+        """Draw the centre target and the last detected circle on a preview image."""
+        with self._lock:
+            radius_mm, coords = self._radius_mm, self._coords
+        if image.ndim == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        height, width = image.shape[:2]
+        radius_px = int(radius_mm * self.mm_to_px * scale)
+        cv2.circle(image, (width // 2, height // 2), radius_px, (0, 0, 255))
+        cv2.line(image, (width // 2, 0), (width // 2, height), (0, 0, 255))
+        cv2.line(image, (0, height // 2), (width, height // 2), (0, 0, 255))
+        if coords is not None:
+            cx, cy = int(coords[0] * scale), int(coords[1] * scale)
+            cv2.circle(image, (cx, cy), radius_px, (0, 255, 0))
+            cv2.line(image, (cx, cy + 10), (cx, cy - 10), (0, 255, 0))
+            cv2.line(image, (cx + 10, cy), (cx - 10, cy), (0, 255, 0))
+        return image
+
+
+@dataclass
+class Station:
+    """A camera with a job on the robot."""
+
+    camera: Camera
+    target: CircleTarget | None = None
+
+    @property
+    def name(self) -> str:
+        """Name of the camera's role, e.g. bottom."""
+        return self.camera.name
+
+
+def build_stations() -> dict[str, Station]:
+    """Assign cameras to their roles on the robot."""
+    stations = [
+        Station(UsbCamera("bottom", config.BOTTOM_CAMERA, focus=1023), CircleTarget(config.MM_TO_PX)),
+        Station(GxiCamera("top", config.TOP_CAMERA_INDEX)),
+        Station(UsbCamera("arm", config.ARM_CAMERA, fourcc="MJPG")),
+    ]
+    return {s.name: s for s in stations}
 
 
 def get_run_id(cursor: sqlite3.Cursor) -> str:
@@ -51,27 +112,21 @@ def save_photo(frame: np.ndarray, run_id: str, subdir: str, label: str) -> None:
     logger.info("Frame saved as %s", photo_path)
 
 
-def get_frame(
-    getter: Callable[[], np.ndarray | None],
-    client_socket: socket.socket,
-    camera_name: str,
-) -> np.ndarray | None:
-    """Get a copy of the latest frame, or reply failure to the client if there is none."""
-    frame = getter()
+def get_frame(station: Station, client_socket: socket.socket) -> np.ndarray | None:
+    """Get the latest frame (read-only), or reply failure to the client if there is none."""
+    frame = station.camera.latest()
     if frame is None:
-        sleep(1)
-        frame = getter()
+        frame = station.camera.wait_for_new_frame(timeout=1)
     if frame is None:
-        logger.info("No frame captured from %s camera", camera_name)
+        logger.info("No frame captured from %s camera", station.name)
         client_socket.sendall(b"1")
-        return None
-    return frame.copy()
+    return frame
 
 
-def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
+def capture_bottom(station: Station, client_socket: socket.socket, read_qr: bool = False) -> None:
     """Capture an image from the bottom camera."""
-    logger.info("Capturing from bottom camera")
-    captured_frame = get_frame(lambda: last_frame_b, client_socket, "bottom")
+    logger.info("Capturing from %s camera", station.name)
+    captured_frame = get_frame(station, client_socket)
     if captured_frame is None:
         return
     if not read_qr:  # If QR, wait until it is detected before moving on
@@ -99,7 +154,6 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         else:  # Other components
             rack_position = result[0]
         label = f"cell_{cell_number}_rack_{rack_position}_step_{step_number}"
-    global radius_mm
     radius_mm = step_radius.get(int(step_number), 10.0)
 
     # If QR, try to read it and update db
@@ -108,9 +162,10 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
         i = 1
         attempts = 3
         while not qr and i < attempts:
-            # Try again
-            logger.info(f"Could not detect QR, attempt number {i + 1}")
-            captured_frame = last_frame_b.copy()
+            logger.info("Could not detect QR, attempt number %d", i + 1)
+            new_frame = station.camera.wait_for_new_frame(timeout=1)
+            if new_frame is not None:
+                captured_frame = new_frame
             qr = detect_qr_code(captured_frame)
             i += 1
         if qr:
@@ -129,19 +184,15 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             logger.info("Could not detect QR code")
         client_socket.sendall(b"0")  # Let autosuite continue
 
-    # Detect circle in image
-    global coords
-    coords = detect_circle(captured_frame, radius_mm * mm_to_px)
-    if coords[0] is not None:
-        x = captured_frame.shape[1]
-        y = captured_frame.shape[0]
-        dx_mm = (x // 2 - coords[0]) / mm_to_px
-        dy_mm = (y // 2 - coords[1]) / mm_to_px
-        logger.info("Misalignment x: %d mm, y: %d mm", dx_mm, dy_mm)
-        if result[0] > 0:
-            write_coords_to_db(cell_number, step_number, rack_position, dx_mm, dy_mm)
-    else:
-        logger.info("Could not detect circle")
+    if station.target is not None:
+        offset = station.target.locate(captured_frame, radius_mm)
+        if offset is not None:
+            dx_mm, dy_mm = offset
+            logger.info("Misalignment x: %.2f mm, y: %.2f mm", dx_mm, dy_mm)
+            if result[0] > 0:
+                write_coords_to_db(cell_number, step_number, rack_position, dx_mm, dy_mm)
+        else:
+            logger.info("Could not detect circle")
     save_photo(captured_frame, run_id, "bottom_camera", label)
 
 
@@ -171,10 +222,10 @@ def detect_qr_code(frame: np.ndarray) -> str | None:
     return None
 
 
-def capture_top(client_socket: socket.socket) -> None:
+def capture_top(station: Station, client_socket: socket.socket) -> None:
     """Capture an image from the top camera."""
-    logger.info("Capturing from top camera")
-    captured_frame = get_frame(lambda: last_frame_t, client_socket, "top")
+    logger.info("Capturing from %s camera", station.name)
+    captured_frame = get_frame(station, client_socket)
     if captured_frame is None:
         return
     client_socket.sendall(b"0")
@@ -191,6 +242,20 @@ def capture_top(client_socket: socket.socket) -> None:
         results = results if results else [(0, 0, 0)]
         label = "_".join([f"p{p}c{c}s{s}" for p, c, s in results])
     save_photo(captured_frame, run_id, "top_camera", label)
+
+
+def capture_arm(station: Station, client_socket: socket.socket) -> None:
+    """Capture an image from the arm camera."""
+    logger.info("Capturing from %s camera", station.name)
+    captured_frame = get_frame(station, client_socket)
+    if captured_frame is None:
+        return
+    client_socket.sendall(b"0")
+    with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
+        cursor = conn.cursor()
+        run_id = get_run_id(cursor)
+        cell_number, step_number = get_current_cell_step(cursor)
+    save_photo(captured_frame, run_id, "arm_camera", f"cell_{cell_number}_step_{step_number}")
 
 
 def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
@@ -228,46 +293,16 @@ def detect_circle(image: np.ndarray, step_radius_px: float) -> tuple:
     return None, None
 
 
-def shrink_frame(frame: np.ndarray, ratio: float) -> np.ndarray:
-    """Shrink the frame by a ratio."""
-    x = frame.shape[1]
-    y = frame.shape[0]
-    return cv2.resize(frame, [x // ratio, y // ratio])
-
-
-def add_target(frame: np.ndarray, coords: tuple, radius_mm: float, ratio: float) -> np.ndarray:
-    """Add target circles to the frame."""
-    x = frame.shape[1]
-    y = frame.shape[0]
-    frame = cv2.circle(frame, (x // 2, y // 2), int(radius_mm * mm_to_px / ratio), (0, 0, 255))
-    frame = cv2.line(frame, (x // 2, 0), (x // 2, y), (0, 0, 255))
-    frame = cv2.line(frame, (0, y // 2), (x, y // 2), (0, 0, 255))
-    if coords[0] is not None:
-        resized_coords = coords[0] // ratio, coords[1] // ratio
-        frame = cv2.circle(frame, resized_coords, int(radius_mm * mm_to_px / ratio), (0, 255, 0))
-        frame = cv2.line(
-            frame,
-            (resized_coords[0], resized_coords[1] + 10),
-            (resized_coords[0], resized_coords[1] - 10),
-            (0, 255, 0),
-        )
-        frame = cv2.line(
-            frame,
-            (resized_coords[0] + 10, resized_coords[1]),
-            (resized_coords[0] - 10, resized_coords[1]),
-            (0, 255, 0),
-        )
-    return frame
-
-
-COMMANDS: dict[str, Callable[[socket.socket], None]] = {
-    "capturebottom": capture_bottom,
-    "capturebottomqr": partial(capture_bottom, read_qr=True),
-    "capturetop": capture_top,
+# command: (station name, handler)
+COMMANDS: dict[str, tuple[str, Callable[[Station, socket.socket], None]]] = {
+    "capturebottom": ("bottom", capture_bottom),
+    "capturebottomqr": ("bottom", partial(capture_bottom, read_qr=True)),
+    "capturetop": ("top", capture_top),
+    "capturearm": ("arm", capture_arm),
 }
 
 
-def socket_listener() -> None:
+def socket_listener(stations: dict[str, Station]) -> None:
     """Capture images when requested by socket connection."""
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
@@ -278,19 +313,63 @@ def socket_listener() -> None:
         logger.info("Connection from %s", addr)
         data = client_socket.recv(1024).decode().strip()
         logger.info("Command: %s", data)
-        handler = COMMANDS.get(data)
+        station_name, handler = COMMANDS.get(data, (None, None))
+        station = stations.get(station_name)
         if handler is None:
             logger.warning("Unknown command: %s", data)
+        elif station is None:
+            logger.warning("No %s camera configured for command %s", station_name, data)
+            client_socket.sendall(b"1")
         else:
-            handler(client_socket)
+            handler(station, client_socket)
         client_socket.close()
 
 
-def main() -> None:
-    """Start webcam, show in window, listen for capture command."""
-    global last_frame_b
-    global last_frame_t
+def window_title(station: Station) -> str:
+    """Title of the station's preview window."""
+    return f"{station.name.capitalize()} camera"
 
+
+def show_feeds(stations: dict[str, Station]) -> None:
+    """Show each camera's preview in a window until q is pressed or a window is closed."""
+    shown: dict[str, int] = {}
+    next_title_update = 0.0
+    while True:
+        for station in stations.values():
+            preview = station.camera.preview()
+            if preview is None or shown.get(station.name) == preview.frame_id:
+                continue
+            shown[station.name] = preview.frame_id
+            image = preview.image
+            if station.target is not None:
+                image = station.target.overlay(image, preview.scale)
+            cv2.imshow(window_title(station), image)
+
+        if time.monotonic() > next_title_update:
+            next_title_update = time.monotonic() + 1
+            for name in shown:
+                station = stations[name]
+                cv2.setWindowTitle(window_title(station), f"{window_title(station)} - {station.camera.status}")
+
+        if cv2.waitKey(10) & 0xFF == ord("q"):
+            return
+        for name in shown:
+            if cv2.getWindowProperty(window_title(stations[name]), cv2.WND_PROP_VISIBLE) < 1:
+                return
+
+
+def wait_for_any_camera(stations: dict[str, Station], timeout: float) -> bool:
+    """Wait until at least one camera is producing frames."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(s.camera.connected for s in stations.values()):
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def main() -> None:
+    """Start cameras, show their feeds, listen for capture commands."""
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
@@ -302,91 +381,36 @@ def main() -> None:
 
     try:
         set_light("party")
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.warning("Lights not working, continuing without...")
         logger.debug("Exception details:", exc_info=True)
 
-    thread = threading.Thread(target=socket_listener, daemon=True)
-    thread.start()
-    logger.info("Started listening")
+    logger.critical("Starting cameras, press q or close a camera window to quit.")
+    stations = build_stations()
+    for station in stations.values():
+        station.camera.start()
 
-    logger.critical("Starting cameras, press q to quit.")
-
-    # Connect to first USB webcam with DirectShow
     try:
-        logger.info("Loading bottom camera...")
-        cam_b = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        cam_b.set(3, 10000)  # Set max frame size
-        cam_b.set(4, 10000)
-        ret, frame = cam_b.read()
-        cam_b.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-        cam_b.set(28, 1023)  # Set focus to closest distance
-        ret, frame = cam_b.read()
-    except Exception:
-        cam_b = None
-        logger.warning("Bottom camera not available")
-        logger.debug("Exception details:", exc_info=True)
+        if not wait_for_any_camera(stations, STARTUP_TIMEOUT_S):
+            logger.critical("No cameras available, exiting.")
+            return
 
-    # Connect to first gxipy camera
-    try:
-        logger.info("Loading top camera...")
-        device_manager = gx.DeviceManager()
-        dev_num, dev_info_list = device_manager.update_device_list()
-        cam_t = device_manager.open_device_by_index(1)
-        if cam_t is not None:
-            cam_t.PixelFormat.set(gx.GxPixelFormatEntry.MONO8)
-            cam_t.AcquisitionMode.set(gx.GxAcquisitionModeEntry.CONTINUOUS)
-            cam_t.ExposureAuto.set(gx.GxAutoEntry.CONTINUOUS)
-            cam_t.stream_on()
-            frame_t = cam_t.data_stream[0].get_image().get_numpy_array()
-            if not isinstance(frame_t, np.ndarray) or frame_t.shape[0] == 0 or frame_t.shape[1] == 0:
-                raise ValueError("Couldn't get an image from topcam")
-    except Exception:
-        cam_t = None
-        logger.warning("Top camera not available")
-        logger.debug("Exception details:", exc_info=True)
+        thread = threading.Thread(target=socket_listener, args=(stations,), daemon=True)
+        thread.start()
+        logger.info("Started listening")
 
-    if cam_b is None and cam_t is None:
-        logger.critical("No cameras available, exiting.")
-        with contextlib.suppress(Exception):
-            set_light("off")
-        return
+        # Set light to white to take photos
+        try:
+            set_light("b")
+        except Exception:  # noqa: BLE001
+            logger.warning("Lights not working, continuing without...")
+            logger.debug("Exception details:", exc_info=True)
 
-    # Set light to white to take photos
-    try:
-        set_light("b")
-    except Exception:
-        logger.warning("Lights not working, continuing without...")
-        logger.debug("Exception details:", exc_info=True)
-
-    logger.info("Ready to capture images.")
-    try:
-        while True:
-            # Update bottom camera frame
-            if cam_b is not None:
-                ret, frame_b = cam_b.read()
-                if isinstance(frame_b, np.ndarray):
-                    last_frame_b = frame_b.copy()
-                    frame_b = shrink_frame(frame_b, 4)
-                    frame_b = add_target(frame_b, coords, radius_mm, 4)
-                    cv2.imshow("Bottom camera", frame_b)
-
-            # Update top camera frame
-            if cam_t is not None:
-                frame_t = cam_t.data_stream[0].get_image().get_numpy_array()
-                if isinstance(frame_t, np.ndarray):
-                    last_frame_t = frame_t.copy()
-                    frame_t = shrink_frame(frame_t, 8)
-                    cv2.imshow("Top camera", frame_t)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+        logger.info("Ready to capture images.")
+        show_feeds(stations)
     finally:
-        if cam_t is not None:
-            cam_t.stream_off()
-            cam_t.close_device()
-        if cam_b is not None:
-            cam_b.release()
+        for station in stations.values():
+            station.camera.stop()
         with contextlib.suppress(Exception):
             set_light("off")
         cv2.destroyAllWindows()

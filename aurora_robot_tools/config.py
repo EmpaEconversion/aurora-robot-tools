@@ -10,6 +10,10 @@ OUTPUT_DIR = Path("%userprofile%/Desktop/Outputs/")
 IMAGE_DIR = Path("C:/Aurora_images/")
 
 CAMERA_PORT = 13865
+# USB cameras: DirectShow index, or part of the name, VID:PID or path shown by `aurora-rt listcams`
+BOTTOM_CAMERA: int | str = 0
+ARM_CAMERA: int | str = 1
+TOP_CAMERA_INDEX = 1  # gxipy, starts at 1
 
 MM_TO_PX = 1870 / 20
 
