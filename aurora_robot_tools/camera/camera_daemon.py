@@ -91,7 +91,7 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             rack_position = result[0]
         label = f"cell_{cell_number}_rack_{rack_position}_step_{step_number}"
     global radius_mm
-    radius_mm = step_radius.get(int(result[1]), 10.0)
+    radius_mm = step_radius.get(int(step_number), 10.0)
 
     # If QR, try to read it and update db
     if read_qr:
