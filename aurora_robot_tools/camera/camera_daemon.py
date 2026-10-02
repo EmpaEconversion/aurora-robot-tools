@@ -5,6 +5,8 @@ import logging
 import socket
 import sqlite3
 import threading
+from collections.abc import Callable
+from functools import partial
 from time import sleep
 
 import cv2
@@ -26,52 +28,59 @@ last_frame_b = None
 last_frame_t = None
 
 
-def socket_listener() -> None:
-    """Capture images when requested by socket connection."""
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
-    server_socket.listen(1)
-    logger.info("Listening for connections...")
-    while True:
-        client_socket, addr = server_socket.accept()
-        logger.info("Connection from %s", addr)
-        data = client_socket.recv(1024).decode().strip()
-        logger.info("Command: %s", data)
-        if data == "capturebottom" and last_frame_b is not None:
-            capture_bottom(client_socket)
-        if data == "capturebottomqr" and last_frame_b is not None:
-            capture_bottom(client_socket, read_qr=True)
-        if data == "capturetop" and last_frame_t is not None:
-            capture_top(client_socket)
-        client_socket.close()
+def get_run_id(cursor: sqlite3.Cursor) -> str:
+    """Get the base sample ID of the current run."""
+    cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
+    return cursor.fetchone()[0]
+
+
+def get_current_cell_step(cursor: sqlite3.Cursor) -> tuple[int, int]:
+    """Get the cell and step number of the latest incomplete step, (0, 0) if none."""
+    cursor.execute(
+        "SELECT `Cell Number`, `Step Number` from Timestamp_Table "
+        "WHERE `Complete` = 0 ORDER BY `Timestamp` DESC LIMIT 1",
+    )
+    return cursor.fetchone() or (0, 0)
+
+
+def save_photo(frame: np.ndarray, run_id: str, subdir: str, label: str) -> None:
+    """Save a frame as a jpg in the run's image folder."""
+    photo_path = PHOTO_PATH / run_id / subdir / f"{label}.jpg"
+    photo_path.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(photo_path), frame)
+    logger.info("Frame saved as %s", photo_path)
+
+
+def get_frame(
+    getter: Callable[[], np.ndarray | None],
+    client_socket: socket.socket,
+    camera_name: str,
+) -> np.ndarray | None:
+    """Get a copy of the latest frame, or reply failure to the client if there is none."""
+    frame = getter()
+    if frame is None:
+        sleep(1)
+        frame = getter()
+    if frame is None:
+        logger.info("No frame captured from %s camera", camera_name)
+        client_socket.sendall(b"1")
+        return None
+    return frame.copy()
 
 
 def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
     """Capture an image from the bottom camera."""
     logger.info("Capturing from bottom camera")
-    if last_frame_b is None:
-        sleep(1)
-        if last_frame_b is None:
-            logger.info("No frame captured from bottom camera")
-            client_socket.sendall(b"1")
-            return
-    captured_frame = last_frame_b.copy()
+    captured_frame = get_frame(lambda: last_frame_b, client_socket, "bottom")
+    if captured_frame is None:
+        return
     if not read_qr:  # If QR, wait until it is detected before moving on
         client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
     with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
-        # get LATEST value from Timestamp_table where `Complete` = 0
-        cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
-        result = cursor.fetchone()
-        run_id = result[0]
-        cursor.execute(
-            "SELECT `Cell Number`, `Step Number` from Timestamp_Table "
-            "WHERE `Complete` = 0 ORDER BY `Timestamp` DESC LIMIT 1",
-        )
-        result = cursor.fetchone()
-        result = result if result else (0, 0)
-        cell_number, step_number = result
+        run_id = get_run_id(cursor)
+        cell_number, step_number = get_current_cell_step(cursor)
         cursor.execute(
             "SELECT `Rack Position`, `Anode Rack Position`, `Cathode Rack Position` "  # noqa: S608
             "FROM Cell_Assembly_Table "
@@ -133,58 +142,46 @@ def capture_bottom(client_socket: socket.socket, read_qr: bool = False) -> None:
             write_coords_to_db(cell_number, step_number, rack_position, dx_mm, dy_mm)
     else:
         logger.info("Could not detect circle")
-    photo_path = PHOTO_PATH / run_id / "bottom_camera" / f"{label!s}.jpg"
-    if not photo_path.parent.exists():
-        photo_path.parent.mkdir(parents=True)
-    cv2.imwrite(str(photo_path), captured_frame)
-    logger.info("Frame saved as %s", photo_path)
+    save_photo(captured_frame, run_id, "bottom_camera", label)
+
+
+def _read_single_qr(image: np.ndarray) -> str | None:
+    """Return the text if the image contains exactly one text QR code."""
+    results = zxingcpp.read_barcodes(image)
+    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
+        return results[0].text
+    return None
+
+
+QR_PREPROCESSING_STEPS: tuple[Callable[[np.ndarray], np.ndarray], ...] = (
+    lambda img: img,
+    lambda img: cv2.cvtColor(img, cv2.COLOR_RGB2GRAY),
+    cv2.equalizeHist,
+    lambda img: cv2.GaussianBlur(img, (5, 5), 0),
+)
 
 
 def detect_qr_code(frame: np.ndarray) -> str | None:
-    """Detect QR code from an image."""
-    results = zxingcpp.read_barcodes(frame)
-    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
-        return results[0].text
-
-    # Try grayscale
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    results = zxingcpp.read_barcodes(frame)
-    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
-        return results[0].text
-
-    # Try equalizing
-    frame = cv2.equalizeHist(frame)
-    results = zxingcpp.read_barcodes(frame)
-    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
-        return results[0].text
-
-    # Try blur
-    frame = cv2.GaussianBlur(frame, (5, 5), 0)
-    results = zxingcpp.read_barcodes(frame)
-    if results and len(results) == 1 and results[0].format.name == "QRCode" and results[0].content_type.name == "Text":
-        return results[0].text
-
+    """Detect QR code from an image, applying each preprocessing step in turn until one is found."""
+    for step in QR_PREPROCESSING_STEPS:
+        frame = step(frame)
+        qr = _read_single_qr(frame)
+        if qr is not None:
+            return qr
     return None
 
 
 def capture_top(client_socket: socket.socket) -> None:
     """Capture an image from the top camera."""
     logger.info("Capturing from top camera")
-    if last_frame_t is None:
-        sleep(1)
-        if last_frame_t is None:
-            logger.info("No frame captured from bottom camera")
-            client_socket.sendall(b"1")
-            return
-    captured_frame_2 = last_frame_t.copy()
+    captured_frame = get_frame(lambda: last_frame_t, client_socket, "top")
+    if captured_frame is None:
+        return
     client_socket.sendall(b"0")
     # get current cell, press, step numbers from database
     with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
         cursor = conn.cursor()
-        # get LATEST value from Timestamp_table where `Complete` = 0
-        cursor.execute("SELECT `value` from Settings_Table WHERE `key` = 'Base Sample ID'")
-        result = cursor.fetchone()
-        run_id = result[0]
+        run_id = get_run_id(cursor)
         cursor.execute(
             "SELECT `Cell Number`, `Last Completed Step`, `Current press number` from Cell_Assembly_Table "
             "WHERE `Current press number` > 0 "
@@ -193,11 +190,7 @@ def capture_top(client_socket: socket.socket) -> None:
         results = cursor.fetchall()
         results = results if results else [(0, 0, 0)]
         label = "_".join([f"p{p}c{c}s{s}" for p, c, s in results])
-    photo_path = PHOTO_PATH / run_id / "top_camera" / f"{label}.jpg"
-    if not photo_path.parent.exists():
-        photo_path.parent.mkdir(parents=True)
-    cv2.imwrite(str(photo_path), captured_frame_2)
-    logger.info("Frame saved as %s", photo_path)
+    save_photo(captured_frame, run_id, "top_camera", label)
 
 
 def write_coords_to_db(cell: int, step: int, rack: int, dx_mm: float, dy_mm: float) -> None:
@@ -265,6 +258,32 @@ def add_target(frame: np.ndarray, coords: tuple, radius_mm: float, ratio: float)
             (0, 255, 0),
         )
     return frame
+
+
+COMMANDS: dict[str, Callable[[socket.socket], None]] = {
+    "capturebottom": capture_bottom,
+    "capturebottomqr": partial(capture_bottom, read_qr=True),
+    "capturetop": capture_top,
+}
+
+
+def socket_listener() -> None:
+    """Capture images when requested by socket connection."""
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(("127.0.0.1", config.CAMERA_PORT))
+    server_socket.listen(1)
+    logger.info("Listening for connections...")
+    while True:
+        client_socket, addr = server_socket.accept()
+        logger.info("Connection from %s", addr)
+        data = client_socket.recv(1024).decode().strip()
+        logger.info("Command: %s", data)
+        handler = COMMANDS.get(data)
+        if handler is None:
+            logger.warning("Unknown command: %s", data)
+        else:
+            handler(client_socket)
+        client_socket.close()
 
 
 def main() -> None:
