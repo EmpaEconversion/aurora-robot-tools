@@ -15,12 +15,11 @@ import numpy as np
 import zxingcpp
 
 from aurora_robot_tools import config
-from aurora_robot_tools.camera.cameras import Camera, GxiCamera, UsbCamera
+from aurora_robot_tools.camera.cameras import Camera, FakeCamera, GxiCamera, UsbCamera
 from aurora_robot_tools.camera.ringlight import set_light
 
 logger = logging.getLogger(__name__)
 
-PHOTO_PATH = config.IMAGE_DIR
 step_radius = {k: v.get("Radius", 10.0) for k, v in config.STEP_DEFINITION.items()}
 STARTUP_TIMEOUT_S = 15.0
 
@@ -79,13 +78,32 @@ class Station:
         return self.camera.name
 
 
-def build_stations() -> dict[str, Station]:
-    """Assign cameras to their roles on the robot."""
-    stations = [
-        Station(UsbCamera("bottom", config.BOTTOM_CAMERA, focus=1023), CircleTarget(config.MM_TO_PX)),
-        Station(GxiCamera("top", config.TOP_CAMERA_INDEX)),
-        Station(UsbCamera("arm", config.ARM_CAMERA, fourcc="MJPG")),
-    ]
+def fake_bottom_scene(
+    resolution: tuple[int, int] = (2304, 1536),
+    radius_mm: float = 7.5,
+    offset_px: tuple[int, int] = (40, -25),
+    background: int = 200,
+    disc: int = 170,
+) -> np.ndarray:
+    """Grey image with slightly darker circle."""
+    width, height = resolution
+    image = np.full((height, width, 3), background, np.uint8)
+    centre = (width // 2 + offset_px[0], height // 2 + offset_px[1])
+    cv2.circle(image, centre, int(radius_mm * config.MM_TO_PX), (disc, disc, disc), -1)
+    return image
+
+
+def build_stations(fake: bool = False) -> dict[str, Station]:
+    """Assign cameras to their roles on the robot, or fake cameras of similar size and speed."""
+    if fake:
+        bottom: Camera = FakeCamera("bottom", (2304, 1536), fps=2, image=fake_bottom_scene())
+        top: Camera = FakeCamera("top", (5472, 3648), fps=3, mono=True)
+        arm: Camera = FakeCamera("arm", (1280, 720), fps=30)
+    else:
+        bottom = UsbCamera("bottom", config.BOTTOM_CAMERA, focus=1023)
+        top = GxiCamera("top", config.TOP_CAMERA_INDEX)
+        arm = UsbCamera("arm", config.ARM_CAMERA, fourcc="MJPG")
+    stations = [Station(bottom, CircleTarget(config.MM_TO_PX)), Station(top), Station(arm)]
     return {s.name: s for s in stations}
 
 
@@ -106,7 +124,7 @@ def get_current_cell_step(cursor: sqlite3.Cursor) -> tuple[int, int]:
 
 def save_photo(frame: np.ndarray, run_id: str, subdir: str, label: str) -> None:
     """Save a frame as a jpg in the run's image folder."""
-    photo_path = PHOTO_PATH / run_id / subdir / f"{label}.jpg"
+    photo_path = config.IMAGE_DIR / run_id / subdir / f"{label}.jpg"
     photo_path.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(photo_path), frame)
     logger.info("Frame saved as %s", photo_path)
@@ -368,7 +386,19 @@ def wait_for_any_camera(stations: dict[str, Station], timeout: float) -> bool:
     return False
 
 
-def main() -> None:
+def try_set_light(mode: str, fake: bool) -> None:
+    """Set the ring light, logging instead of raising if it is not working."""
+    if fake:
+        logger.info("Fake cameras, not setting light to %s", mode)
+        return
+    try:
+        set_light(mode)
+    except Exception:  # noqa: BLE001
+        logger.warning("Lights not working, continuing without...")
+        logger.debug("Exception details:", exc_info=True)
+
+
+def main(fake: bool = False) -> None:
     """Start cameras, show their feeds, listen for capture commands."""
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -379,14 +409,11 @@ def main() -> None:
         logger.debug("Exception details:", exc_info=True)
         return
 
-    try:
-        set_light("party")
-    except Exception:  # noqa: BLE001
-        logger.warning("Lights not working, continuing without...")
-        logger.debug("Exception details:", exc_info=True)
-
+    try_set_light("party", fake)
+    if fake:
+        logger.warning("Using fake cameras, capture commands still write to the database and image folder.")
     logger.critical("Starting cameras, press q or close a camera window to quit.")
-    stations = build_stations()
+    stations = build_stations(fake)
     for station in stations.values():
         station.camera.start()
 
@@ -399,20 +426,15 @@ def main() -> None:
         thread.start()
         logger.info("Started listening")
 
-        # Set light to white to take photos
-        try:
-            set_light("b")
-        except Exception:  # noqa: BLE001
-            logger.warning("Lights not working, continuing without...")
-            logger.debug("Exception details:", exc_info=True)
-
+        try_set_light("b", fake)  # White light to take photos
         logger.info("Ready to capture images.")
         show_feeds(stations)
     finally:
         for station in stations.values():
             station.camera.stop()
-        with contextlib.suppress(Exception):
-            set_light("off")
+        if not fake:
+            with contextlib.suppress(Exception):
+                set_light("off")
         cv2.destroyAllWindows()
 
 

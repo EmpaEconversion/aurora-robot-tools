@@ -65,7 +65,11 @@ def assign(link: bool = Argument(True), elyte_limit: int = Argument(0)) -> None:
 
 
 @app.command()
-def startcam(verbosity: int = v_option, quietness: int = q_option) -> None:
+def startcam(
+    verbosity: int = v_option,
+    quietness: int = q_option,
+    fake: Annotated[bool, Option("--fake", help="Use fake cameras, no hardware needed")] = False,
+) -> None:
     """Start the camera daemon."""
     from aurora_robot_tools.camera.camera_daemon import main as startcam_main
 
@@ -73,7 +77,7 @@ def startcam(verbosity: int = v_option, quietness: int = q_option) -> None:
     startcam_logger = logging.getLogger("aurora_robot_tools.camera")
     startcam_logger.setLevel(log_level)
     startcam_logger.addHandler(logging.StreamHandler())
-    startcam_main()
+    startcam_main(fake=fake)
 
 
 @app.command()

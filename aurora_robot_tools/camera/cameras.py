@@ -298,6 +298,74 @@ class GxiCamera(Camera):
             self._device = None
 
 
+class FakeCamera(Camera):
+    """Synthetic camera for testing without hardware.
+
+    Shows `image` if given, otherwise a grey gradient, with the name and frame number drawn top-left.
+    Set `available = False` to simulate unplugging the camera.
+    """
+
+    def __init__(  # noqa: PLR0913
+        self,
+        name: str,
+        resolution: tuple[int, int] = (1280, 720),
+        fps: float = 30.0,
+        mono: bool = False,
+        image: np.ndarray | None = None,
+        preview_width: int = 640,
+    ) -> None:
+        """Set up the camera, call start() to begin grabbing frames."""
+        super().__init__(name, preview_width)
+        self.resolution = resolution
+        self.fps = fps
+        self.mono = mono
+        self.image = image
+        self.available = True
+        self._base: np.ndarray | None = None
+        self._count = 0
+        self._next_time = 0.0
+
+    def _open(self) -> None:
+        if not self.available:
+            msg = f"Fake {self.name} camera is unplugged"
+            raise OSError(msg)
+        if self.image is not None:
+            self._base = self.image
+        else:
+            width, height = self.resolution
+            self._base = np.tile(np.linspace(40, 200, width, dtype=np.uint8), (height, 1))
+            if not self.mono:
+                self._base = cv2.cvtColor(self._base, cv2.COLOR_GRAY2BGR)
+        self._count = 0
+        self._next_time = time.perf_counter()
+
+    def _read(self) -> np.ndarray | None:
+        self._next_time += 1 / self.fps
+        delay = self._next_time - time.perf_counter()
+        if delay > 0:
+            self._stop.wait(delay)
+        else:
+            self._next_time = time.perf_counter()
+        if not self.available:
+            return None
+        self._count += 1
+        frame = self._base.copy()
+        scale = frame.shape[1] / 640
+        cv2.putText(
+            frame,
+            f"{self.name} #{self._count}",
+            (int(10 * scale), int(30 * scale)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8 * scale,
+            (255, 255, 255),
+            max(1, int(2 * scale)),
+        )
+        return frame
+
+    def _close(self) -> None:
+        self._base = None
+
+
 def _probe_usb(index: int, backend: int, fourcc: str | None) -> str:
     cap = cv2.VideoCapture(index, backend)
     try:
