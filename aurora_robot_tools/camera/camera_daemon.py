@@ -320,7 +320,7 @@ def main() -> None:
             cam_t.ExposureAuto.set(gx.GxAutoEntry.CONTINUOUS)
             cam_t.stream_on()
             frame_t = cam_t.data_stream[0].get_image().get_numpy_array()
-            if not isinstance(frame_t, np.ndarray) or frame_t.size[0] == 0 or frame_t.size[1] == 0:
+            if not isinstance(frame_t, np.ndarray) or frame_t.shape[0] == 0 or frame_t.shape[1] == 0:
                 raise ValueError("Couldn't get an image from topcam")
     except Exception:
         cam_t = None
