@@ -76,7 +76,9 @@ def startcam(
     log_level = get_log_level(verbosity, quietness)
     startcam_logger = logging.getLogger("aurora_robot_tools.camera")
     startcam_logger.setLevel(log_level)
-    startcam_logger.addHandler(logging.StreamHandler())
+    console = logging.StreamHandler()
+    console.setLevel(log_level)  # Console obeys -q/-v flags, camera window has its own logger rules
+    startcam_logger.addHandler(console)
     startcam_main(fake=fake)
 
 
