@@ -17,6 +17,7 @@ import zxingcpp
 from aurora_robot_tools import config
 from aurora_robot_tools.camera.cameras import Camera, FakeCamera, GxiCamera, UsbCamera
 from aurora_robot_tools.camera.ringlight import set_light
+from aurora_robot_tools.camera.viewer import CameraViewer
 
 logger = logging.getLogger(__name__)
 
@@ -339,41 +340,16 @@ def socket_listener(stations: dict[str, Station]) -> None:
             logger.warning("No %s camera configured for command %s", station_name, data)
             client_socket.sendall(b"1")
         else:
-            handler(station, client_socket)
+            try:
+                handler(station, client_socket)
+            except Exception:
+                logger.exception("Failed to run %s", data)
         client_socket.close()
 
 
-def window_title(station: Station) -> str:
-    """Title of the station's preview window."""
-    return f"{station.name.capitalize()} camera"
-
-
 def show_feeds(stations: dict[str, Station]) -> None:
-    """Show each camera's preview in a window until q is pressed or a window is closed."""
-    shown: dict[str, int] = {}
-    next_title_update = 0.0
-    while True:
-        for station in stations.values():
-            preview = station.camera.preview()
-            if preview is None or shown.get(station.name) == preview.frame_id:
-                continue
-            shown[station.name] = preview.frame_id
-            image = preview.image
-            if station.target is not None:
-                image = station.target.overlay(image, preview.scale)
-            cv2.imshow(window_title(station), image)
-
-        if time.monotonic() > next_title_update:
-            next_title_update = time.monotonic() + 1
-            for name in shown:
-                station = stations[name]
-                cv2.setWindowTitle(window_title(station), f"{window_title(station)} - {station.camera.status}")
-
-        if cv2.waitKey(10) & 0xFF == ord("q"):
-            return
-        for name in shown:
-            if cv2.getWindowProperty(window_title(stations[name]), cv2.WND_PROP_VISIBLE) < 1:
-                return
+    """Show the camera window until it is closed."""
+    CameraViewer(stations).run()
 
 
 def wait_for_any_camera(stations: dict[str, Station], timeout: float) -> bool:
@@ -412,7 +388,7 @@ def main(fake: bool = False) -> None:
     try_set_light("party", fake)
     if fake:
         logger.warning("Using fake cameras, capture commands still write to the database and image folder.")
-    logger.critical("Starting cameras, press q or close a camera window to quit.")
+    logger.critical("Starting cameras, close the camera window to quit.")
     stations = build_stations(fake)
     for station in stations.values():
         station.camera.start()
@@ -435,7 +411,6 @@ def main(fake: bool = False) -> None:
         if not fake:
             with contextlib.suppress(Exception):
                 set_light("off")
-        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
