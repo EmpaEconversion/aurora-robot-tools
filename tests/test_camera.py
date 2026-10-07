@@ -4,16 +4,18 @@ import socket
 import sqlite3
 import threading
 import time
+import tkinter as tk
 from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import patch
 
-import cv2
 import numpy as np
 import pytest
 import zxingcpp
 
 from aurora_robot_tools import config
 from aurora_robot_tools.camera import camera_daemon as daemon
+from aurora_robot_tools.camera import viewer
 from aurora_robot_tools.camera.cameras import Camera, FakeCamera
 
 
@@ -59,9 +61,13 @@ def robot_db() -> None:
         cursor.execute("INSERT INTO Timestamp_Table VALUES (1, 10, 1, 1), (2, 30, 0, 5), (3, 40, 0, 2)")
         cursor.execute(
             "CREATE TABLE Cell_Assembly_Table (`Cell Number` INT, `Rack Position` INT, `Anode Rack Position` INT, "
-            "`Cathode Rack Position` INT, `Barcode` TEXT, `Last Completed Step` INT, `Current press number` INT)",
+            "`Cathode Rack Position` INT, `Barcode` TEXT, `Last Completed Step` INT, `Current press number` INT, "
+            "`Error Code` INT)",
         )
-        cursor.execute("INSERT INTO Cell_Assembly_Table VALUES (2, 5, 7, 9, NULL, 20, 1), (3, 6, 8, 10, NULL, 30, 2)")
+        cursor.execute(
+            "INSERT INTO Cell_Assembly_Table VALUES "
+            "(2, 5, 7, 9, NULL, 20, 1, 0), (3, 6, 8, 10, NULL, 30, 2, 0), (0, 4, 0, 0, NULL, 0, 0, 0)",
+        )
         cursor.execute(
             "CREATE TABLE Calibration_Table (`Cell Number` INT, `Step Number` INT, `Rack Position` INT, "
             "`dx_mm` REAL, `dy_mm` REAL)",
@@ -245,28 +251,191 @@ def test_socket_listener(cameras: list[Camera], monkeypatch: pytest.MonkeyPatch)
     assert images("arm_camera") == ["cell_2_step_30.jpg"]
 
 
-def test_show_feeds(cameras: list[Camera]) -> None:
-    """Every station is shown with its overlay until q is pressed."""
+class TestRunSummary:
+    """Run status shown at the top of the camera window."""
+
+    @pytest.mark.usefixtures("robot_db")
+    def test_summary(self) -> None:
+        """Run ID, number of cells and the latest step with its description."""
+        summary = viewer.read_run_summary(config.DATABASE_FILEPATH)
+        assert summary.error is None
+        assert summary.run_id == "RUN1"
+        assert summary.cells == 2
+        assert summary.current_step == "Cell 2, current step: Place anode face up"
+
+    @pytest.mark.usefixtures("robot_db")
+    def test_latest_step(self) -> None:
+        """The most recent timestamp is the current step."""
+        with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
+            conn.execute("INSERT INTO Timestamp_Table VALUES (3, 80, 1, 9)")
+        summary = viewer.read_run_summary(config.DATABASE_FILEPATH)
+        assert summary.current_step == "Cell 3, current step: Place anode face down"
+
+    @pytest.mark.usefixtures("robot_db")
+    def test_run_complete(self) -> None:
+        """Complete once every cell without an error has reached the last step."""
+        with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
+            conn.execute("UPDATE Cell_Assembly_Table SET `Last Completed Step` = ? WHERE `Cell Number` = 2", (140,))
+        assert viewer.read_run_summary(config.DATABASE_FILEPATH).current_step.startswith("Cell 2")
+        with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
+            conn.execute("UPDATE Cell_Assembly_Table SET `Error Code` = 301 WHERE `Cell Number` = 3")
+        assert viewer.read_run_summary(config.DATABASE_FILEPATH).current_step == "Run complete"
+
+    @pytest.mark.usefixtures("robot_db")
+    def test_not_complete_without_cells(self) -> None:
+        """A run with no cells assigned is not complete."""
+        with sqlite3.connect(config.DATABASE_FILEPATH) as conn:
+            conn.execute("UPDATE Cell_Assembly_Table SET `Cell Number` = 0")
+        assert viewer.read_run_summary(config.DATABASE_FILEPATH).current_step != "Run complete"
+
+    def test_missing_database(self) -> None:
+        """A missing database is reported, not created."""
+        summary = viewer.read_run_summary(config.DATABASE_FILEPATH)
+        assert summary.error is not None
+        assert not config.DATABASE_FILEPATH.exists()
+
+
+@pytest.fixture
+def other_connection() -> Iterator[sqlite3.Connection]:
+    """Second connection to the database, like an SQLite viewer, rolled back after the test."""
+    conn = sqlite3.connect(config.DATABASE_FILEPATH, isolation_level=None)
+    yield conn
+    if conn.in_transaction:
+        conn.execute("ROLLBACK")
+    conn.close()
+
+
+@pytest.mark.usefixtures("robot_db")
+class TestDatabaseLock:
+    """Viewer keeps working and warns while someone else holds a database lock."""
+
+    def test_write_lock_detected(self, other_connection: sqlite3.Connection) -> None:
+        """Uncommitted changes block the robot's writes but not reading the summary."""
+        assert not viewer.database_write_locked(config.DATABASE_FILEPATH)
+        other_connection.execute("BEGIN IMMEDIATE")
+        other_connection.execute("UPDATE Settings_Table SET `value` = 'EDITED'")
+        assert viewer.database_write_locked(config.DATABASE_FILEPATH)
+        assert viewer.read_run_summary(config.DATABASE_FILEPATH).run_id == "RUN1"
+        other_connection.execute("ROLLBACK")
+        assert not viewer.database_write_locked(config.DATABASE_FILEPATH)
+
+    def test_warning_after_lock_persists(self, other_connection: sqlite3.Connection) -> None:
+        """Short locks are ignored, a lock that lasts is reported until it is released."""
+        poller = viewer.SummaryPoller(config.DATABASE_FILEPATH, lock_warning_s=0.3)
+        other_connection.execute("BEGIN IMMEDIATE")
+        poller.poll()
+        assert not poller.locked
+        time.sleep(0.4)
+        poller.poll()
+        assert poller.locked
+        other_connection.execute("ROLLBACK")
+        poller.poll()
+        assert not poller.locked
+
+    def test_read_blocked_keeps_last_summary(self, other_connection: sqlite3.Connection) -> None:
+        """While even reading is blocked, the last summary stays on screen."""
+        poller = viewer.SummaryPoller(config.DATABASE_FILEPATH, lock_warning_s=0)
+        poller.poll()
+        other_connection.execute("BEGIN EXCLUSIVE")
+        other_connection.execute("UPDATE Settings_Table SET `value` = 'EDITED'")
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            viewer.read_run_summary(config.DATABASE_FILEPATH)
+        poller.poll()
+        assert poller.locked
+        assert poller.summary.run_id == "RUN1"
+        assert poller.summary.error is None
+
+    def test_missing_database_is_not_locked(self, tmp_path: Path) -> None:
+        """A missing database is not reported as locked, or created."""
+        assert not viewer.database_write_locked(tmp_path / "missing.db")
+        assert not (tmp_path / "missing.db").exists()
+
+    def test_banner(self, cameras: list[Camera]) -> None:
+        """Banner appears while locked and disappears when released."""
+        stations = {"arm": daemon.Station(start(cameras, FakeCamera("arm", fps=30)))}
+        try:
+            window = viewer.CameraViewer(stations)
+        except tk.TclError:
+            pytest.skip("No display available for Tk")
+        try:
+            window.poller.locked = True
+            window.refresh()
+            assert window.lock_banner.winfo_manager() == "pack"
+            window.poller.locked = False
+            window.refresh()
+            assert window.lock_banner.winfo_manager() == ""
+        finally:
+            window.root.destroy()
+
+
+@pytest.mark.usefixtures("robot_db")
+def test_socket_listener_survives_failed_capture(cameras: list[Camera], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A capture that fails on a locked database does not stop later commands."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        free_port = s.getsockname()[1]
+    monkeypatch.setattr(config, "CAMERA_PORT", free_port)
+    stations = {"arm": daemon.Station(start(cameras, FakeCamera("arm", fps=30)))}
+    threading.Thread(target=daemon.socket_listener, args=(stations,), daemon=True).start()
+
+    def send(command: str) -> bytes:
+        for _ in range(50):
+            try:
+                client = socket.create_connection(("127.0.0.1", free_port), timeout=10)
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.05)
+        with client:
+            client.sendall(command.encode())
+            return client.recv(1024)
+
+    real_get_run_id = daemon.get_run_id
+    calls = []
+
+    def locked_once(cursor: sqlite3.Cursor) -> str:
+        calls.append(1)
+        if len(calls) == 1:
+            msg = "database is locked"
+            raise sqlite3.OperationalError(msg)
+        return real_get_run_id(cursor)
+
+    monkeypatch.setattr(daemon, "get_run_id", locked_once)
+    assert send("capturearm") == b"0"  # Replies before reading the database, then fails
+    assert send("capturearm") == b"0"
+    deadline = time.monotonic() + 10
+    while not images("arm_camera") and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert images("arm_camera") == ["cell_2_step_30.jpg"]
+
+
+@pytest.mark.usefixtures("robot_db")
+def test_viewer(cameras: list[Camera]) -> None:
+    """Window shows every camera, the run summary and activity, then closes after confirming."""
     stations = daemon.build_stations(fake=True)
     for station in stations.values():
         start(cameras, station.camera)
-    shown: dict[str, np.ndarray] = {}
-    deadline = time.monotonic() + 3
+    try:
+        window = viewer.CameraViewer(stations)
+    except tk.TclError:
+        pytest.skip("No display available for Tk")
+    seen: dict[str, object] = {}
 
-    def wait_key(_delay: int) -> int:
-        return ord("q") if len(shown) == len(stations) or time.monotonic() > deadline else -1
+    def check_and_close() -> None:
+        seen["run"] = window.run_label.cget("text")
+        seen["step"] = window.step_label.cget("text")
+        seen["tiles"] = [tile._photo is not None for tile in window.tiles]  # noqa: SLF001
+        seen["activity"] = window.activity.get("1.0", "end")
+        window.confirm_quit()
 
-    with (
-        patch.object(cv2, "imshow", side_effect=shown.__setitem__),
-        patch.object(cv2, "waitKey", side_effect=wait_key),
-        patch.object(cv2, "setWindowTitle"),
-        patch.object(cv2, "getWindowProperty", return_value=1.0),
-    ):
-        daemon.show_feeds(stations)
+    window.root.after(500, lambda: daemon.logger.info("Test capture message"))
+    window.root.after(2000, check_and_close)
+    with patch.object(viewer.messagebox, "askokcancel", return_value=True):
+        window.run()
 
-    assert set(shown) == {"Bottom camera", "Top camera", "Arm camera"}
-    assert shown["Bottom camera"].shape[1] == 640
-    assert shown["Bottom camera"][:, :, 2].max() == 255  # Red target overlay
+    assert seen["run"] == "Run: RUN1    Cells: 2"
+    assert seen["step"] == "Cell 2, current step: Place anode face up"
+    assert seen["tiles"] == [True, True, True]
+    assert "Test capture message" in seen["activity"]
 
 
 def test_main_fake(monkeypatch: pytest.MonkeyPatch) -> None:
