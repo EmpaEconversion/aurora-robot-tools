@@ -178,6 +178,18 @@ def _describe_usb(camera_info) -> str:  # noqa: ANN001
     return f"{camera_info.name} ({vid_pid}) {camera_info.path}"
 
 
+def _configure_capture(cap: cv2.VideoCapture, resolution: tuple[int, int] | None, fourcc: str | None) -> None:
+    """Request a resolution (None for the largest) and optionally a pixel format."""
+    width, height = resolution or (10000, 10000)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    if fourcc:  # With DirectShow this only takes effect after the resolution is set
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
+
+
+_usb_open_lock = threading.Lock()
+
+
 class UsbCamera(Camera):
     """USB webcam opened with DirectShow.
 
@@ -204,20 +216,17 @@ class UsbCamera(Camera):
 
     def _open(self) -> None:
         index = self.device if isinstance(self.device, int) else find_usb_camera(self.device)
-        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            cap.release()
-            msg = f"Could not open USB camera {self.device!r} (index {index})"
-            raise OSError(msg)
-        width, height = self.resolution or (10000, 10000)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        if self.fourcc:  # With DirectShow this only takes effect after the resolution is set
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*self.fourcc))
-        cap.read()
-        if self.focus is not None:
-            cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-            cap.set(cv2.CAP_PROP_FOCUS, self.focus)
+        with _usb_open_lock:  # Each camera reaches its final format before the next one opens
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                cap.release()
+                msg = f"Could not open USB camera {self.device!r} (index {index})"
+                raise OSError(msg)
+            _configure_capture(cap, self.resolution, self.fourcc)
+            cap.read()
+            if self.focus is not None:
+                cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+                cap.set(cv2.CAP_PROP_FOCUS, self.focus)
         self._cap = cap
 
     def _read(self) -> np.ndarray | None:
@@ -366,38 +375,41 @@ class FakeCamera(Camera):
         self._base = None
 
 
+def _frame_size(cap: cv2.VideoCapture) -> str:
+    return f"{int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}"
+
+
 def _probe_usb(index: int, backend: int, fourcc: str | None) -> str:
     cap = cv2.VideoCapture(index, backend)
     try:
         if not cap.isOpened():
             return "could not open"
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 10000)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 10000)
-        if fourcc:
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
+        _configure_capture(cap, None, fourcc)
         ok, _ = cap.read()
-        size = f"{int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}"
-        return f"opened at {size}, read {'ok' if ok else 'FAILED'}"
+        return f"opened at {_frame_size(cap)}, read {'ok' if ok else 'FAILED'}"
     finally:
         cap.release()
 
 
-def _probe_usb_simultaneous(indices: list[int], fourcc: str | None) -> str:
-    caps = [cv2.VideoCapture(i, cv2.CAP_DSHOW) for i in indices]
+def _probe_usb_together(
+    indices: tuple[int, ...],
+    backend: int,
+    resolution: tuple[int, int] | None,
+    fourcc: str | None,
+) -> str:
+    """Open cameras one after another, each fully set up and read before opening the next."""
+    caps = []
+    results = []
     try:
-        results = []
-        for i, cap in zip(indices, caps, strict=True):
+        for index in indices:
+            cap = cv2.VideoCapture(index, backend)
+            caps.append(cap)
             if not cap.isOpened():
-                results.append(f"[{i}] could not open")
-                continue
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 10000)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 10000)
-            if fourcc:
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
-        for i, cap in zip(indices, caps, strict=True):
-            if cap.isOpened():
-                ok, _ = cap.read()
-                results.append(f"[{i}] read {'ok' if ok else 'FAILED'}")
+                results.append(f"[{index}] could not open")
+                break
+            _configure_capture(cap, resolution, fourcc)
+            ok, _ = cap.read()
+            results.append(f"[{index}] {_frame_size(cap)} read {'ok' if ok else 'FAILED'}")
         return ", ".join(results)
     finally:
         for cap in caps:
@@ -418,13 +430,28 @@ def list_cameras() -> None:
                 print(f"      {fourcc or 'default':7s}: {_probe_usb(camera_info.index, backend, fourcc)}")
         print()
 
-    dshow_indices = [c.index for c in enumerate_cameras(cv2.CAP_DSHOW)]
-    if len(dshow_indices) > 1:
-        print("All DirectShow cameras open at once, max resolution:")
-        for fourcc in (None, "MJPG"):
-            print(f"  {fourcc or 'default':7s}: {_probe_usb_simultaneous(dshow_indices, fourcc)}")
+    _print_usb_together_tests()
+    _print_gx_cameras()
+
+
+def _print_usb_together_tests() -> None:
+    settings: list[tuple[str, tuple[int, int] | None, str | None]] = [
+        ("max resolution, default format", None, None),
+        ("max resolution, MJPG", None, "MJPG"),
+        ("640x480, MJPG", (640, 480), "MJPG"),
+    ]
+    for backend_name, backend in (("DirectShow", cv2.CAP_DSHOW), ("Media Foundation", cv2.CAP_MSMF)):
+        indices = tuple(c.index for c in enumerate_cameras(backend))
+        if len(indices) < 2:
+            continue
+        print(f"All USB cameras open together ({backend_name}), in both orders:")
+        for label, resolution, fourcc in settings:
+            for order in (indices, indices[::-1]):
+                print(f"  {label:31s}: {_probe_usb_together(order, backend, resolution, fourcc)}", flush=True)
         print()
 
+
+def _print_gx_cameras() -> None:
     print("gxipy cameras (index starts at 1):")
     try:
         num, infos = _gx_device_manager().update_device_list()
