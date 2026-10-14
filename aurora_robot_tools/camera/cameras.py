@@ -178,8 +178,15 @@ def _describe_usb(camera_info) -> str:  # noqa: ANN001
     return f"{camera_info.name} ({vid_pid}) {camera_info.path}"
 
 
-def _configure_capture(cap: cv2.VideoCapture, resolution: tuple[int, int] | None, fourcc: str | None) -> None:
-    """Request a resolution (None for the largest) and optionally a pixel format."""
+def _configure_capture(
+    cap: cv2.VideoCapture,
+    resolution: tuple[int, int] | None,
+    fourcc: str | None,
+    fps: float | None = None,
+) -> None:
+    """Request a frame rate, a resolution (None for the largest) and a pixel format, None leaves the default."""
+    if fps:  # Set first so the resolution and format changes below are made at this rate
+        cap.set(cv2.CAP_PROP_FPS, fps)
     width, height = resolution or (10000, 10000)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
@@ -194,7 +201,7 @@ class UsbCamera(Camera):
     """USB webcam opened with DirectShow.
 
     device is a DirectShow index, or part of the name, VID:PID or path shown by `aurora-rt listcams`.
-    resolution None requests the largest the camera supports.
+    resolution None requests the largest the camera supports, fourcc and fps None keep the driver default.
     """
 
     def __init__(  # noqa: PLR0913
@@ -204,6 +211,7 @@ class UsbCamera(Camera):
         resolution: tuple[int, int] | None = None,
         focus: int | None = None,
         fourcc: str | None = None,
+        fps: float | None = None,
         preview_width: int = 640,
     ) -> None:
         """Set up the camera, call start() to begin grabbing frames."""
@@ -212,6 +220,7 @@ class UsbCamera(Camera):
         self.resolution = resolution
         self.focus = focus
         self.fourcc = fourcc
+        self.fps = fps
         self._cap: cv2.VideoCapture | None = None
 
     def _open(self) -> None:
@@ -222,7 +231,7 @@ class UsbCamera(Camera):
                 cap.release()
                 msg = f"Could not open USB camera {self.device!r} (index {index})"
                 raise OSError(msg)
-            _configure_capture(cap, self.resolution, self.fourcc)
+            _configure_capture(cap, self.resolution, self.fourcc, self.fps)
             cap.read()
             if self.focus is not None:
                 cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
@@ -396,21 +405,32 @@ def _probe_usb_together(
     backend: int,
     resolution: tuple[int, int] | None,
     fourcc: str | None,
+    fps: float | None,
 ) -> str:
-    """Open cameras one after another, each fully set up and read before opening the next."""
+    """Open cameras one after another, each set up and read before the next, then read from all in turn."""
     caps = []
     results = []
+    rounds = 3
     try:
         for index in indices:
             cap = cv2.VideoCapture(index, backend)
             caps.append(cap)
             if not cap.isOpened():
                 results.append(f"[{index}] could not open")
-                break
-            _configure_capture(cap, resolution, fourcc)
+                return ", ".join(results)
+            _configure_capture(cap, resolution, fourcc, fps)
             ok, _ = cap.read()
-            results.append(f"[{index}] {_frame_size(cap)} read {'ok' if ok else 'FAILED'}")
-        return ", ".join(results)
+            status = "ok" if ok else "FAILED"
+            results.append(f"[{index}] {_frame_size(cap)} {cap.get(cv2.CAP_PROP_FPS):.0f} fps {status}")
+            if not ok:
+                return ", ".join(results)
+        reads = [0] * len(caps)
+        for _ in range(rounds):
+            for i, cap in enumerate(caps):
+                reads[i] += cap.read()[0]
+        together = " ".join(f"[{index}] {n}/{rounds}" for index, n in zip(indices, reads, strict=True))
+        verdict = "BOTH STREAM" if all(n == rounds for n in reads) else "fail"
+        return f"{', '.join(results)}, together {together}: {verdict}"
     finally:
         for cap in caps:
             cap.release()
@@ -435,19 +455,24 @@ def list_cameras() -> None:
 
 
 def _print_usb_together_tests() -> None:
-    settings: list[tuple[str, tuple[int, int] | None, str | None]] = [
-        ("max resolution, default format", None, None),
-        ("max resolution, MJPG", None, "MJPG"),
-        ("640x480, MJPG", (640, 480), "MJPG"),
+    # Uncompressed formats let a camera reserve only the USB bandwidth it needs, MJPG often reserves the maximum
+    settings: list[tuple[str, tuple[int, int] | None, str | None, float | None]] = [
+        ("max res, default", None, None, None),
+        ("640x480, MJPG", (640, 480), "MJPG", None),
+        ("max res, YUY2, 5 fps", None, "YUY2", 5),
+        ("max res, YUY2, 2 fps", None, "YUY2", 2),
+        ("640x480, YUY2, 15 fps", (640, 480), "YUY2", 15),
+        ("640x480, YUY2, 5 fps", (640, 480), "YUY2", 5),
     ]
     for backend_name, backend in (("DirectShow", cv2.CAP_DSHOW), ("Media Foundation", cv2.CAP_MSMF)):
         indices = tuple(c.index for c in enumerate_cameras(backend))
         if len(indices) < 2:
             continue
-        print(f"All USB cameras open together ({backend_name}), in both orders:")
-        for label, resolution, fourcc in settings:
+        print(f"All USB cameras open together ({backend_name}), in both orders, same settings for each:")
+        for label, resolution, fourcc, fps in settings:
             for order in (indices, indices[::-1]):
-                print(f"  {label:31s}: {_probe_usb_together(order, backend, resolution, fourcc)}", flush=True)
+                result = _probe_usb_together(order, backend, resolution, fourcc, fps)
+                print(f"  {label:22s}: {result}", flush=True)
         print()
 
 
